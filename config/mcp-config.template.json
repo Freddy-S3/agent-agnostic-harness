@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "atlassian": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--python", "3.12", "mcp-atlassian"],
+      "env": {
+        "JIRA_URL": "${env:JIRA_URL}",
+        "JIRA_PERSONAL_TOKEN": "${env:JIRA_PERSONAL_TOKEN}",
+        "CONFLUENCE_URL": "${env:CONFLUENCE_URL}",
+        "CONFLUENCE_PERSONAL_TOKEN": "${env:CONFLUENCE_PERSONAL_TOKEN}",
+        "REQUESTS_CA_BUNDLE": "${env:AGENT_CA_BUNDLE}"
+      }
+    }
+  }
+}
