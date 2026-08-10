@@ -475,7 +475,7 @@ Log:
 
 ## New project: Japan secondhand / vintage goods import
 
-Status: pending
+Status: in-progress
 Repo: C:/Users/Faruk/Repo/<tbd - agent picks the name>
 Added: 2026-08-09
 Mode: /sleep
