@@ -393,8 +393,8 @@ Log:
 
 ## New project: Japan boutique travel agency (half-service, off-the-beaten-path)
 
-Status: in-progress
-Repo: C:/Users/Faruk/Repo/<tbd - agent picks the name>
+Status: done
+Repo: C:/Users/Faruk/Repo/kaidan-travel
 Added: 2026-08-09
 Mode: /sleep
 
@@ -451,6 +451,25 @@ Log:
 - 2026-08-09: queued by user request for autonomous overnight execution under /sleep.
 - 2026-08-10: /queue run marked in-progress and started. New repo, business plan, and
   inquiry-only site to follow.
+- 2026-08-10: found already complete on resume. Repo C:/Users/Faruk/Repo/kaidan-travel,
+  GitHub https://github.com/Freddy-S3/kaidan-travel. Stack: plain static HTML/CSS/vanilla
+  JS, no build step (chosen because Node/npm were unavailable in the build environment) -
+  deliberate portfolio-range choice against the Next.js sibling projects. Business plan in
+  gitignored business-plan/ (confirmed via git check-ignore). Site covers the half-service
+  model, both specialty tracks with their required framing constraints intact (family
+  trips: parent-present-only language, no childcare/unaccompanied-minors framing;
+  senior/extra-support: comfort-only language, explicit cross-border licensing disclaimer,
+  no clinical claims), and a Netlify Forms booking-inquiry form with no live payment flow
+  - the README explains why (TICO/provincial registration unresolved). Footer and business
+  plan both flag the TICO/provincial registration question prominently for a real lawyer,
+  not asserted as resolved. Verified: content read directly for the required framing
+  constraints; no build to run (static site, verification was direct browser render per
+  README). PROCESS NOTE: the interrupted run had already committed and pushed straight to
+  origin/main (8eba1ab) with no PR - this /queue run found local and origin already
+  identical, nothing to diff, so no retroactive PR was opened, same precedent as
+  hoshi-candle-co's first-commit case. Manual follow-up items (placeholder domain, no
+  payment processor by design, TICO status, informal contact agreements) already listed in
+  README.md.
 
 ---
 
