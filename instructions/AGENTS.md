@@ -117,7 +117,7 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 ## General Guidelines
 
 - Use plain hyphens, not em dashes.
-- Never add an agent as a commit co-author.
+- Never add an agent as a commit co-author. Enforced by `git-hooks/commit-msg`, which strips the trailer and prints what it removed; `install.ps1` points global `core.hooksPath` at that directory. The hook rewrites rather than rejects, so it cannot be worked around by habit, but it only runs where the harness is installed - do not rely on it in place of not writing the trailer.
 - Never leave work sitting on a branch without a pull request. The moment a branch carries one commit that is not on the default branch, open a PR with `/pr`; push every later commit to that same PR and update its body rather than committing quietly. Check for an existing open PR before opening another.
 - Before running `git commit`, check the current branch against the repo's default branch. If they match, branch first. This was written as a rule, not enforced, and got skipped twice in one night (Portfolio-Website `f2b2127`, hoshi-candle-co `eb0e0fb` both went straight to a default branch) without anyone noticing at the time — treat the check itself as part of the commit step, not a thing to remember separately.
 - Never manually modify generated files or `CHANGELOG.md` files.
@@ -175,3 +175,5 @@ behaviour in code.
 - Treat a tool that asks the user to undo what it just did as a defect, not a note. That instruction belongs in the code path.
 - Prefer generating a derived file over copying a source file whenever the host resolves it live. A copy is indistinguishable from the real thing on install day and diverges silently afterwards.
 - A generator or installer is verified by running it against a throwaway target and reading what it produced, never by reading its source. Check idempotency on a second run, and check that it leaves a hand-edited target alone.
+- Worked example: "Never add an agent as a commit co-author" was prose only, and ten commits carried the trailer before the history rewrite stripped them. It is now `git-hooks/commit-msg`, wired by `install.ps1`. Enforcement that rewrites beats enforcement that rejects: a hook that blocks the commit teaches the author to reach for `--no-verify`.
+- Do not pass a regex to `awk` with `-v`. awk expands escape sequences in a `-v` assignment, so `\[bot\]` arrives as the character class `[bot]` and matches almost every address. Write the pattern as a regex constant in the awk program. This was a live bug in the first draft of `commit-msg`, caught only by testing it against a message with human co-authors.

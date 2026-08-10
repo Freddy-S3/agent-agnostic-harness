@@ -13,6 +13,7 @@ This repository is the single source of truth. You write a skill once, in one fo
 | `agents/` | Custom agent definitions, one per file. See `agents/README.md` for the format. |
 | `skills/` | Reusable workflows, one directory per skill with a `SKILL.md`. |
 | `hooks/` | Optional lifecycle hook scripts. |
+| `git-hooks/` | Git hooks, host-independent. `commit-msg` strips agent co-author trailers. `install.ps1` points global `core.hooksPath` here. |
 | `memories/` | Durable user and repo context notes. |
 | `config/mcp-config.template.json` | Sanitized MCP server template, env-var driven. |
 | `HARNESS.md` | How to actually use the harness day to day - start here after installing. |
@@ -22,9 +23,10 @@ This repository is the single source of truth. You write a skill once, in one fo
 ## Install
 
 ```powershell
-.\install.ps1 -Target copilot          # or claude, or codex
-.\install.ps1 -Target claude -Mcp      # also emit MCP configuration
-.\install.ps1 -Target codex -DryRun    # show every action, write nothing
+.\install.ps1 -Target copilot            # or claude, or codex
+.\install.ps1 -Target claude -Link       # the usual Claude Code install (live junctions)
+.\install.ps1 -Target claude -Link -Mcp  # also emit MCP configuration
+.\install.ps1 -Target codex -DryRun      # show every action, write nothing
 ```
 
 Then restart the host so it rediscovers instructions and skills.
@@ -34,12 +36,18 @@ Moving to a new machine entirely, not just installing into a new host? See `NEW-
 Useful flags:
 
 - `-DryRun` - report every action without writing. Run this first.
+- `-Link` - junction `skills/` and `memories/` into the destination instead of copying, so the installed harness stays a live view of this repo. Without it they are copied and drift. This is the intended mode for Claude Code.
 - `-Mcp` - also emit MCP server config for the target host.
 - `-DestRoot <path>` - install somewhere other than the host's default directory.
 - `-IncludeMemories:$false` - skip `memories/` when the host has its own durable memory store.
 - `-Force` - overwrite differing files instead of backing them up.
+- `-SkipGitHooks` - leave global `core.hooksPath` alone.
 
 The installer is idempotent: files whose content already matches are skipped. A destination file that differs from source is copied to `<name>.bak-<timestamp>` before being replaced, so a hand-edit on the host side is never silently destroyed.
+
+### Git hooks
+
+Every step writes inside the host's harness directory except one: the installer sets global `core.hooksPath` to `git-hooks/`, so `commit-msg` runs in every repository on the machine and strips agent co-author trailers. That setting is global and replaces per-repo `.git/hooks`, so a repository that needs its own hooks (husky, lefthook) must set a local `core.hooksPath` - a local value wins. If `core.hooksPath` is already set to something else, the installer reports it and changes nothing.
 
 ## Host mapping
 

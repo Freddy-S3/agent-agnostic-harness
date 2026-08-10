@@ -7,8 +7,13 @@
     layout a given host expects: the root instruction file is renamed, agent files
     get the host's suffix, and MCP config is emitted in the host's shape.
 
-    Nothing outside the host's harness directories is modified. Files that already
-    exist and differ are backed up as <name>.bak-<timestamp> unless -Force is given.
+    Files that already exist and differ are backed up as <name>.bak-<timestamp>
+    unless -Force is given.
+
+    One step reaches outside the host's harness directories: global core.hooksPath
+    is pointed at git-hooks/ so the commit-msg hook can enforce the "no agent
+    co-author" rule. Suppress it with -SkipGitHooks. An existing core.hooksPath set
+    by something else is reported, never overwritten.
 
 .PARAMETER Target
     Which host to install for: copilot, claude, or codex.
@@ -29,6 +34,13 @@
 
 .PARAMETER Force
     Overwrite differing files without creating a backup.
+
+.PARAMETER Link
+    Junction skills/ and memories/ into the destination instead of copying, so the
+    installed harness stays a live view of this repository.
+
+.PARAMETER SkipGitHooks
+    Do not touch global core.hooksPath. The commit-msg hook will not be active.
 
 .EXAMPLE
     .\install.ps1 -Target copilot
@@ -52,7 +64,9 @@ param(
 
     [switch]$Force,
 
-    [switch]$Link
+    [switch]$Link,
+
+    [switch]$SkipGitHooks
 )
 
 $ErrorActionPreference = 'Stop'
@@ -362,6 +376,65 @@ if ($Target -eq 'claude') {
 if ($IncludeMemories) {
     Write-Host "memories" -ForegroundColor Green
     Copy-Tree 'memories' 'memories'
+}
+
+# --- 3b. git hooks ---------------------------------------------------------
+
+# AGENTS.md forbids adding an agent as a commit co-author. Prose alone did not
+# stop it, so the installer points git at git-hooks/, where commit-msg strips
+# the trailer. This is the one step that writes outside $DestRoot: core.hooksPath
+# is global git config. Use -SkipGitHooks to leave git config alone.
+if (-not $SkipGitHooks) {
+    Write-Host "git hooks" -ForegroundColor Green
+
+    $gitHookDir = Join-Path $SourceRoot 'git-hooks'
+    if (-not (Test-Path -LiteralPath $gitHookDir)) {
+        Write-Host "  (no git-hooks/ in source - skipped)"
+    }
+    else {
+        $desired = $gitHookDir.Replace('\', '/')
+
+        # `git config --get` exits 1 when the key is unset; that is not an error here.
+        $current = & git config --global --get core.hooksPath 2>$null
+        if ($LASTEXITCODE -ne 0) { $current = $null }
+        if ($current) { $current = $current.Trim() }
+
+        if ($current -eq $desired) {
+            Write-Host "  (core.hooksPath already points here)"
+            $script:Skipped++
+        }
+        elseif ($current) {
+            # Someone else owns this setting. Overwriting it would silently disable
+            # their hooks, which is exactly the class of bug this section exists to
+            # prevent, so report and let the user decide.
+            Write-Host "  core.hooksPath is already set to:" -ForegroundColor Yellow
+            Write-Host "    $current" -ForegroundColor Yellow
+            Write-Host "  Leaving it alone. To use the harness hooks instead, run:" -ForegroundColor Yellow
+            Write-Host "    git config --global core.hooksPath '$desired'" -ForegroundColor Yellow
+            $script:Skipped++
+        }
+        else {
+            Write-Action 'config ' "core.hooksPath -> $desired"
+            if (-not $DryRun) {
+                & git config --global core.hooksPath $desired
+            }
+        }
+
+        # A hook needs the executable bit on POSIX. Git for Windows does not, but the
+        # repository is shared, so keep the index mode correct from whichever machine
+        # installs. Harmless when already set.
+        if (-not $DryRun) {
+            Push-Location $SourceRoot
+            try {
+                & git update-index --chmod=+x git-hooks/commit-msg 2>$null | Out-Null
+            }
+            catch { }
+            finally { Pop-Location }
+        }
+
+        Write-Host "  note: core.hooksPath is global and replaces per-repo .git/hooks." -ForegroundColor Yellow
+        Write-Host "        A repo that needs its own hooks must set a local core.hooksPath." -ForegroundColor Yellow
+    }
 }
 
 # --- 4. MCP configuration -------------------------------------------------
