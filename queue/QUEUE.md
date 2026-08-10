@@ -8,6 +8,23 @@ An `in-progress` item left over from a prior run means that run was interrupted 
 
 ---
 
+## Fix install.ps1 clobbering the CLAUDE.md import stub
+
+Status: done
+Repo: C:/Users/Faruk/Repo/claude-harness
+Added: 2026-08-09
+
+`.\install.ps1 -Target claude` copied the whole of `instructions/AGENTS.md` over
+`~/.claude/CLAUDE.md`, destroying the `@~/Repo/claude-harness/instructions/AGENTS.md`
+import stub the harness conventions require, and then printed a note telling the user to
+recreate by hand the stub it had just overwritten. A copy looks identical on install day
+and then silently drifts from the repo forever, which is the exact failure the stub
+exists to prevent. Hit and manually reverted during the 2026-08-09 migration.
+
+Log:
+- 2026-08-09: put at top of queue and fixed in the same session. Branch
+  fix/install-preserves-import-stub.
+
 ## Upgrade the portfolio website and resume
 
 Status: done

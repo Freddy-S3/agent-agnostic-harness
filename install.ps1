@@ -147,6 +147,61 @@ function Copy-Tracked {
     if (-not $DryRun) { Copy-Item -LiteralPath $From -Destination $To -Force }
 }
 
+function Write-ImportStub {
+    <#
+        Claude Code resolves @-imports when it reads the file, so its root instruction
+        file must be a stub that points at the harness, never a copy of it. A copy looks
+        identical on install day and then drifts silently forever, which is exactly what
+        the stub exists to prevent. An existing file that already carries the import line
+        is left alone, whatever else the user wrote around it.
+    #>
+    param([string]$From, [string]$To)
+
+    $importPath = $From
+    if ($importPath.StartsWith($env:USERPROFILE, [StringComparison]::OrdinalIgnoreCase)) {
+        $importPath = '~' + $importPath.Substring($env:USERPROFILE.Length)
+    }
+    $importPath = $importPath.Replace('\', '/')
+    $importLine = "@$importPath"
+
+    if (Test-Path -LiteralPath $To) {
+        $existing = Get-Content -LiteralPath $To -Raw
+        if ($existing -and $existing.Contains($importLine) -and -not $Force) {
+            # Already a live import; leave whatever wording the user put around it.
+            $script:Skipped++
+            return
+        }
+        if (-not $Force) {
+            $backup = "$To.bak-$Stamp"
+            Write-Action 'backup ' (Split-Path -Leaf $backup)
+            if (-not $DryRun) { Copy-Item -LiteralPath $To -Destination $backup -Force }
+        }
+    }
+
+    $stub = @"
+# Agent Instructions (stub)
+
+The real instructions live in the harness repository and are imported below.
+Edit ``$importPath``; never edit this stub.
+
+$importLine
+
+## Import check
+
+If you are reading this file and the ``Operating Modes`` section is not in your context,
+the import above did not resolve. Say so in the first reply of the session, then re-run
+the installer to rewrite this stub:
+
+    .\install.ps1 -Target claude
+
+Do not replace this stub with a copy of AGENTS.md. A copy stops tracking the harness.
+"@
+
+    New-Dir (Split-Path -Parent $To)
+    Write-Action 'stub   ' $To.Substring($DestRoot.Length).TrimStart('\')
+    if (-not $DryRun) { Set-Content -LiteralPath $To -Value $stub -Encoding UTF8 }
+}
+
 function Test-IsJunction {
     <#
         True when the path is a junction or symlink, meaning the destination is
@@ -209,7 +264,13 @@ if ([string]::IsNullOrWhiteSpace($InstructionSubdir)) {
 else {
     $instructionDest = Join-Path (Join-Path $DestRoot $InstructionSubdir) $InstructionName
 }
-Copy-Tracked $rootInstruction $instructionDest
+# Claude reads @-imports live, so it gets a stub. Other hosts get the real copy.
+if ($Target -eq 'claude') {
+    Write-ImportStub $rootInstruction $instructionDest
+}
+else {
+    Copy-Tracked $rootInstruction $instructionDest
+}
 
 # Scoped *.instructions.md files rely on Copilot's applyTo frontmatter. Other
 # hosts have no equivalent, so they are installed as reference material and the
@@ -281,9 +342,8 @@ if ($Link) {
 
     if ($Target -eq 'claude') {
         Write-Host "  note: a single file cannot be linked reliably on Windows." -ForegroundColor Yellow
-        Write-Host "        Replace ~\.claude\CLAUDE.md with a stub whose body is:" -ForegroundColor Yellow
-        Write-Host "        @~/Repo/claude-harness/instructions/AGENTS.md" -ForegroundColor Yellow
-        Write-Host "        Claude Code resolves that import at read time, so it stays live." -ForegroundColor Yellow
+        Write-Host "        CLAUDE.md was written as an @-import stub, not a copy." -ForegroundColor Yellow
+        Write-Host "        Claude Code resolves the import at read time, so it stays live." -ForegroundColor Yellow
     }
 
     Write-Host ""
