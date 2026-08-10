@@ -159,3 +159,16 @@ absent from the `AGENTS.md` table will not be routed to.
 - A single file cannot be linked reliably on Windows: symlinks need admin or Developer Mode, and a hard link does not survive an editor that writes by replace-and-rename. The import stub sidesteps both, because the stub itself is never edited.
 - Edit `instructions/AGENTS.md` and restart the host. Never edit `~/.claude/CLAUDE.md`; it holds only the import.
 - `~/.claude/settings.json` is not managed by this repository and stays a local file.
+
+### Conventions need an enforcing mechanism
+
+A convention that lives only in prose is one that tooling will quietly violate.
+`install.ps1` copied `AGENTS.md` over `~/.claude/CLAUDE.md` while this file said the
+opposite, then printed a note telling the user to hand-rebuild the stub it had just
+destroyed. The knowledge was there; it was written as advice to a human instead of as
+behaviour in code.
+
+- When you document a convention here, make the tool that touches those files enforce it. If no tool owns it, say plainly that it is manual.
+- Treat a tool that asks the user to undo what it just did as a defect, not a note. That instruction belongs in the code path.
+- Prefer generating a derived file over copying a source file whenever the host resolves it live. A copy is indistinguishable from the real thing on install day and diverges silently afterwards.
+- A generator or installer is verified by running it against a throwaway target and reading what it produced, never by reading its source. Check idempotency on a second run, and check that it leaves a hand-edited target alone.
