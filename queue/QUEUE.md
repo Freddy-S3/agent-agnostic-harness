@@ -8,6 +8,42 @@ An `in-progress` item left over from a prior run means that run was interrupted 
 
 ---
 
+## Install system-wide Node, then rebuild everything against it
+
+Status: blocked
+Repo: machine-wide, then hoshi-candle-co / unattended-runs / petal-and-polish
+Added: 2026-08-10
+Blocked reason: needs a REBOOT first. msiexec PID 15468 has been wedged since
+2026-08-09 11:45 and is SYSTEM-owned, so a non-admin shell cannot kill it and cannot
+restart the msiserver service. Every MSI install fails with 1603 and the log line
+"Install server not responding". PendingFileRenameOperations is also set. This was
+previously misdiagnosed as winget hanging on a UAC prompt; it is not UAC, the installer
+never gets far enough to prompt.
+
+After rebooting:
+  winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements
+If UAC asks for admin credentials and none are available, use fnm or nvm-windows into
+%LOCALAPPDATA% instead - that still puts node AND npm on the user PATH permanently, which
+is the actual requirement. Do NOT settle for the portable copy at C:/Users/Faruk/tools/node.
+
+Then verify `node --version`, `npm --version`, and that both resolve under
+C:/Program Files/nodejs, in a NEW shell.
+
+Then rebuild all three repos against the real install. Everything verified on 2026-08-10
+ran on the portable Node 22.14.0, not the Node 24 LTS the MSI ships, so those results
+need confirming:
+  - hoshi-candle-co: npm install; npm run build; re-run the checkout tamper tests
+  - unattended-runs: npm install; npm run build
+  - petal-and-polish: npm install; npm run build
+
+Only after `node --version` passes from a new shell, delete the portable copy:
+  Remove-Item -Recurse -Force C:/Users/Faruk/tools/node
+
+Log:
+- 2026-08-10: queued. Root-caused the 1603 failure, fixed hoshi-candle-co's first-ever
+  build (missing Suspense boundary on /checkout, PR #1), and verified all three repos
+  plus 19 adversarial checkout payloads using the portable Node as a stopgap.
+
 ## Fix install.ps1 clobbering the CLAUDE.md import stub
 
 Status: done
