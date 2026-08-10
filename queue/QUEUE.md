@@ -475,8 +475,8 @@ Log:
 
 ## New project: Japan secondhand / vintage goods import
 
-Status: in-progress
-Repo: C:/Users/Faruk/Repo/<tbd - agent picks the name>
+Status: done
+Repo: C:/Users/Faruk/Repo/mottainai-market
 Added: 2026-08-09
 Mode: /sleep
 
@@ -510,6 +510,30 @@ real build, open a PR. Log blockers to status/TRACKER.md.
 
 Log:
 - 2026-08-09: queued by user request for autonomous overnight execution under /sleep.
+- 2026-08-10: done. Repo C:/Users/Faruk/Repo/mottainai-market, GitHub
+  https://github.com/Freddy-S3/mottainai-market (public - code is a portfolio piece, the
+  business plan is gitignored). Stack: SvelteKit + TypeScript + Stripe, no database.
+  Picked for portfolio range against the Next.js and static-HTML siblings, but the real
+  fit is src/lib/server/ - SvelteKit fails the build if client code imports it, which
+  makes server-side price resolution a compiler guarantee instead of a review catch.
+  One-of-a-kind inventory modelled properly: no stock count, no quantity field anywhere,
+  quantity always 1 by definition, and availability re-checked server-side at checkout
+  (409 on a sold item) since two shoppers can hold the same piece in a cart. Business
+  plan in gitignored business-plan/ (verified with git check-ignore), with electronics
+  safety certification and used-goods duty classification flagged as unresolved rather
+  than asserted - the certification question could remove the whole audio/camera
+  category, so the plan gates everything else on it, and the worked unit economics are
+  deliberately unflattering rather than optimistic. PR
+  https://github.com/Freddy-S3/mottainai-market/pull/1. Verified for real, not claimed:
+  npm install + npm run build pass; npm run preview served the production build and the
+  full flow was driven in a browser (homepage -> item -> add to cart -> cart with correct
+  server-resolved total -> checkout -> expected "Stripe not configured" error surfaced in
+  the UI); 10 adversarial payloads against /api/checkout all handled correctly, with the
+  injected-price request returning a response identical to the clean one, which is the
+  actual evidence the tampering had no effect. Ran on the portable Node 22.14.0 (system
+  Node still not installed - see the blocked item at the top of this file). Manual steps
+  needing Faruk: STRIPE_SECRET_KEY, real catalog data, domain, and the customs-broker
+  consult before selling anything.
 
 ---
 
