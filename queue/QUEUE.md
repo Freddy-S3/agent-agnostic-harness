@@ -187,7 +187,7 @@ Log:
 
 ## Build a /learn self-improvement skill for claude-harness
 
-Status: pending
+Status: done
 Repo: C:/Users/Faruk/Repo/claude-harness (now tracking Freddy-S3/claude-harness-public)
 Added: 2026-08-09
 Previously blocked on the claude-harness history rewrite, then on the local working
@@ -243,6 +243,14 @@ Log:
   skill content - there is no skills/learn directory and no PR. Reset to pending;
   fcfa81f and its branch were deleted, 538b3aa stays because it is already on public
   main and is not worth a history rewrite. Nothing to resume: start this item fresh.
+- 2026-08-10: a subsequent run built skills/learn/SKILL.md, registered it in
+  instructions/AGENTS.md's Native Skills table, and applied two fixes /learn's own
+  dry-run surfaced (self-merge gap in skills/pr/SKILL.md, TRACKER.md resolved-line
+  deletion losing history) on branch feature/learn-self-improvement-skill (1b14a59),
+  but never opened a PR. This /queue run found the branch already pushed and complete
+  with nothing pending, and opened PR #6
+  (https://github.com/Freddy-S3/claude-harness-public/pull/6) against main. Marked
+  done.
 
 ---
 
