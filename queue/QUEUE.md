@@ -338,3 +338,189 @@ Log:
   force-push incident. Faruk's decision: leave both as-is, no retroactive PRs.
   Recorded here rather than in status/TRACKER.md because the tracker deletes resolved
   lines, and the point of logging a process deviation is that it stays visible.
+
+---
+
+## New project: Japan boutique travel agency (half-service, off-the-beaten-path)
+
+Status: pending
+Repo: C:/Users/Faruk/Repo/<tbd - agent picks the name>
+Added: 2026-08-09
+Mode: /sleep
+
+New-project convention applies (see `instructions/AGENTS.md`): new sibling repo under
+`C:\Users\Faruk\Repo`, `git init`, matching GitHub repo, free-tier infra by default.
+
+A real boutique travel agency for non-tourist, off-the-beaten-path Japan travel.
+
+**Core positioning: the "half-service" model.** Not full door-to-door hand-holding.
+The agency helps plan and book the trip, then meets the traveller there - aimed at
+seasoned, well-travelled clients who want local access and logistics handled but not a
+guided tour. Make this the spine of both the business plan and the site copy; it is
+the differentiator, not a footnote.
+
+**Two specialty tracks. Both have hard framing constraints - do not soften them.**
+
+(a) *Family trips.* Faruk's girlfriend has hoikushi (Japanese childcare-qualified)
+contacts who provide supplemental support during the trip. Parents/guardians are
+always present and travelling with the group. This is NEVER to be marketed as
+unaccompanied minors' travel, as a childcare service, or as any arrangement where
+children are in someone else's care without a parent present. Write the copy so a
+reader cannot come away with that impression.
+
+(b) *Senior-friendly / extra-support trips.* Leverages her nurse contacts, but framed
+strictly as "extra support and comfort" - help with pacing, mobility-friendly
+itineraries, someone attentive on hand. NOT medical care, NOT nursing services, NOT
+any clinical claim. Cross-border professional licensing is the reason: a nurse
+licensed in Japan is not licensed to practise in Canada, and vice versa. Do not imply
+otherwise anywhere in the plan or the site.
+
+Deliverables:
+
+1. **Business plan** in a gitignored planning folder, same pattern as hoshi-candle-co
+   (create the folder, add it to `.gitignore`, and verify with `git check-ignore` that
+   it is actually ignored and never committed). Cover positioning, the half-service
+   model's economics, supplier/contact relationships, pricing, marketing, and both
+   specialty tracks with their framing constraints written down as constraints.
+   Same disclaimer posture as hoshi-candle-co: informational business planning only,
+   not legal, tax, accounting, or travel-industry advice.
+   **Regulatory flag, prominent:** Canadian travel agencies commonly require
+   provincial registration (Ontario's TICO is the well-known example; other provinces
+   differ and some have no equivalent). Do NOT assert what applies or claim
+   compliance. Flag it clearly as something to verify with a real travel-industry
+   lawyer and the relevant provincial registration body before selling anything.
+2. **Marketing / booking-inquiry website.** A booking *inquiry* form is fine. Do NOT
+   build a live payment or booking flow - that would be taking money for a regulated
+   service whose licensing has not been verified. Inquiry capture only, with a clear
+   note in the README saying why the payment flow is deliberately absent.
+
+Branch, commit as you go, verify with a real build, open a PR. Log genuine blockers
+and decisions to status/TRACKER.md rather than stalling.
+
+Log:
+- 2026-08-09: queued by user request for autonomous overnight execution under /sleep.
+
+---
+
+## New project: Japan secondhand / vintage goods import
+
+Status: pending
+Repo: C:/Users/Faruk/Repo/<tbd - agent picks the name>
+Added: 2026-08-09
+Mode: /sleep
+
+New-project convention applies. Same structure as hoshi-candle-co.
+
+Importing secondhand and vintage goods from Japan and reselling in Canada. The
+sourcing narrative is the interesting part and should be genuine, not decorative:
+Japan's secondhand-store culture (chains like Hard Off / Book Off / Mode Off, flea
+markets, estate clearances) combined with an aging population producing a steady
+supply of high-quality used goods entering resale channels. Ground the plan in that
+reality rather than generic dropshipping framing.
+
+Deliverables:
+
+1. **Real e-commerce site** - product catalog, cart, checkout, payment integration
+   scaffolded with placeholder keys (no fabricated credentials). Note that a
+   secondhand catalog is inherently one-of-a-kind inventory, so model it as such
+   rather than as restockable SKUs. **Prices must be resolved server-side from
+   canonical product data, never accepted from the client request** - see the
+   hoshi-candle-co checkout for the pattern and the reason.
+2. **Business plan** in a gitignored planning folder, same pattern and same
+   disclaimers as hoshi-candle-co: informational only, not legal/tax/accounting
+   advice, verify with a real accountant and customs broker. Flag the genuinely
+   uncertain items rather than asserting them - import duties and HS classification
+   for used goods, any restrictions on specific secondhand categories (electronics
+   safety certification, textiles), GST/HST treatment, and authentication/provenance
+   risk if anything branded is resold.
+
+Free-tier infra per the standing convention. Branch, commit as you go, verify with a
+real build, open a PR. Log blockers to status/TRACKER.md.
+
+Log:
+- 2026-08-09: queued by user request for autonomous overnight execution under /sleep.
+
+---
+
+## New project: local artisan marketplace + Japan commission artisans
+
+Status: pending
+Repo: C:/Users/Faruk/Repo/<tbd - agent picks the name>
+Added: 2026-08-09
+Mode: /sleep
+
+New-project convention applies.
+
+An Etsy-style marketplace for local artisans, with a second track for commissioning
+work from Japanese artisans. Multi-seller marketplace, not a single-brand storefront -
+that is the interesting architecture here: seller accounts, per-seller catalogs,
+commission/custom-order requests as a distinct flow from stock purchases, and an
+order-routing model that splits a buyer's order across sellers.
+
+Deliverables:
+
+1. **Real e-commerce marketplace** - seller onboarding, per-seller product listings,
+   cart spanning multiple sellers, checkout, payment integration scaffolded with
+   placeholder keys (no fabricated credentials). **Server-side price resolution from
+   canonical data, never client-supplied prices.** Model the commission flow properly:
+   a commission is a negotiated request with a quote step, not an add-to-cart.
+2. **Business plan** in a gitignored planning folder, same pattern and disclaimers as
+   hoshi-candle-co. Cover the marketplace take-rate model, seller acquisition, and
+   the commission track's economics. Flag for professional verification rather than
+   asserting: marketplace tax obligations (collecting on behalf of sellers), whether
+   the platform is a marketplace facilitator for GST/HST purposes, payment-splitting
+   requirements, and import/customs handling for commissioned pieces from Japan.
+
+Free-tier infra per the standing convention. Branch, commit as you go, verify with a
+real build, open a PR. Log blockers to status/TRACKER.md.
+
+Log:
+- 2026-08-09: queued by user request for autonomous overnight execution under /sleep.
+
+---
+
+## New project: kids day-trip / playdate matching app (domestic)
+
+Status: pending
+Repo: C:/Users/Faruk/Repo/<tbd - agent picks the name>
+Added: 2026-08-09
+Mode: /sleep
+
+New-project convention applies.
+
+A domestic app that helps families find other local families going to the same place
+around the same time, so kids of similar ages have someone to play with. Parents
+create profiles for their children, browse or get matched with other families heading
+to the same destination (theme park, museum, zoo, park) in the same time window, and
+then coordinate directly between themselves.
+
+**Safety model. These are product requirements, not suggestions - build them in, and
+do not design any flow that violates them.**
+
+- **Parent-mediated only.** Every account belongs to an adult. Children do not have
+  accounts, do not log in, and never communicate through the app.
+- **Parent-to-parent matching only.** Matching happens between adults. A child's
+  profile is context attached to a parent's account, not an independently browsable
+  entity.
+- **In-app messaging before any details are shared.** Parents talk in-app first.
+  Location specifics, contact details, and timing are exchanged only after both sides
+  have engaged. Do not expose precise locations or identifying details in browse or
+  match results - approximate area and age range only.
+- **No unsupervised care, ever.** The app never arranges, suggests, or facilitates one
+  adult supervising another family's child. It matches families who will each be
+  present with their own children. No babysitting, no drop-off, no childminding
+  features.
+- **No overnight or camping component at all.** Day trips only. Do not add it.
+
+Deliverables: a working app implementing the matching and messaging flows with the
+safety model enforced in the data model and the UI, not just written in the copy.
+Free-tier infra per the standing convention. A business plan in a gitignored planning
+folder is optional here - if written, use the same disclaimers, and flag privacy law
+(PIPEDA, and the heightened expectations around children's data) as something to
+verify with a real privacy lawyer rather than asserting compliance.
+
+Branch, commit as you go, verify with a real build, open a PR. Log blockers to
+status/TRACKER.md.
+
+Log:
+- 2026-08-09: queued by user request for autonomous overnight execution under /sleep.
