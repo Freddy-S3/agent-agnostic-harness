@@ -93,6 +93,7 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 | Run unattended overnight with zero questions | `/sleep` |
 | Queue larger ideas and work through them continuously across usage-limit resets | `/queue` |
 | Rapid-fire status check: open decisions and a brief done/next across active harness work | `/status-report` |
+| Review real queue/tracker/PR history and apply evidence-cited refinements to the harness's own skills | `/learn` |
 | Complete plan through reflect cycle | `/ship` |
 | Plan and decompose | `/plan` |
 | Map a large, uncertain multi-session effort | `/wayfinder` |
@@ -118,6 +119,7 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 - Use plain hyphens, not em dashes.
 - Never add an agent as a commit co-author.
 - Never leave work sitting on a branch without a pull request. The moment a branch carries one commit that is not on the default branch, open a PR with `/pr`; push every later commit to that same PR and update its body rather than committing quietly. Check for an existing open PR before opening another.
+- Before running `git commit`, check the current branch against the repo's default branch. If they match, branch first. This was written as a rule, not enforced, and got skipped twice in one night (Portfolio-Website `f2b2127`, hoshi-candle-co `eb0e0fb` both went straight to a default branch) without anyone noticing at the time — treat the check itself as part of the commit step, not a thing to remember separately.
 - Never manually modify generated files or `CHANGELOG.md` files.
 - Put each full sentence on its own line when substantially editing long Markdown files.
 - In delivery mode, prefer quality, simplicity, robustness, scalability, and long-term maintainability over development cost.
@@ -129,6 +131,7 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 - For every pull request review, retrieve and read all available comments and activity before forming findings; treat them as review context and acceptance criteria.
 - Reproduce bugs as close to the end-user experience as possible before changing code.
 - Treat visibly broken UI, lint failures, flaky tests, and test failures as engineering defects worth resolving when they are in scope.
+- Never mark a code change `done` on review alone when it was meant to run. If the runtime/toolchain isn't available (e.g. Node.js missing), say the change is unbuilt and unverified in both the report and `status/TRACKER.md`, and name the actual blocking error rather than a guessed cause. A Node install got misdiagnosed as a UAC prompt hang three separate times before someone checked the actual installer log and found a wedged `msiexec`; log what the error message says, not what it looks like.
 - Never report a change to HTML, CSS, or client-side JS as done without rendering the page in a real browser; run `/browsertest` and say so plainly when it has not been rendered.
 - Prefer modifying existing code, follow the local style, minimize diff noise, and keep comments sparse.
 
