@@ -454,8 +454,7 @@ Log:
 - 2026-08-10: found already complete on resume. Repo C:/Users/Faruk/Repo/kaidan-travel,
   GitHub https://github.com/Freddy-S3/kaidan-travel. Stack: plain static HTML/CSS/vanilla
   JS, no build step (chosen because Node/npm were unavailable in the build environment) -
-  deliberate portfolio-range choice against the Next.js sibling projects. Business plan in
-  gitignored business-plan/ (confirmed via git check-ignore). Site covers the half-service
+  deliberate portfolio-range choice against the Next.js sibling projects. Site covers the half-service
   model, both specialty tracks with their required framing constraints intact (family
   trips: parent-present-only language, no childcare/unaccompanied-minors framing;
   senior/extra-support: comfort-only language, explicit cross-border licensing disclaimer,
@@ -470,6 +469,18 @@ Log:
   hoshi-candle-co's first-commit case. Manual follow-up items (placeholder domain, no
   payment processor by design, TICO status, informal contact agreements) already listed in
   README.md.
+- 2026-08-10: CORRECTION to the entry above. It claimed the business plan was "in
+  gitignored business-plan/ (confirmed via git check-ignore)". That claim was wrong and
+  has been removed. The check-ignore did pass, but it was run while the repo still had
+  zero commits; the scaffold was committed afterwards, by a concurrent run, and that
+  commit both included business-plan/business-plan.md and rewrote .gitignore to drop the
+  business-plan/ entry. Current state: the plan IS committed and pushed to
+  Freddy-S3/kaidan-travel (8eba1ab). The repo is private, so this is not a public
+  exposure, but it contradicts this item's explicit requirement and the hoshi-candle-co
+  pattern. Left unfixed deliberately - scrubbing it means rewriting pushed history, which
+  is Faruk's call, not an unattended one. Lesson for the harness: verifying gitignore
+  status before the first commit exists proves nothing; re-verify against HEAD after
+  committing.
 
 ---
 
