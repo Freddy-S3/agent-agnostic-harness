@@ -550,8 +550,8 @@ Log:
 
 ## New project: local artisan marketplace + Japan commission artisans
 
-Status: pending
-Repo: C:/Users/Faruk/Repo/<tbd - agent picks the name>
+Status: in-progress
+Repo: C:/Users/Faruk/Repo/tewaza-market
 Added: 2026-08-09
 Mode: /sleep
 
@@ -582,6 +582,9 @@ real build, open a PR. Log blockers to status/TRACKER.md.
 
 Log:
 - 2026-08-09: queued by user request for autonomous overnight execution under /sleep.
+- 2026-08-10: started on the desktop after the laptop migration. Repo name chosen:
+  tewaza-market. Laptop queue-runner confirmed stopped first so the two machines do
+  not race on this item.
 
 ---
 
