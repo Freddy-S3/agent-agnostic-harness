@@ -30,8 +30,9 @@ Do not re-derive any of this from git log or transcripts; the tracker and queue 
 	- One line per `in-progress` or recently `done` queue item: what happened, what's next.
 	- Anything currently running that he should know is still going.
 	- Skip anything with nothing new to say; a quiet item does not need a line.
-4. If Faruk answers some or all of the numbered items in his reply, apply each answer immediately (make the call, act on it, or record the decision as the assumption to use going forward) and mark or remove that line from `status/TRACKER.md` before ending the turn.
+4. If Faruk answers some or all of the numbered items in his reply, apply each answer immediately (make the call, act on it, or record the decision as the assumption to use going forward), then move that line out of `status/TRACKER.md` into `status/TRACKER-ARCHIVE.md` (append, gitignored, same as the tracker) rather than deleting it, and note the answer inline before ending the turn.
 	Do not leave answered items sitting as unresolved once he's answered them.
+	Deleting resolved lines outright was the original behavior; it left `/learn` with nothing but `queue/QUEUE.md` log entries to mine for evidence, since resolved tracker history simply vanished. Archiving keeps the gitignore-because-local-only design intact while giving future runs real material.
 5. If there is nothing open and nothing worth a status line, say so in one line. Do not manufacture content to fill the format.
 
 ## Format
