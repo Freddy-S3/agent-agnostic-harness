@@ -393,7 +393,7 @@ Log:
 
 ## New project: Japan boutique travel agency (half-service, off-the-beaten-path)
 
-Status: pending
+Status: in-progress
 Repo: C:/Users/Faruk/Repo/<tbd - agent picks the name>
 Added: 2026-08-09
 Mode: /sleep
@@ -449,6 +449,8 @@ and decisions to status/TRACKER.md rather than stalling.
 
 Log:
 - 2026-08-09: queued by user request for autonomous overnight execution under /sleep.
+- 2026-08-10: /queue run marked in-progress and started. New repo, business plan, and
+  inquiry-only site to follow.
 
 ---
 
