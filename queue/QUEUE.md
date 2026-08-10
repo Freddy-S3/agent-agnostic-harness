@@ -187,7 +187,7 @@ Log:
 
 ## Build a /learn self-improvement skill for claude-harness
 
-Status: in-progress
+Status: pending
 Repo: C:/Users/Faruk/Repo/claude-harness (now tracking Freddy-S3/claude-harness-public)
 Added: 2026-08-09
 Previously blocked on the claude-harness history rewrite, then on the local working
@@ -237,6 +237,12 @@ unless there's a real reason to.
 Log:
 - 2026-08-09: queued by user request via /queue. Explicitly told NOT to start yet -
   blocked on the claude-harness history-rewrite/force-push being completed first.
+- 2026-08-10: an attempt started and was interrupted by the 08:43 machine reboot before
+  doing any real work. It got as far as flipping this item to in-progress (538b3aa on
+  main, duplicated as fcfa81f on chore/queue-node-install-and-rebuild) and produced no
+  skill content - there is no skills/learn directory and no PR. Reset to pending;
+  fcfa81f and its branch were deleted, 538b3aa stays because it is already on public
+  main and is not worth a history rewrite. Nothing to resume: start this item fresh.
 
 ---
 
