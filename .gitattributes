@@ -1,0 +1,3 @@
+# core.autocrlf=true is set globally on some machines. A hook checked out with
+# CRLF line endings fails to execute, so pin the hook directory to LF.
+git-hooks/* text eol=lf
