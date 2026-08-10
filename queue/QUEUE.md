@@ -187,7 +187,7 @@ Log:
 
 ## Build a /learn self-improvement skill for claude-harness
 
-Status: pending
+Status: in-progress
 Repo: C:/Users/Faruk/Repo/claude-harness (now tracking Freddy-S3/claude-harness-public)
 Added: 2026-08-09
 Previously blocked on the claude-harness history rewrite, then on the local working
