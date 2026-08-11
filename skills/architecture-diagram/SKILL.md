@@ -1,6 +1,7 @@
 ---
 name: architecture-diagram
 description: "Produce a Mermaid architecture diagram when the user asks to visualize a real system or codebase."
+user-invocable: true
 ---
 
 # Architecture Diagram Skill

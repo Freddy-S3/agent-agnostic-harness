@@ -1,6 +1,7 @@
 ---
 name: research
 description: "Investigate a question against high-trust primary sources and capture the findings as a Markdown file. Use when the user wants a topic researched, docs or API facts gathered, or claims verified before being relied on."
+user-invocable: true
 ---
 
 # Research Skill

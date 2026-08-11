@@ -1,6 +1,7 @@
 ---
 name: closing
 description: "Phase 6 of the agentic loop: end-of-session knowledge capture. Converts session signal into durable harness improvements so the next conversation starts smarter."
+user-invocable: true
 ---
 
 # Closing Skill (Phase 6: Reflect)

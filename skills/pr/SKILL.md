@@ -1,6 +1,7 @@
 ---
 name: pr
 description: "Open or update a GitHub pull request for the current work. Use when the user asks to raise, open, or update a PR, or says \"PR this\", \"ship it to GitHub\", or \"push this up for review\"."
+user-invocable: true
 ---
 
 # PR Skill

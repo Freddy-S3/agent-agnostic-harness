@@ -1,6 +1,7 @@
 ---
 name: debugging
 description: "Systematic debugging workflow. Use when investigating bugs, unexpected behavior, or errors in any codebase."
+user-invocable: true
 ---
 
 # Debugging Skill

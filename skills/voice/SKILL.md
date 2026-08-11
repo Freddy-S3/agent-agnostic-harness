@@ -1,6 +1,7 @@
 ---
 name: voice
 description: "Use when writing or speaking on behalf of Freddy, including Slack messages, tickets, docs, reviews, and other professional communication."
+user-invocable: true
 ---
 
 # Freddy's Voice Profile

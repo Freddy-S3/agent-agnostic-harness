@@ -1,6 +1,7 @@
 ---
 name: plan
 description: "Orient and decompose. Use at the start of any substantial task - before writing any code - to explore, understand, and plan."
+user-invocable: true
 ---
 
 # Plan Skill
