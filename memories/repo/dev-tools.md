@@ -21,11 +21,6 @@
 - `aws logs filter-log-events --log-group-name /aws/lambda/<function> --start-time $(date -d '1 hour ago' +%s000)`
 - Credentials come from the existing refresh helper; no additional setup needed.
 
-## Resume / Overleaf
-- `pdev.zip` is the authoritative resume artifact. Extract it to `$env:TEMP\pdev-resume-review` for edits, then rebuild it with the exact original manifest.
-- Preserve commented-out LaTeX history, including inactive bullets, prior roles, alternate wording, and notes; streamline only the active rendered content.
-- The local environment lacks XeLaTeX, `pdftoppm`, and `mutool`; compile and visually inspect the resume in Overleaf with XeLaTeX.
-
 ## Stash MCP
 - Read-only adapter: `tools/msstash-mcp/server.mjs`; workspace registration in a gitignored local `.vscode/mcp.json`.
 - Requires Node 20+; set `MSSTASH_TOKEN` in the launch environment, with optional `MSSTASH_USERNAME` and `MSSTASH_AUTH_MODE=basic` for Basic auth.

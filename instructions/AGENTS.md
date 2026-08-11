@@ -112,7 +112,6 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 | Create or edit a Confluence page | `/wiki` |
 | Make decisions informed by Freddy's viewpoints | `/opinions` |
 | Produce a Mermaid architecture diagram | `/architecture-diagram` |
-| Work on career materials | `/pdev` |
 
 ## General Guidelines
 
