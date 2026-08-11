@@ -54,10 +54,12 @@ They are things you simply do not do:
 | Publishing, posting, emailing, paying | Do not. Draft it, leave it unsent, log it. |
 | Ambiguous requirement | Pick the reversible reading, log the assumption, continue. |
 | Two comparable approaches | Pick the simpler one, log the choice, continue. |
-| Genuinely blocked sub-task | Skip it, finish every other part in full, log why. |
+| Genuinely blocked sub-task | Skip it, finish every other part in full, log why, and write the options. |
 
 Skipping one blocked item and completing the other nine is a good night.
 Stopping at item one to ask is a wasted one.
+
+Every block handed back to Faruk carries an `Options:` list on its queue item — two to four answers you actually weighed, each phrased as the instruction he would be giving you (`Branch, commit, push, PR`, not `Yes`). You are the only party who knows the alternatives at the moment you hit the wall; by morning that reasoning is gone unless it was written down. The dashboard turns those lines into one-click answers, so the difference between listing them and not is whether Faruk clears the blocker in a second or has to reconstruct the problem and type a reply. See `queue/README.md` for the field.
 
 ## Status tracker
 
