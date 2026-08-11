@@ -2,3 +2,10 @@ status/TRACKER.md
 status/TRACKER-ARCHIVE.md
 queue/QUEUE-PC.md
 queue/QUEUE-PHONE.md
+# Pre-split backlog. Still on disk on at least one machine; never re-track it.
+queue/QUEUE.md
+
+# Private skills. These stay on disk and remain usable locally through the
+# ~/.claude/skills junction, but this repository is public, so they are never
+# tracked or published. Do not re-add one to git to "fix" a missing skill.
+skills/pdev/

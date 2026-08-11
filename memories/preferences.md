@@ -17,7 +17,3 @@
 - At Gate 3, **proactively identify organisation or style corrections made during the task** (not just feature facts) and propose them as harness updates — don't wait to be told.
 - If the user had to correct something that should already have been a known preference, add it to harness immediately without prompting.
 
-## Resume Archive Workflow
-- Treat `pdev.zip` as the authoritative resume artifact: extract it to a temporary directory, edit the source `.tex` files, rebuild the ZIP with the same top-level manifest, and validate the archive.
-- Keep active resume reductions separate from source-history preservation: retain commented-out bullets, prior roles, alternate wording, and notes in the LaTeX source even when inactive.
-- Do not invent resume metrics; retain only verified claims such as the existing 80% deployment-time reduction.
