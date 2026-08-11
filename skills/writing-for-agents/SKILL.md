@@ -1,6 +1,7 @@
 ---
 name: writing-for-agents
 description: Writing documents for agents. Use when creating or editing a SKILL.md, an instructions file, a prompt file, an agent file, copilot-instructions.md/AGENTS.md, or a task handoff.
+user-invocable: true
 ---
 
 Reference for writing any document an agent consumes — a `SKILL.md`, an `.instructions.md`, a `.prompt.md`, an `.agent.md`, `copilot-instructions.md` / `AGENTS.md`, or a task handoff reached by a pointer. The packaging differs — frontmatter, folder, trigger mechanism — but the writing does not: the same levers make each one predictable, the agent taking the same _process_ every run, not producing the same output.

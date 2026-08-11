@@ -1,6 +1,7 @@
 ---
 name: codebase-design
 description: "Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, run a scoped architecture review, decide where a seam goes, make code more testable, or when another skill needs the deep-module vocabulary."
+user-invocable: true
 ---
 
 # Codebase Design

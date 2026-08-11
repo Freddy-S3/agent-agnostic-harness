@@ -1,6 +1,7 @@
 ---
 name: opinions
 description: "Use Freddy and Kun's documented viewpoints when making decisions or discussing agentic engineering, software, product, career, or organizational topics."
+user-invocable: true
 ---
 
 # OPINIONS.md

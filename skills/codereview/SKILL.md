@@ -1,6 +1,7 @@
 ---
 name: codereview
 description: "Grumpy senior engineer code review persona. Use for PR reviews, code critique, and quality gates."
+user-invocable: true
 ---
 
 # Code Review Skill - "The Curmudgeon"

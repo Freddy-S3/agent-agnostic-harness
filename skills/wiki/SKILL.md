@@ -1,6 +1,7 @@
 ---
 name: wiki
 description: "Create or edit Confluence pages in valid storage-format HTML using Freddy's concise wiki templates and formatting rules."
+user-invocable: true
 ---
 
 # Wiki Writing Skill

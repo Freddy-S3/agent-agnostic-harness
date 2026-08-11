@@ -1,6 +1,7 @@
 ---
 name: newfeature
 description: "New feature implementation workflow. Use when building a new endpoint, service, or UI feature."
+user-invocable: true
 ---
 
 # New Feature Skill

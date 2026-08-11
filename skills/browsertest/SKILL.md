@@ -1,6 +1,7 @@
 ---
 name: browsertest
 description: "Verify a web UI by actually rendering it. Use whenever a change touches HTML, CSS, or client-side JS, before claiming the work is done."
+user-invocable: true
 ---
 
 # Browser Test Skill
