@@ -143,6 +143,12 @@ It selects the workflow, explains the relevant skill stack, and adds the coverag
 - A self-hosted Jira uses the Jira Data Center MCP route; Confluence and Atlassian Cloud use the Atlassian MCP route.
 - Work in an area covered by a scoped instructions file reads that file's path map and component-ownership rules before broad exploration.
 
+## Tools
+
+- `tools/queue-dashboard` - `node tools/queue-dashboard/server.mjs` serves a live view of every queue item waiting on Faruk, with an answer box per blocker.
+  Answers are written back into the item as a `DECIDED` line and recorded in `TRIAGE-<date>.md`, so a decision never needs hand-carrying into the queue afterwards.
+  It reads disk on every request rather than publishing a snapshot; see that directory's README for the write-back guards.
+
 ## Harness Boundaries
 
 The harness excludes host plugin manifests, automatic commits, and Bash-only secret wizards; host-specific wiring is generated at install time by `install.ps1` rather than kept in the skills.
