@@ -1,6 +1,6 @@
 ---
 name: queue
-description: Work through the idea backlog in queue/QUEUE.md continuously, in personal-mode posture, resuming automatically after usage-limit resets. Use when Faruk wants to drop a larger idea into a backlog instead of running it now, or asks to run or resume the queue.
+description: Work through the idea backlog (split by PC-gated vs phone-gated, see queue/README.md) continuously, in personal-mode posture, resuming automatically after usage-limit resets. Use when Faruk wants to drop a larger idea into a backlog instead of running it now, or asks to run or resume the queue.
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -12,19 +12,34 @@ A backlog for ideas too large to run inline, worked continuously without Faruk b
 
 ## Model
 
-`queue/QUEUE.md` in this repo (`~/Repo/claude-harness/queue/QUEUE.md`) is the backlog.
-Each idea is a `## ` entry with a `Status:` line (`pending`, `in-progress`, `done`, `blocked`), a `Repo:` line when it targets a specific project, a free-text brief, and a `Log:` list of dated one-line notes.
+Two backlog files split by what gates the work — the user gets limited PC time per day but plenty of phone time, so an item that only needs phone-based approval shouldn't wait behind one that needs him at his desk. See `queue/README.md` for the full rationale.
 
-Adding an item is just appending a new `## ` entry with `Status: pending`. No skill invocation needed for that half.
+- `QUEUE-PC.md` — needs local toolchain, software installs, folder-access approvals, or eyes on a running build.
+- `QUEUE-PHONE.md` — research, drafting, review, PR merges, or anything an agent can drive to completion with only phone approval.
+
+**Real queue contents are not tracked in this repo.** Resolve the queue directory in this order, first match wins:
+1. `$CLAUDE_HARNESS_QUEUE_DIR` if set.
+2. `~/.claude-harness/queue/` (outside any git repo — the recommended default).
+3. This repo's own `queue/` directory, if `QUEUE-PC.md` or `QUEUE-PHONE.md` already exists there (both are gitignored, so this never gets committed even when used).
+
+`queue/QUEUE-PC.example.md` and `queue/QUEUE-PHONE.example.md` in this repo are tracked, sanitized templates showing the format — not live queue files, and `/queue` never reads or writes them.
+
+Each idea is a `## ` entry with a `Status:` line (`pending`, `in-progress`, `done`, `blocked`), a `Repo:` line when it targets a specific project, a free-text brief, and a `Log:` list of dated one-line notes. Same format in both files.
+
+Adding an item is appending a new `## ` entry with `Status: pending` to whichever file matches its gate, in the resolved queue directory. No skill invocation needed for that half. If an item's gate is genuinely unclear, default to `QUEUE-PC.md` — it's the safer overclassification, since a phone-queued item that turns out to need local eyes stalls silently until someone notices, wasting a whole `/queue` run.
+
+**Which queue does `/queue` work?** If invoked with an argument (`/queue pc` or `/queue phone`), work only that file. Invoked bare, work `QUEUE-PHONE.md` first (more phone time to spend reviewing its output) and fall through to `QUEUE-PC.md` once it's empty or fully blocked/in-progress for this run.
+
+**Moving an item between queues:** cut the whole `## ` entry (including its `Log:`) from one file and paste it into the other — no format change needed, a queue entry is self-contained. Add a one-line `Log:` note on the move (from which queue, and why). Do this when a blocked PC item turns out to have a phone-doable half worth splitting out.
 
 ## Contract
 
 1. Set the mode to personal for the whole run, regardless of directory. Borrow `/faruk`'s one-interruption rule and `/sleep`'s recoverability discipline (branch, frequent real commits, never rewrite published history) — this runs unattended by design, so treat every item as a `/sleep`-style task even during the day.
-2. Read `queue/QUEUE.md` top to bottom. Resume the first `in-progress` item if one exists — it means a prior run was interrupted mid-task, most likely by hitting the usage limit. Otherwise take the first `pending` item.
-3. Mark the item `in-progress` and commit that status change to `claude-harness` before starting work, so an interruption a moment later still leaves an accurate queue state.
+2. Read the target queue file (see "Which queue does `/queue` work?" above, and the path resolution in Model) top to bottom. Resume the first `in-progress` item if one exists — it means a prior run was interrupted mid-task, most likely by hitting the usage limit. Otherwise take the first `pending` item.
+3. Mark the item `in-progress` in the queue file and save it before starting work, so an interruption a moment later still leaves an accurate queue state. The queue file itself isn't tracked in `claude-harness` git — see Model above — so this is a plain file write, not a commit.
 4. Work the item to completion in its own repo (the `Repo:` line), on its own branch, following that item's brief. Append a dated one-line note to the item's `Log:` after each meaningful step (branch created, PR opened, blocked on X) — not a full transcript, just enough for the next run or Faruk to pick up the thread cold.
-5. When the item is fully done (PR opened, or the deliverable otherwise landed), mark it `done` and commit. Move to the next `pending` item and repeat, in the same run, until the queue is empty or you hit a stopping condition below.
-6. When you hit a usage-limit error (rate-limit / quota message from the harness or API, not an ordinary tool error), stop immediately: leave the current item `in-progress` with a log line describing exactly where it stopped, commit that, and end the run. Do not ask anything first — there is nobody to answer.
+5. When the item is fully done (PR opened, or the deliverable otherwise landed), mark it `done` in the queue file. Move to the next `pending` item and repeat, in the same run, until the queue is empty or you hit a stopping condition below.
+6. When you hit a usage-limit error (rate-limit / quota message from the harness or API, not an ordinary tool error), stop immediately: leave the current item `in-progress` with a log line describing exactly where it stopped in the queue file, and end the run. Do not ask anything first — there is nobody to answer.
 7. When an item is genuinely blocked on something only Faruk can decide (credentials, a judgment call with no reversible default, something in the `/sleep` stop-and-confirm list), mark it `blocked` with a one-line reason in the log and move on to the next item rather than stalling the whole queue.
 8. A queued item that describes a new project (not a change to an existing repo) follows the new-project convention in `instructions/AGENTS.md`: new sibling repo under `C:\Users\Faruk\Repo`, `git init`, matching GitHub repo, portfolio-piece bar, and a tech stack chosen for what is currently in demand rather than defaulted to Faruk's resume stack.
 
@@ -36,7 +51,7 @@ For every item worked, in addition to the item's own `Log:` line, append one lin
 
 A single Claude Code session cannot wait out a usage-limit reset by itself — there is no in-session timer for that. Resumption is external:
 
-- A scheduled task (see `mcp__scheduled-tasks`, or the `schedule` skill) re-invokes `/queue` on an interval — e.g. every 2-3 hours. Each firing is a fresh session: it reads `queue/QUEUE.md`, finds the `in-progress` item left by the last run, and continues. If usage is still limited, that firing's first action fails fast and harmlessly; the next one picks it up once the limit has reset. This is the recommended setup and only needs creating once — check `mcp__scheduled-tasks__list_scheduled_tasks` for an existing `queue-runner` task before creating a duplicate.
+- A scheduled task (see `mcp__scheduled-tasks`, or the `schedule` skill) re-invokes `/queue` on an interval — e.g. every 2-3 hours. Each firing is a fresh session: it resolves the queue directory (see Model), finds the `in-progress` item left by the last run, and continues. If usage is still limited, that firing's first action fails fast and harmlessly; the next one picks it up once the limit has reset. This is the recommended setup and only needs creating once — check `mcp__scheduled-tasks__list_scheduled_tasks` for an existing `queue-runner` task before creating a duplicate. Since PC items need Faruk present, a scheduled `queue-runner` should generally target `/queue phone`; leave `/queue pc` (or bare `/queue`) for when Faruk invokes it himself at his desk.
 - Absent a scheduled task, resumption happens the next time Faruk (or anything) invokes `/queue` manually — nothing is lost, the queue file is the durable state.
 
 Never try to sleep or poll inside one run waiting for a reset; end the run and let the next invocation do the waiting.
