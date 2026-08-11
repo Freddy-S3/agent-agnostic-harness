@@ -2,7 +2,6 @@
 name: triage
 description: "Triage a tracker request into a verified category, state recommendation, and agent-ready brief."
 user-invocable: true
-disable-model-invocation: true
 ---
 
 # Triage

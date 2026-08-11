@@ -2,7 +2,6 @@
 name: to-tickets
 description: Turn a plan, specification, or conversation into reviewed tracer-bullet ticket drafts.
 user-invocable: true
-disable-model-invocation: true
 ---
 
 # To Tickets

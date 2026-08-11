@@ -2,7 +2,6 @@
 name: to-spec
 description: Synthesize settled context into an agent-ready implementation spec.
 user-invocable: true
-disable-model-invocation: true
 ---
 
 Turn the decisions already settled in this conversation into a concise, implementation-ready spec.
