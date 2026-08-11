@@ -47,6 +47,27 @@ Adding an item is appending a new `## ` entry with `Status: pending` to whicheve
 
 For every item worked, in addition to the item's own `Log:` line, append one line to `status/TRACKER.md` (gitignored, not committed) for each assumption, skip, or block — same content, cross-skill format: `- [ ] YYYY-MM-DD | /queue | <repo-or-scope> | <one-line item>`. This is what `/status-report` reads to give Faruk a same-day rundown across every skill's unattended runs.
 
+## Direct item commands
+
+Normally `/queue` picks the next item itself, top-down. Faruk can override that for one item by naming it, either typed or by clicking a card (see Rendering):
+
+| He says | Do this |
+| --- | --- |
+| `Run the queue item "<title>" next.` | Work that item now, ahead of queue order. Leave the ordering of everything else alone. |
+| `Skip the queue item "<title>" for this run.` | Leave its status untouched, log `skipped this run` with the date, move to the next item. Not the same as `blocked` — a skip carries no reason and expires at the end of the run. |
+| `Move the queue item "<title>" to the <pc\|phone> queue.` | The move described in Model: cut the whole entry, paste it into the other file, log the move and why. |
+| `Unblock the queue item "<title>": <fix>.` | Re-check the blocking condition. If it now passes, set the item back to `pending` and continue; if it still fails, leave it `blocked` and log what specifically still fails, naming the actual error rather than a guess at its cause. |
+
+Match on the item title, not on position — positions shift between runs, and a stale card clicked an hour later must not act on whatever has since moved into that slot. If the title matches no entry or matches more than one, say so and do nothing rather than guessing.
+
+## Rendering
+
+When a run is interactive, render the per-run report as clickable cards per `instructions/WIDGETS.md`, alongside the text report rather than instead of it.
+
+- One card per item touched or still open, chipped by status, with its latest `Log:` line as the context line.
+- Buttons come from `WIDGETS.md`'s queue vocabulary and map onto Direct item commands above; **Unblock** appears only on a `blocked` card.
+- Skip the widget entirely for an unattended run — a scheduled firing or a `/sleep` posture run has nobody there to click, so write the text report to the log and stop.
+
 ## Resuming after a usage-limit reset
 
 A single Claude Code session cannot wait out a usage-limit reset by itself — there is no in-session timer for that. Resumption is external:

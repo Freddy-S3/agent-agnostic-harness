@@ -148,6 +148,12 @@ It selects the workflow, explains the relevant skill stack, and adds the coverag
 - `tools/queue-dashboard` - `node tools/queue-dashboard/server.mjs` serves a live view of every queue item waiting on Faruk, with an answer box per blocker.
   Answers are written back into the item as a `DECIDED` line and recorded in `TRIAGE-<date>.md`, so a decision never needs hand-carrying into the queue afterwards.
   It reads disk on every request rather than publishing a snapshot; see that directory's README for the write-back guards.
+- Clickable skill cards - `instructions/WIDGETS.md` defines how `/status-report` and `/queue` render their reports as cards inside the Claude desktop app, with buttons for approve/reject and run/skip/requeue.
+
+  These two overlap deliberately and should not be merged.
+  The dashboard is a separate long-lived surface Faruk opens on purpose to answer a backlog of blockers; the cards are inline in whichever reply already told him about them, and vanish with it.
+  A card's button only ever composes a chat message, so the widget holds no state and can take no action on its own - the write-back guards belong to the dashboard alone.
+  Keep the action vocabulary in `WIDGETS.md` as the single list of what any button may send.
 
 ## Harness Boundaries
 

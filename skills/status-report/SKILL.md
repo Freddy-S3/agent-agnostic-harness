@@ -63,6 +63,18 @@ BLOCKED ON YOU (n)
 
 No headers beyond these three, no preamble, no closing summary sentence. If DECISIONS or BLOCKED ON YOU is empty, omit that section entirely rather than printing a header with a zero count.
 
+## Rendering
+
+After writing the text report above, render it again as clickable cards per `instructions/WIDGETS.md`.
+Emit both: the text report is the durable record and the fallback, the cards are the affordance.
+
+- One card per numbered `DECISIONS` line, with **Approve** / **Reject** / **Explain** buttons.
+- One card per `BLOCKED ON YOU` line, with **I did this** / **Not now**, and its gated items listed as the context line — that chain is the whole point of the section and should survive into the card.
+- `NEEDS PC` and `NEEDS PHONE` render as cards only when the item has an action worth clicking. A `done` item with nothing pending stays a text line.
+- Skip the widget entirely when there is nothing open, when DECISIONS and BLOCKED ON YOU are both empty, or when this is running unattended.
+
+The buttons send the sentences in `WIDGETS.md`'s action vocabulary. Step 5 above already handles them: an `Answer <n>: approve.` arriving as Faruk's next turn is an answer to a numbered item and gets applied and archived exactly like a typed one. Do not add a parallel code path for clicks.
+
 ## Non-goals
 
 This is not `/sleep`'s wake-up report (that is per-run and appears at the end of one unattended session) and not `/queue`'s per-run report (that is scoped to one queue pass). `/status-report` is the aggregate, on-demand view across all of it, read fresh each time it's invoked.

@@ -138,6 +138,7 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 - Treat visibly broken UI, lint failures, flaky tests, and test failures as engineering defects worth resolving when they are in scope.
 - Never mark a code change `done` on review alone when it was meant to run. If the runtime/toolchain isn't available (e.g. Node.js missing), say the change is unbuilt and unverified in both the report and `status/TRACKER.md`, and name the actual blocking error rather than a guessed cause. A Node install got misdiagnosed as a UAC prompt hang three separate times before someone checked the actual installer log and found a wedged `msiexec`; log what the error message says, not what it looks like.
 - Never report a change to HTML, CSS, or client-side JS as done without rendering the page in a real browser; run `/browsertest` and say so plainly when it has not been rendered.
+- When a skill's output is a list of discrete items each awaiting Faruk's call, render it as clickable cards as well as text, following `instructions/WIDGETS.md`. Always emit the text report too: the widget is an affordance layered on the report, not a replacement, and it is the text that survives a headless run, an unavailable tool, or a later session reading the transcript back. Never add a button whose sentence is not already in that file's action vocabulary and already handled by the receiving skill - a control that looks live and does nothing is worse than no control.
 - Prefer modifying existing code, follow the local style, minimize diff noise, and keep comments sparse.
 
 ## Skill Harness Conventions
@@ -154,6 +155,7 @@ Always edit it there, never the `~/.claude` projection.
 |---|---|
 | `skills/<name>/SKILL.md` | The change is a workflow. Create the directory for a new skill. |
 | `instructions/AGENTS.md` | The change adds a skill to the Native Skills table, or adds or alters a standing rule. |
+| `instructions/WIDGETS.md` | The change adds, removes, or renames a clickable card button in any skill. The action vocabulary there is the contract; a button whose sentence is not in that table is a dead control. |
 | `HARNESS.md` | The change affects day-to-day use: the selection table, the gates, or a worked example. |
 | `README.md` | The change adds a new top-level path or alters install behaviour. |
 | Git | Always. Commit in `claude-harness` with a real message, and push. An uncommitted harness edit is lost the next time the machine is reimaged. |
