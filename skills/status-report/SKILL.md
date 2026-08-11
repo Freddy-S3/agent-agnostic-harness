@@ -31,10 +31,17 @@ Do not re-derive any of this from git log or transcripts; the tracker and queue 
 	- **NEEDS PHONE:** same, for `QUEUE-PHONE.md`.
 	- Anything currently running that he should know is still going.
 	- Skip anything with nothing new to say; a quiet item does not need a line. Skip an empty group entirely rather than printing a header with nothing under it.
-4. If Faruk answers some or all of the numbered items in his reply, apply each answer immediately (make the call, act on it, or record the decision as the assumption to use going forward), then move that line out of `status/TRACKER.md` into `status/TRACKER-ARCHIVE.md` (append, gitignored, same as the tracker) rather than deleting it, and note the answer inline before ending the turn.
+4. Close with **BLOCKED ON YOU**, one line per blocker, each carrying three fields: the blocker, its one-line fix, and which queue item(s) it gates.
+	- Derive it from the same files already read in step 1. Do not maintain it as a separate list — a third source of truth would drift, which is the failure this section exists to prevent.
+	- A blocker whose fix is not known still gets a line, with the fix field reading `unknown, needs investigation`. Dropping the hard ones is exactly the failure mode this is meant to fix.
+	- Name the downstream items explicitly. The value is in the chain, not the individual line: a reader should be able to see that one install releases three items without reconstructing it across two files.
+	- Omit the section entirely when nothing is blocked, same rule as `DECISIONS (0)`.
+
+	This exists because of a real miss. A resume item sat blocked for hours on a single missing local binary. The blocked reason was recorded correctly in the queue, and the old format still failed to surface it as *the* blocker — the one install that, once done, released the rendition item, the interactive-widgets item, and the job-board pass. Reconstructing that chain took reading three entries across two files. The format should do that work, not the reader.
+5. If Faruk answers some or all of the numbered items in his reply, apply each answer immediately (make the call, act on it, or record the decision as the assumption to use going forward), then move that line out of `status/TRACKER.md` into `status/TRACKER-ARCHIVE.md` (append, gitignored, same as the tracker) rather than deleting it, and note the answer inline before ending the turn.
 	Do not leave answered items sitting as unresolved once he's answered them.
 	Deleting resolved lines outright was the original behavior; it left `/learn` with nothing but `queue/QUEUE.md` log entries to mine for evidence, since resolved tracker history simply vanished. Archiving keeps the gitignore-because-local-only design intact while giving future runs real material.
-5. If there is nothing open and nothing worth a status line, say so in one line. Do not manufacture content to fill the format.
+6. If there is nothing open and nothing worth a status line, say so in one line. Do not manufacture content to fill the format.
 
 ## Format
 
@@ -49,9 +56,12 @@ NEEDS PC
 NEEDS PHONE
 - <item>: <done|in-progress|blocked> — <one line, what/next>
 - <running now>: <one line>
+
+BLOCKED ON YOU (n)
+- <blocker> -> fix: <the one action that unblocks it> -> gates: <item(s), and which queue>
 ```
 
-No headers beyond these two, no preamble, no closing summary sentence. If DECISIONS is empty, omit the section entirely rather than printing "DECISIONS (0)".
+No headers beyond these three, no preamble, no closing summary sentence. If DECISIONS or BLOCKED ON YOU is empty, omit that section entirely rather than printing a header with a zero count.
 
 ## Non-goals
 
