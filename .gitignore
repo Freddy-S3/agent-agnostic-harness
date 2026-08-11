@@ -8,4 +8,11 @@ queue/QUEUE.md
 # Private skills. These stay on disk and remain usable locally through the
 # ~/.claude/skills junction, but this repository is public, so they are never
 # tracked or published. Do not re-add one to git to "fix" a missing skill.
+#
+# job-search was renamed from pdev on 2026-08-11 (the codename only existed to
+# hide it from coworkers, which this home setup does not need). The old path is
+# kept ignored as well: it costs nothing, and this entry is a privacy control -
+# if a stale pdev/ ever reappears from a backup or another machine, it must not
+# become trackable just because the name moved on.
+skills/job-search/
 skills/pdev/
