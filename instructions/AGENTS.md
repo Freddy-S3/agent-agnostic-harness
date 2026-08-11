@@ -20,7 +20,7 @@ It restores the full six-phase loop, the `/ship` gates, the tracker rules below,
 `/sleep` is personal mode with the interruption budget at zero, for unattended overnight runs.
 It never asks anything and trades approval gates for recoverability; see its skill for the rules.
 
-`/queue` is the backlog for ideas too large to run inline: drop an entry into `queue/QUEUE.md`, and `/queue` works through pending items in `/sleep` posture, one per run, resuming automatically on the next scheduled firing after a usage-limit reset.
+`/queue` is the backlog for ideas too large to run inline: drop an entry into the PC or phone queue (see `queue/README.md` — the real files are gitignored and live outside this repo, `queue/QUEUE-PC.example.md` / `queue/QUEUE-PHONE.example.md` show the format), and `/queue` works through pending items in `/sleep` posture, one per run, resuming automatically on the next scheduled firing after a usage-limit reset.
 
 ### New project convention
 
