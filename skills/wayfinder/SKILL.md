@@ -1,8 +1,7 @@
 ---
 name: wayfinder
-description: Plan a long-horizon effort as a map of decisions.
+description: Plan a long-horizon effort as a map of decisions. Use when an effort is too foggy or too large to plan or finish in one session, and the open decisions matter more than the implementation steps.
 user-invocable: true
-disable-model-invocation: true
 ---
 
 # Wayfinder
