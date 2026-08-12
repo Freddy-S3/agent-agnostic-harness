@@ -51,6 +51,22 @@ Cover these, because each one has failed in real work:
 Write screenshots to a gitignored directory and read them.
 Assertions confirm what was predicted; the screenshot shows what was not.
 
+### Rendering a page behind a token gate
+
+A local tool that requires an unlock token cannot always be reached the obvious way: the
+Chrome extension's JS context could not set the dashboard's cookie on `127.0.0.1`, and
+pasting the token into the unlock form is a password field, which is off limits.
+
+Run a **test-only copy** of the server with the auth check stubbed to `true`, on a
+different port and against a throwaway `QUEUE_DIR`, then render that.
+Produce the copy with `sed` from the real file rather than hand-writing one, so the page
+and client script under test are provably byte-identical to what ships.
+Verify the auth paths separately with `curl` - a stubbed render proves the UI, not the gate.
+
+Say in the report that the gate was stubbed and how the real one was checked.
+A render that quietly bypassed authentication, reported as "rendered in a browser", is a
+verification claim that is broader than the evidence behind it.
+
 ## When a check fails
 
 Do not adjust the assertion to match the page.
