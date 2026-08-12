@@ -75,6 +75,17 @@ Treat each completed phase handoff as the context summary; do not carry unnecess
 ## Self-Improvement
 
 Update the relevant native instruction or skill immediately when the user corrects style, architecture, or approach; when a task reveals missing reusable context; or when a skill is ambiguous.
+
+Treat Faruk's question as a finding in its own right whenever it surfaces something you had not thought to check.
+A defect he had to ask about is two defects: the thing itself, and the fact that nothing in the harness would have caught it.
+Fix both, in the same turn, and then carry on with the task rather than stopping to report the improvement.
+The rule holds whether or not the answer turns out to be bad news - "is X working?" coming back clean still means nothing was watching X.
+It does not apply to questions that merely request information you correctly judged out of scope; the trigger is a gap in what you checked, not a gap in what you said.
+Prefer a check that runs over a sentence that advises: the reason the question was needed is that no mechanism asked it.
+Worked example: an audit reported the skills junction healthy on the strength of its target path, and `/freddy` was unreachable at that moment in the running session.
+Only "can you confirm the skill is working?" found it.
+The artifact-versus-consumer rule in General Guidelines exists because of that question, not because of the outage.
+
 At the end of a substantial task, invoke `/closing` to capture remaining durable signal.
 In personal mode, run `/closing` only when the session actually produced a reusable lesson, not as a routine step.
 
@@ -144,6 +155,13 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 - Never report a change to HTML, CSS, or client-side JS as done without rendering the page in a real browser; run `/browsertest` and say so plainly when it has not been rendered.
 - When a skill's output is a list of discrete items each awaiting Faruk's call, render it as clickable cards as well as text, following `instructions/WIDGETS.md`. Always emit the text report too: the widget is an affordance layered on the report, not a replacement, and it is the text that survives a headless run, an unavailable tool, or a later session reading the transcript back. Never add a button whose sentence is not already in that file's action vocabulary and already handled by the receiving skill - a control that looks live and does nothing is worse than no control.
 - Prefer modifying existing code, follow the local style, minimize diff noise, and keep comments sparse.
+- Renaming a shared identifier - a repo, a directory, a package, a URL - is never a rename. It is a migration with a consumer list, and the consumers are almost never all inside the thing being renamed. Grepping the renamed repo is the part that feels like the job and is the part that finds the least. Before declaring a rename done, enumerate and check each class below by name, and say in the report which ones were clean rather than only listing what changed:
+  - **Inside the repo** - source, docs, scripts, generated output.
+  - **Machine wiring** - junctions and symlinks, `core.hooksPath`, `~/.claude/settings.json` hook commands, scheduled tasks, startup entries, environment variables, worktree `.git` gitdir pointers.
+  - **Processes already running against the old path** - a repaired link does not reach a session that read it at startup. Verify the consumer, not the artifact: after the 2026-08-12 junction repair the target resolved and all 34 skills were on disk, while the session that had started during the outage still answered `Unknown skill: freddy` for every one of them and silently fell back to built-ins. Checking `Get-Item ... Target` confirmed the filesystem and proved nothing about the thing using it. Exercise the mechanism end to end - invoke the skill, fire the hook, hit the endpoint - and restart anything long-lived that caches a path.
+  - **Sibling repos that consume it** - a generator that clones it by URL, a cached checkout of it, a settings allowlist naming its path. On 2026-08-12 the rename to `agent-agnostic-harness` was clean inside the harness and stale in every one of these: `Portfolio-Website/tools/skills_to_site.py` still cloned the old URL into a `.harness-cache/claude-harness-public/` copy, and `.claude/settings.local.json` still allowlisted the old path.
+  - **Published artifacts** - the live site, resume renditions and their built PDFs, job-board exports, PR and issue bodies, the old host's repo description. GitHub redirects an old repo URL, so these keep working and therefore never fail loudly; they just display the wrong name until someone reads them.
+  A redirect or a still-resolving path is not completion. Ask, per consumer, "would this break if the redirect were removed tomorrow", and fix every yes.
 
 ## Skill Harness Conventions
 
