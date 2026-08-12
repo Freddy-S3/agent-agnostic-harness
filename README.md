@@ -1,6 +1,8 @@
-# Agent Harness
+# Agent-Agnostic Harness
 
-A portable, provider-neutral agent harness: instructions, skills, agents, hooks, and memory notes that work across GitHub Copilot, Claude Code, and Codex.
+A portable, agent-agnostic harness: instructions, skills, agents, hooks, and memory notes that run the same across GitHub Copilot, Claude Code, and Codex.
+
+Agent-agnostic means the workflows are not tied to one vendor's assistant. A skill is authored once, in one format, and any supported host gets the same behavior; adding a host is a change to the installer, not a rewrite of the content.
 
 This repository is the single source of truth. You write a skill once, in one format, and `install.ps1` projects it into whatever layout a given host expects. Nothing here is host-specific except the installer.
 

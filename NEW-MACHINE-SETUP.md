@@ -24,16 +24,16 @@ claude
 
 ## 3. Run the bootstrap script
 
-Clone just `claude-harness` first (it's private, so `gh repo clone` needs the login from step 2), then let it clone everything else:
+Clone just `agent-agnostic-harness` first, then let it clone everything else (the login from step 2 is still needed, because the bootstrap script clones private sibling repos too):
 
 ```powershell
-gh repo clone Freddy-S3/claude-harness "$env:USERPROFILE\Repo\claude-harness"
-& "$env:USERPROFILE\Repo\claude-harness\bootstrap-new-machine.ps1"
+gh repo clone Freddy-S3/agent-agnostic-harness "$env:USERPROFILE\Repo\agent-agnostic-harness"
+& "$env:USERPROFILE\Repo\agent-agnostic-harness\bootstrap-new-machine.ps1"
 ```
 
 This clones every other repo under the `Freddy-S3` GitHub account into `C:\Users\Faruk\Repo` (skipping any already present) and runs `install.ps1 -Target claude -Mcp` to set up the skill/memory junctions and the `CLAUDE.md` stub.
 
-Pass `-Only claude-harness,Portfolio-Website,unattended-runs` if you only want the active workspaces and not the older practice/test repos also on the account.
+Pass `-Only agent-agnostic-harness,Portfolio-Website,unattended-runs` if you only want the active workspaces and not the older practice/test repos also on the account.
 Pass `-DryRun` first if you want to see what it would do before it does it.
 
 ## 4. Confirm skills resolve
