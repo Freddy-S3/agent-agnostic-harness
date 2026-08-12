@@ -8,6 +8,48 @@ node tools/queue-dashboard/server.mjs
 # http://127.0.0.1:4317
 ```
 
+## Run it from a pinned worktree, not the shared clone
+
+The dashboard is a long-running service; the clone it runs from is also a working tree
+that other sessions check branches out of. Those two facts collide. A concurrent session
+switched `claude-harness` from this branch to another mid-session, which silently
+replaced `server.mjs` with a pre-auth version while a tailnet proxy was about to be
+pointed at the port.
+
+So give it its own checkout and point the hook there:
+
+```
+git worktree add ~/Repo/claude-harness-dashboard feature/queue-dashboard
+```
+
+`start.ps1` also fails closed: it greps the server file for the token check and refuses
+to start anything that lacks it, so a mispointed path degrades to "no dashboard" rather
+than "unauthenticated dashboard".
+
+## Starting it automatically
+
+`start.ps1` starts the server only if nothing is already accepting on the port, so it is
+safe to run on every Claude Code session. Wire it up as a `SessionStart` hook in
+`~/.claude/settings.json` (a local file, deliberately not tracked here):
+
+```json
+"hooks": {
+  "SessionStart": [
+    { "hooks": [ {
+      "type": "command",
+      "shell": "powershell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\Repo\\claude-harness-dashboard\\tools\\queue-dashboard\\start.ps1\"",
+      "async": true,
+      "timeout": 20
+    } ] }
+  ]
+}
+```
+
+`async` keeps it off the startup path. If two sessions start at once and both find the
+port free, the loser exits quietly on `EADDRINUSE`. Server output goes to
+`%TEMP%\queue-dashboard.log`.
+
 ## Why it is a server and not an artifact
 
 An artifact is a snapshot. It is published once, so it cannot see a queue file that
@@ -51,12 +93,70 @@ The queue files are long and hand-written, so every write is guarded:
 
 Polling pauses while the answer box has focus, so a repaint cannot wipe half-typed text.
 
+## Unlocking
+
+Every request needs a token, including loopback ones. That is deliberate rather than
+paranoid: under `tailscale serve` the phone's requests arrive at the server *from*
+127.0.0.1, so exempting loopback would exempt the phone too, and telling them apart
+would mean trusting a request header the server cannot verify.
+
+The token is generated on first run and stored in `.dashboard-token` inside the queue
+directory (outside the repo, never committed). It is also printed at startup, so
+`%TEMP%\queue-dashboard.log` has it. Set `QUEUE_TOKEN` to pin your own instead.
+
+Visiting the dashboard shows an unlock form; the cookie it sets is `HttpOnly`,
+`SameSite=Strict`, and good for a year, so it is a once-per-browser step. Deleting
+`.dashboard-token` and restarting rotates the token and logs every browser out.
+
+## Reaching it from a phone
+
+The server stays bound to `127.0.0.1` and is never exposed to a network directly.
+Tailscale puts your phone and PC on a private mesh and proxies into that loopback port:
+
+There are two ways to do it. Both keep the dashboard off the public internet and off the
+local network; they differ in whether Tailscale proxies for you or you bind its address
+directly.
+
+**Direct tailnet bind (no admin console needed).** Create the marker file and restart:
+
+```
+New-Item -ItemType File ~/.claude-harness/queue/.dashboard-tailnet
+```
+
+The server then listens on loopback *and* on the machine's `100.x` Tailscale address,
+and nothing else. The address is validated against Tailscale's `100.64.0.0/10` range
+before binding, so a misreported `0.0.0.0` or LAN address is refused rather than
+exposing the queue to the local network. Traffic is WireGuard-encrypted end to end;
+there is no TLS certificate, so the browser will call `http://100.x.y.z:4317` insecure
+even though the transport is not. Delete the marker to go back to loopback-only.
+
+**`tailscale serve` (HTTPS, needs Serve enabled once on the tailnet).** Gives a real
+certificate and a `https://<machine>.<tailnet>.ts.net` name:
+
+```
+tailscale up                       # once, on the PC - opens a browser to sign in
+tailscale serve --bg 4317          # publish to your tailnet over HTTPS
+tailscale serve status             # prints the URL
+```
+
+If it answers "Serve is not enabled on your tailnet", that is a one-time toggle in the
+Tailscale admin console, not something the CLI can turn on.
+
+Install the Tailscale app on the phone, sign in to the same account, then open that URL
+and unlock once. Nothing is exposed publicly, no router port is opened, and only devices
+signed in to your own tailnet can reach the hostname at all. The token is the second
+layer behind that.
+
+To stop publishing: `tailscale serve --https=443 off`.
+
 ## Configuration
 
 | Variable | Default |
 |---|---|
 | `QUEUE_DIR` | `~/.claude-harness/queue` |
 | `PORT` | `4317` |
+| `QUEUE_TOKEN` | generated into `.dashboard-token` on first run |
 
-It binds `127.0.0.1` only. The queue holds private content and must not be reachable
-off-box; do not put this behind a tunnel or bind it to `0.0.0.0`.
+It binds `127.0.0.1` only, and should stay that way. The queue holds private content, so
+remote access belongs behind an identity-checked mesh like Tailscale, not behind a
+`0.0.0.0` bind or a public tunnel.

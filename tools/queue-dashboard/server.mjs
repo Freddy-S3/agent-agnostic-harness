@@ -18,6 +18,7 @@
 import { createServer } from "node:http";
 import { readFile, writeFile, copyFile, appendFile, rename, stat, readdir } from "node:fs/promises";
 import { execFile } from "node:child_process";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,6 +36,81 @@ const FILES = [
 ];
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+// ---------------------------------------------------------------- auth
+//
+// Every request needs the token, including loopback ones. That is deliberate: under
+// `tailscale serve` the phone's requests arrive FROM 127.0.0.1, so exempting loopback
+// would exempt the phone too, and distinguishing them would mean trusting a header the
+// server cannot verify. One unlock per browser, remembered for a year, is the cheaper
+// side of that trade.
+
+const TOKEN_FILE = join(QUEUE_DIR, ".dashboard-token");
+
+async function loadToken() {
+  if (process.env.QUEUE_TOKEN) return process.env.QUEUE_TOKEN.trim();
+  try {
+    const t = (await readFile(TOKEN_FILE, "utf8")).trim();
+    if (t) return t;
+  } catch {
+    /* first run */
+  }
+  const t = randomBytes(24).toString("base64url");
+  await writeFile(TOKEN_FILE, t + "\n", { encoding: "utf8", mode: 0o600 });
+  return t;
+}
+
+let TOKEN = "";
+
+function sameToken(given) {
+  if (typeof given !== "string") return false;
+  const a = Buffer.from(given);
+  const b = Buffer.from(TOKEN);
+  // Compare lengths separately; timingSafeEqual throws on a length mismatch.
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+function cookieToken(req) {
+  const raw = req.headers.cookie || "";
+  for (const part of raw.split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === "qd") return decodeURIComponent(v.join("="));
+  }
+  return null;
+}
+
+const authed = (req) => sameToken(cookieToken(req));
+
+const UNLOCK_PAGE = /* html */ `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Queue - unlock</title>
+<style>
+:root{--ground:#F7F8FA;--surface:#fff;--ink:#171A1F;--ink-3:#767E8B;--rule:#DEE2E9;--blocked:#B24632}
+@media(prefers-color-scheme:dark){:root{--ground:#0E1116;--surface:#161A21;--ink:#E8EBF0;
+--ink-3:#79818E;--rule:#272D38;--blocked:#E4795F}}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);margin:0;min-height:100vh;display:flex;
+align-items:center;justify-content:center;padding:1.5rem;
+font-family:ui-sans-serif,system-ui,"Segoe UI",sans-serif}
+form{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:1.5rem;
+width:100%;max-width:24rem;display:flex;flex-direction:column;gap:.8rem}
+h1{margin:0;font-size:1.2rem;letter-spacing:-.02em}
+p{margin:0;font-size:.85rem;color:var(--ink-3);line-height:1.5}
+input{font:inherit;padding:.6rem;border:1px solid var(--rule);border-radius:2px;
+background:var(--ground);color:var(--ink);width:100%}
+button{font:inherit;font-weight:600;padding:.6rem;border:none;border-radius:2px;
+background:var(--ink);color:var(--ground);cursor:pointer}
+.bad{color:var(--blocked);font-size:.85rem}
+</style></head><body>
+<form method="POST" action="/unlock">
+  <h1>Queue dashboard</h1>
+  <p>Paste the token from <code>.dashboard-token</code> in your queue directory. This
+  browser stays unlocked for a year.</p>
+  <input type="password" name="token" autocomplete="current-password" autofocus
+         placeholder="token" required>
+  <button type="submit">Unlock</button>
+  __ERR__
+</form></body></html>`;
 
 // ---------------------------------------------------------------- parsing
 
@@ -79,6 +155,14 @@ function parseItem(block) {
   )?.[1];
   const blockedReason = blockedRaw && !/RESOLVED/i.test(blockedRaw.slice(0, 80)) ? blockedRaw.trim() : null;
 
+  // An item may declare its own answer options, so a decision offers real choices
+  // ("Branch, commit, push, PR") instead of a generic Approve/Reject that means nothing
+  // for the question actually being asked. Absent, the client falls back to presets.
+  const optBlock = body.match(/^Options:\s*$\n((?:[ \t]*-[^\n]*\n?)+)/m)?.[1];
+  const options = optBlock
+    ? optBlock.split(/\r?\n/).filter((l) => /^\s*-\s/.test(l)).map((l) => l.replace(/^\s*-\s*/, "").trim())
+    : [];
+
   const log = logEntries(body);
   // The live blockers are written as log lines, not as a field. Miss these and the
   // dashboard shows cards but none of the actual decisions.
@@ -94,6 +178,7 @@ function parseItem(block) {
     decided: decided ? decided.trim() : null,
     blockedReason,
     asks,
+    options,
     needsDecision,
     log: log.slice(-3),
   };
@@ -166,11 +251,15 @@ async function snapshot() {
 // its indented continuation lines. Falls back to creating a Log section.
 function insertLogLine(body, line) {
   const lines = body.split("\n");
+  // Scan only from the Log: marker. An item that declares Options: also has bullet lines,
+  // and appending an ANSWERED entry into the option list would turn it into a choice.
+  const logAt = lines.findIndex((l) => /^Log:\s*$/.test(l));
   let last = -1;
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = logAt === -1 ? 0 : logAt + 1; i < lines.length; i++) {
     if (/^-\s/.test(lines[i])) last = i;
     else if (/^\s+\S/.test(lines[i]) && last === i - 1) last = i;
   }
+  if (logAt === -1) last = -1;
   if (last === -1) {
     // No log yet. Insert before any trailing `---` separator.
     const sep = lines.findIndex((l, i) => i > 0 && l.trim() === "---");
@@ -198,7 +287,14 @@ function applyAnswer(text, title, answer) {
   // Function replacer, not a string: `$&` or `$1` inside an answer would otherwise be
   // expanded by replace() and corrupt the file.
   const decidedLine = `DECIDED ${stamp} by Faruk, via the queue dashboard: ${flat}`;
-  body = body.replace(/^Status:.*$/m, (m) => `${m}\n${decidedLine}`);
+  const existing = body.match(/^DECIDED\b[^\n]*(?:\n(?![A-Z][a-z]+ ?[a-z]*:|\s*$)[^\n]*)*/m);
+  if (existing) {
+    // Changing your mind replaces the decision rather than stacking a second DECIDED
+    // block. The superseded text is not lost: the log below keeps every answer in order.
+    body = body.replace(existing[0], decidedLine);
+  } else {
+    body = body.replace(/^Status:.*$/m, (m) => `${m}\n${decidedLine}`);
+  }
   body = insertLogLine(body, `${stamp}: ANSWERED by Faruk via the queue dashboard: ${flat}`);
 
   return text.slice(0, block.bodyAt) + body + text.slice(block.end);
@@ -327,6 +423,34 @@ details summary{cursor:pointer;font-family:ui-monospace,Consolas,monospace;font-
 letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.8rem}
 footer{color:var(--ink-3);font-size:.78rem;border-top:1px solid var(--rule);padding-top:.7rem}
 .empty{color:var(--ink-3);font-size:.9rem}
+body{padding-bottom:5rem}
+.card[data-resolved="1"]{opacity:.58;border-left-color:var(--clear)}
+.card[data-resolved="1"]:hover{opacity:1}
+/* The standing decision is context, not the question. Two lines is enough to recognise
+   it; the full text is in the queue file. The ask itself is never clamped. */
+.decided{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+max-height:3.2rem;margin-bottom:.15rem}
+/* An open question is shown in full - that is the point of the page. Once answered, the
+   question is history, so it clamps too and the card shrinks to a glance. */
+.card[data-resolved="1"] .ask{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+overflow:hidden;max-height:3.2rem}
+.lead{font-family:ui-monospace,Consolas,monospace;font-size:.66rem;letter-spacing:.1em;
+text-transform:uppercase;color:var(--accent)}
+.opts{display:flex;flex-wrap:wrap;gap:.4rem}
+.opt{cursor:pointer;position:relative}
+.opt input{position:absolute;opacity:0;width:0;height:0}
+.opt span{display:inline-block;font-size:.82rem;padding:.3rem .6rem;border:1px solid var(--rule);
+border-radius:2px;background:var(--surface-2);color:var(--ink-2);user-select:none}
+.opt input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--ground);font-weight:600}
+.opt span:hover{border-color:var(--accent)}
+.opt input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.statusbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);
+border-top:1px solid var(--rule);padding:.7rem 1.25rem;display:flex;align-items:center;
+gap:1rem;flex-wrap:wrap}
+.tally{font-family:ui-monospace,Consolas,monospace;font-size:.8rem;color:var(--ink-2);
+font-variant-numeric:tabular-nums}
+.tally b{color:var(--ink)}
+.spacer{flex:1 1 auto}
 </style></head><body>
 <div class="wrap">
   <header>
@@ -343,17 +467,19 @@ footer{color:var(--ink-3);font-size:.78rem;border-top:1px solid var(--rule);padd
     <div class="col" id="decisions"></div>
   </section>
 
-  <details id="restwrap">
-    <summary>Everything else in the queue</summary>
-    <div class="cols" id="cols"></div>
-  </details>
+  <div class="cols" id="cols"></div>
 
   <div class="prs" id="prs"></div>
   <footer id="foot"></footer>
 </div>
+<div class="statusbar">
+  <span class="tally"><b id="t-dec">0</b>/<span id="t-tot">0</span> answered &middot;
+    <b id="t-open">0</b> waiting on you</span>
+  <span class="spacer"></span>
+  <span class="said" id="bar-note"></span>
+</div>
 <script>
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const PRESETS = ['Approved - go ahead', 'Rejected - do not do this', 'Defer - leave it queued', 'Ask me again with more detail'];
 
 let paused = false;   // stop the 5s repaint from wiping what is being typed
 let mtimes = {};
@@ -372,35 +498,61 @@ async function send(file, title, answer, note){
   tick();
 }
 
-function decisionCard(g, i){
+// One card builder for both sections. An item that is not flagged as blocked is still
+// something you may want to redirect, so every open item gets the same controls; only
+// the emphasis differs.
+// Everything an item needs to be answered is on the card, always visible. Nothing that
+// you have to act on is ever behind a disclosure.
+function card(g, i){
+  const decide = i.needsDecision;
   const el = document.createElement('article');
-  el.className = 'card decide';
-  el.innerHTML = '<span class="chip decide">decide</span>'
+  el.className = 'card ' + (decide ? 'decide' : i.status === 'pending' ? 'pending' : '');
+  el.dataset.resolved = i.decided ? '1' : '0';
+
+  const chip = decide ? 'blocked on you' : i.decided ? 'answered' : i.status;
+  const ask = i.asks[0] || i.blockedReason || '';
+
+  el.innerHTML = '<span class="chip ' + (decide ? 'decide' : i.status === 'pending' ? 'pending' : '') + '">'
+      + esc(chip) + '</span>'
     + '<h3>' + esc(i.title) + '</h3>'
-    + (i.asks.length ? i.asks.map(a => '<div class="ask">' + esc(a) + '</div>').join('') : '')
-    + (i.blockedReason ? '<div class="ask">' + esc(i.blockedReason) + '</div>' : '')
+    + (ask ? '<div class="ask">' + esc(ask) + '</div>' : '')
+    + (i.decided ? '<div class="decided"><b>' + esc(i.decided) + '</b></div>' : '')
     + '<div class="meta">' + esc(g.file) + (i.repo ? ' &middot; ' + esc(i.repo) : '') + '</div>';
 
   const box = document.createElement('div');
   box.className = 'answer';
-  const presets = document.createElement('div');
-  presets.className = 'presets';
-  const ta = document.createElement('textarea');
-  ta.placeholder = 'Your answer - written into this item as a DECIDED line';
-  // Pause polling while typing so a repaint cannot wipe the box - but a focused, empty
-  // box left alone must not freeze the dashboard silently.
-  ta.addEventListener('focus', () => { paused = true; });
-  ta.addEventListener('blur', () => { if (!ta.value.trim()) paused = false; });
   const note = document.createElement('span');
   note.className = 'said';
 
-  for (const p of PRESETS){
-    const b = document.createElement('button');
-    b.textContent = p.split(' - ')[0];
-    b.title = p;
-    b.onclick = () => send(g.file, i.title, ta.value.trim() ? p + '. ' + ta.value.trim() : p, note);
-    presets.appendChild(b);
+  const ta = document.createElement('textarea');
+  ta.placeholder = i.decided
+    ? 'Change the decision - replaces the DECIDED line, keeps the old one in the log'
+    : 'Your answer - written into this item as a DECIDED line';
+  ta.addEventListener('focus', () => { paused = true; });
+  ta.addEventListener('blur', () => { if (!ta.value.trim()) paused = false; });
+
+  const lead = document.createElement('span');
+  lead.className = 'lead';
+  lead.textContent = i.options.length ? 'your call' : 'your call - no options declared, answer in your own words';
+
+  // Only the item's own Options: are offered. There is deliberately no generic fallback:
+  // "Approved" is not an answer to "which resume rendition is the default", and a button
+  // that looks like a decision but carries no meaning is worse than an empty box.
+  const opts = document.createElement('div');
+  opts.className = 'opts';
+  for (const c of i.options){
+    const lab = document.createElement('label');
+    lab.className = 'opt';
+    const inp = document.createElement('input');
+    inp.type = 'radio';
+    inp.name = 'o:' + g.file + ':' + i.title;
+    const sp = document.createElement('span');
+    sp.textContent = c;
+    inp.onchange = () => send(g.file, i.title, ta.value.trim() ? c + '. ' + ta.value.trim() : c, note);
+    lab.append(inp, sp);
+    opts.appendChild(lab);
   }
+
   const go = document.createElement('button');
   go.className = 'go'; go.textContent = 'Send answer';
   go.onclick = () => send(g.file, i.title, ta.value, note);
@@ -408,7 +560,7 @@ function decisionCard(g, i){
   const row = document.createElement('div');
   row.className = 'row';
   row.append(go, note);
-  box.append(presets, ta, row);
+  box.append(lead, opts, ta, row);
   el.appendChild(box);
   return el;
 }
@@ -416,7 +568,12 @@ function decisionCard(g, i){
 async function tick(){
   if (paused) return;
   let d;
-  try { d = await (await fetch('/api/queue', {cache:'no-store'})).json(); }
+  try {
+    const r = await fetch('/api/queue', {cache:'no-store'});
+    // Cookie expired or the server restarted with a new token - go get unlocked.
+    if (r.status === 401) { location.reload(); return; }
+    d = await r.json();
+  }
   catch { document.getElementById('pulse').textContent = 'SERVER UNREACHABLE'; return; }
 
   document.getElementById('pulse').textContent = 'LIVE - READ FROM DISK';
@@ -428,28 +585,40 @@ async function tick(){
   document.getElementById('dcount').textContent = decisions.length;
   const host = document.getElementById('decisions');
   host.innerHTML = '';
-  if (!decisions.length) host.innerHTML = '<p class="empty">Nothing is waiting on you. Every open item has a DECIDED line.</p>';
-  for (const [g, i] of decisions) host.appendChild(decisionCard(g, i));
-  document.getElementById('restwrap').open = decisions.length === 0;
+  if (!decisions.length) host.innerHTML = '<p class="empty">Nothing is flagged as waiting on you. Every open item below is still answerable.</p>';
+  for (const [g, i] of decisions) host.appendChild(card(g, i));
 
-  document.getElementById('cols').innerHTML = d.groups.map(g => {
+  const all = d.groups.flatMap(g => g.items);
+  document.getElementById('t-dec').textContent = all.filter(i => i.decided).length;
+  document.getElementById('t-tot').textContent = all.length;
+  document.getElementById('t-open').textContent = decisions.length;
+
+  const cols = document.getElementById('cols');
+  cols.innerHTML = '';
+  for (const g of d.groups){
     const rest = g.items.filter(i => !i.needsDecision);
-    return \`<section class="col">
-      <div class="col-head"><h2>\${esc(g.gate)}</h2>
-        <span class="count">\${rest.length}</span>
-        <span class="gate">\${esc(g.hint)}</span></div>
-      \${g.error ? '<p class="err">Cannot read ' + esc(g.file) + ': ' + esc(g.error) + '</p>' : ''}
-      \${rest.map(i => \`
-        <article class="card \${i.status === 'pending' ? 'pending' : ''}">
-          <span class="chip \${i.status === 'pending' ? 'pending' : ''}">\${esc(i.status)}</span>
-          <h3>\${esc(i.title)}</h3>
-          \${i.decided ? '<div class="decided"><b>' + esc(i.decided) + '</b></div>' : ''}
-          \${i.repo ? '<div class="meta">' + esc(i.repo) + '</div>' : ''}
-          \${i.log.length ? '<ul class="log">' + i.log.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>' : ''}
-        </article>\`).join('')}
-      <div class="meta">\${esc(g.file)} last written \${g.mtime ? new Date(g.mtime).toLocaleString() : 'n/a'}</div>
-    </section>\`;
-  }).join('');
+    const sec = document.createElement('section');
+    sec.className = 'col';
+    const head = document.createElement('div');
+    head.className = 'col-head';
+    head.innerHTML = '<h2>' + esc(g.gate) + '</h2><span class="count">' + rest.length
+      + '</span><span class="gate">' + esc(g.hint) + '</span>';
+    sec.appendChild(head);
+    if (g.error){
+      const p = document.createElement('p');
+      p.className = 'err';
+      p.textContent = 'Cannot read ' + g.file + ': ' + g.error;
+      sec.appendChild(p);
+    }
+    // Nothing here is waiting on you, so it collapses to one line each. Open a row and
+    // it becomes the same answerable card, for changing your mind about a settled item.
+    for (const i of rest) sec.appendChild(card(g, i));
+    const foot = document.createElement('div');
+    foot.className = 'meta';
+    foot.textContent = g.file + ' last written ' + (g.mtime ? new Date(g.mtime).toLocaleString() : 'n/a');
+    sec.appendChild(foot);
+    cols.appendChild(sec);
+  }
 
   document.getElementById('prs').innerHTML = '<strong>Open PRs</strong> <span class="meta">(gh, cached 60s)</span>'
     + (d.prs.length
@@ -464,8 +633,39 @@ async function tick(){
 tick(); setInterval(tick, 5000);
 </script></body></html>`;
 
-const server = createServer(async (req, res) => {
+async function readBody(req) {
+  let raw = "";
+  for await (const chunk of req) raw += chunk;
+  return raw;
+}
+
+const handler = async (req, res) => {
   try {
+    if (req.method === "POST" && req.url === "/unlock") {
+      const given = new URLSearchParams(await readBody(req)).get("token") || "";
+      if (!sameToken(given.trim())) {
+        res.writeHead(401, { "content-type": "text/html; charset=utf-8" });
+        return res.end(UNLOCK_PAGE.replace("__ERR__", '<span class="bad">Wrong token.</span>'));
+      }
+      // Secure only when a proxy terminated TLS for us; a bare loopback visit is http.
+      const secure = req.headers["x-forwarded-proto"] === "https" ? "; Secure" : "";
+      res.writeHead(303, {
+        location: "/",
+        "set-cookie": `qd=${encodeURIComponent(TOKEN)}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict${secure}`,
+      });
+      return res.end();
+    }
+
+    if (!authed(req)) {
+      // An unauthenticated API call must not get the HTML page; it would parse as junk.
+      if (req.url.startsWith("/api/")) {
+        res.writeHead(401, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ error: "unlock required" }));
+      }
+      res.writeHead(401, { "content-type": "text/html; charset=utf-8" });
+      return res.end(UNLOCK_PAGE.replace("__ERR__", ""));
+    }
+
     if (req.url === "/" || req.url.startsWith("/?")) {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
       return res.end(PAGE);
@@ -476,9 +676,7 @@ const server = createServer(async (req, res) => {
       return res.end(JSON.stringify(data));
     }
     if (req.method === "POST" && req.url === "/api/answer") {
-      let raw = "";
-      for await (const chunk of req) raw += chunk;
-      const { file, title, answer, mtime } = JSON.parse(raw || "{}");
+      const { file, title, answer, mtime } = JSON.parse((await readBody(req)) || "{}");
       if (!FILES.some((f) => f.file === file) || !title || !answer) {
         res.writeHead(400, { "content-type": "application/json" });
         return res.end(JSON.stringify({ error: "file, title and answer are required" }));
@@ -493,11 +691,55 @@ const server = createServer(async (req, res) => {
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: String(err && err.message) }));
   }
-});
+};
 
-// Loopback only. This reads private queue content; it must not be reachable off-box.
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`queue dashboard: http://127.0.0.1:${PORT}`);
-  console.log(`reading: ${QUEUE_DIR}`);
-  console.log(`repo root: ${REPO_ROOT}`);
-});
+// Two Claude Code sessions starting at once both find the port free and both spawn.
+// The loser exiting quietly is the correct outcome, not an error worth logging loudly.
+function onError(err) {
+  if (err.code === "EADDRINUSE") {
+    console.log(`port ${PORT} already serving a dashboard; nothing to do`);
+    process.exit(0);
+  }
+  throw err;
+}
+
+function listenOn(host, label) {
+  return new Promise((resolve) => {
+    const s = createServer(handler);
+    s.on("error", onError);
+    s.listen(PORT, host, () => {
+      console.log(`${label}: http://${host.includes(":") ? `[${host}]` : host}:${PORT}`);
+      resolve(s);
+    });
+  });
+}
+
+// The tailnet address is a WireGuard-only interface: reachable from this user's signed-in
+// devices and nothing else, with no router port opened and no public DNS name. Binding it
+// directly is the alternative to `tailscale serve` when Serve is not enabled on a tailnet.
+// Opt-in, because binding anything beyond loopback should never be a silent default.
+async function tailnetAddress() {
+  if (process.env.QUEUE_TAILSCALE !== "1") return null;
+  const exe = process.env.TAILSCALE_EXE || "C:/Program Files/Tailscale/tailscale.exe";
+  try {
+    const { stdout } = await run(exe, ["ip", "-4"], { timeout: 10_000, windowsHide: true });
+    const ip = stdout.trim().split(/\s+/)[0];
+    // 100.64.0.0/10 is the CGNAT range Tailscale allocates from. Refuse anything else:
+    // a surprise 0.0.0.0 or LAN address here would expose the queue to the local network.
+    return /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(ip) ? ip : null;
+  } catch {
+    return null;
+  }
+}
+
+TOKEN = await loadToken();
+await listenOn("127.0.0.1", "queue dashboard");
+
+const tsIp = await tailnetAddress();
+if (tsIp) await listenOn(tsIp, "tailnet");
+else if (process.env.QUEUE_TAILSCALE === "1") console.log("tailnet bind requested but no tailscale IPv4 found");
+
+console.log(`reading: ${QUEUE_DIR}`);
+console.log(`repo root: ${REPO_ROOT}`);
+console.log(`unlock token: ${TOKEN}`);
+console.log(`token file: ${TOKEN_FILE}`);

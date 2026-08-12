@@ -27,6 +27,28 @@ plus a one-line log note explaining why.
 NEEDS PHONE) so a phone check-in surfaces exactly what a thumbs-up can unblock, without
 mixing in items that need the desk.
 
+## Declaring answer options on a blocker
+
+Any item that needs a decision from Faruk carries an `Options:` field: a bullet list of the
+answers that actually fit the question it is asking.
+
+```
+Status: pending
+Options:
+- Branch, commit, push, PR
+- Show me the diff first
+- Leave it
+```
+
+`tools/queue-dashboard` renders those as one-click choices. Without them a blocker offers
+only a free-text box, because a generic approve/reject is not an answer to "which resume
+rendition is the default" and pretending otherwise wastes the decision.
+
+The field belongs next to `Status:` and above `Log:`. Writing it is the job of whichever run
+logs the blocker, because that run is the one that knows what the alternatives are; a later
+reader has to reconstruct them from prose. Options are also the cheapest handoff to the next
+agent: they record which paths were considered, not just which was chosen.
+
 ## Where the real queue files live
 
 `QUEUE-PC.md` and `QUEUE-PHONE.md` are gitignored and not tracked in this repo. Real
