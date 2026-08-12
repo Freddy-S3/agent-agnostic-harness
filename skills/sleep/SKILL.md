@@ -2,7 +2,6 @@
 name: sleep
 description: Zero-interruption personal mode. Use when Faruk is asleep or away and the work must run to completion with no questions, no gates, and no mid-task check-ins.
 user-invocable: true
-disable-model-invocation: true
 ---
 
 # Sleep

@@ -1,8 +1,7 @@
 ---
 name: to-questionnaire
-description: Create an asynchronous discovery questionnaire for a knowledgeable recipient.
+description: Create an asynchronous discovery questionnaire for a knowledgeable recipient. Use when the missing context is held by someone other than Faruk and has to be gathered by sending them questions rather than by reading code.
 user-invocable: true
-disable-model-invocation: true
 ---
 
 Create a **discovery questionnaire** for a recipient who holds facts or context the user needs.

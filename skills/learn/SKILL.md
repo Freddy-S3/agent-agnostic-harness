@@ -2,7 +2,6 @@
 name: learn
 description: Review real friction from queue logs, the tracker archive, and PR activity across every repo the harness has touched, then apply grounded, evidence-cited refinements to the harness's own skills. Use when Faruk wants the harness to self-improve from what actually happened, or asks to run or invoke /learn.
 user-invocable: true
-disable-model-invocation: true
 ---
 
 # Learn

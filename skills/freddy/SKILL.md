@@ -1,8 +1,7 @@
 ---
 name: freddy
-description: Select and apply the right harness workflow for a task, then show a concise operational skill trace.
+description: Delivery-mode router. Select and apply the right harness workflow for a task, then show a concise operational skill trace. Use for ticket-backed work, shared repositories, anything Faruk labels as delivery, or when the right workflow for a substantial task is unclear.
 user-invocable: true
-disable-model-invocation: true
 ---
 
 # Freddy

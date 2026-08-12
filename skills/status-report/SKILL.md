@@ -2,7 +2,6 @@
 name: status-report
 description: Decision-maker rundown for a short check-in. Use when Faruk wants a quick status check across queue items and unattended /sleep or /faruk runs, or asks what needs his call.
 user-invocable: true
-disable-model-invocation: true
 ---
 
 # Status Report

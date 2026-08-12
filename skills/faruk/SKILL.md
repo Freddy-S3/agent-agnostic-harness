@@ -2,7 +2,6 @@
 name: faruk
 description: Hands-off personal-mode router. Use for personal projects and websites when Faruk is busy or on the go and wants the work done with minimal back and forth.
 user-invocable: true
-disable-model-invocation: true
 ---
 
 # Faruk

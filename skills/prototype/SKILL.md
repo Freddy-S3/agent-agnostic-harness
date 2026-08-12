@@ -1,8 +1,7 @@
 ---
 name: prototype
-description: Create a throwaway runnable prototype that answers one design question.
+description: Create a throwaway runnable prototype that answers one design question. Use when a design choice needs evidence from running code rather than reasoning, and the code is meant to be discarded afterwards.
 user-invocable: true
-disable-model-invocation: true
 ---
 
 # Prototype

@@ -167,6 +167,15 @@ Verify a new skill is actually discoverable before reporting it added: `skills/`
 directory junction into `~/.claude`, so a new `SKILL.md` registers live, but a skill
 absent from the `AGENTS.md` table will not be routed to.
 
+Every skill in this harness is model-invocable. Do not set `disable-model-invocation: true` on
+a new one. That flag makes a skill reachable only by a slash command the human types into the
+CLI, which silently removes it from every other surface: the desktop and web apps, background
+jobs, and subagents all reach skills through the Skill tool, not through slash expansion.
+Eleven skills carried the flag - both mode routers among them - and were invisible outside the
+terminal until 2026-08-11. Keep `user-invocable: true` so the slash command still works, and
+write the `description` as a model-facing pointer stating its trigger conditions, because it is
+now the index entry the agent routes on rather than a human-facing summary.
+
 - When adapting an imported harness, validate that the native files neither mention nor require the source archive before treating that archive as removable.
 - This harness is linked into `~/.claude`, not copied. `skills/` and `memories/` are directory junctions, so an edit on either side is the same file. `~/.claude/CLAUDE.md` is a stub that imports this file with `@~/Repo/claude-harness/instructions/AGENTS.md`, so it is read live and never needs syncing.
 - A single file cannot be linked reliably on Windows: symlinks need admin or Developer Mode, and a hard link does not survive an editor that writes by replace-and-rename. The import stub sidesteps both, because the stub itself is never edited.

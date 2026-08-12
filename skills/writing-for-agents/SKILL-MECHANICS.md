@@ -13,6 +13,8 @@ A model-invoked skill whose content is all reference is also one home for shared
 
 Pick model-invocation only when the agent must reach the skill on its own, or another skill must. If it only ever fires by hand, make it user-invoked and pay no context load.
 
+The zero-context-load side of that trade is smaller than it looks, and the cost is larger: a user-invoked skill is reachable only where a human types slash commands, so it vanishes from the desktop and web apps, background jobs, and subagents. Freddy's own harness therefore overrides this trade and makes every skill model-invocable; see `instructions/AGENTS.md`. Weigh it as a real trade only for a skill outside that harness.
+
 Shared reference that two user-invoked skills both need can live in neither — with `disable-model-invocation: true` on both, neither can fire the other. Push it to a plain file outside the skill system: external reference any skill can point at (a shared file under a `references/` folder, or a doc named directly in each skill body).
 
 ## The same axis in instructions, prompts, and agents

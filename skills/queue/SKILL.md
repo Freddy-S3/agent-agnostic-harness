@@ -2,7 +2,6 @@
 name: queue
 description: Work through the idea backlog (split by PC-gated vs phone-gated, see queue/README.md) continuously, in personal-mode posture, resuming automatically after usage-limit resets. Use when Faruk wants to drop a larger idea into a backlog instead of running it now, or asks to run or resume the queue.
 user-invocable: true
-disable-model-invocation: true
 ---
 
 # Queue
