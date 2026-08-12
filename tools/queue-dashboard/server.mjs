@@ -234,7 +234,7 @@ async function openPrs() {
   if (Date.now() - prCache.at < 60_000) return prCache.data;
   const repos = [
     "Portfolio-Website",
-    "claude-harness-public",
+    "agent-agnostic-harness",
     "tewaza-market",
     "mottainai-market",
     "hoshi-candle-co",

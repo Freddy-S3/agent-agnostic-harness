@@ -14,7 +14,7 @@ Report the URL.
 
 Never merge the pull request. Not with `gh pr merge`, not by any other route.
 Opening the PR is the deliverable; merging it is Faruk's call, because the gh CLI authenticates as his own account and a PR "merged by Freddy-S3" that this skill also opened is not a review by anyone.
-An audit across every repo this harness has touched (`claude-harness`, `Portfolio-Website`, `unattended-runs`, `petal-and-polish`, `hoshi-candle-co`) found every PR merged by the same account that authored it, with zero review comments on any of them — the "a human reviews it" convention was never actually enforced, only asserted.
+An audit across every repo this harness has touched (`agent-agnostic-harness`, `Portfolio-Website`, `unattended-runs`, `petal-and-polish`, `hoshi-candle-co`) found every PR merged by the same account that authored it, with zero review comments on any of them — the "a human reviews it" convention was never actually enforced, only asserted.
 If a PR sits open waiting on Faruk, say so in the report; do not close the loop for him.
 
 A branch must never carry commits without an open pull request.

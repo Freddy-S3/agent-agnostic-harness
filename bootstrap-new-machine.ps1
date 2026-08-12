@@ -13,7 +13,7 @@
       1. Create C:\Users\Faruk\Repo if it doesn't exist.
       2. List every repo under the Freddy-S3 GitHub account (`gh repo list`) and
          clone whichever aren't already present locally.
-      3. Run install.ps1 -Target claude -Mcp from the freshly cloned claude-harness,
+      3. Run install.ps1 -Target claude -Mcp from the freshly cloned agent-agnostic-harness,
          so the skill/memory junctions and CLAUDE.md stub are set up the same way
          they are on this machine.
 
@@ -34,7 +34,7 @@
     .\bootstrap-new-machine.ps1
 
 .EXAMPLE
-    .\bootstrap-new-machine.ps1 -Only claude-harness,Portfolio-Website,unattended-runs
+    .\bootstrap-new-machine.ps1 -Only agent-agnostic-harness,Portfolio-Website,unattended-runs
 
 .EXAMPLE
     .\bootstrap-new-machine.ps1 -DryRun
@@ -101,13 +101,13 @@ foreach ($repo in $repos) {
 
 # --- 3. install the harness -----------------------------------------------
 
-$harnessInstall = Join-Path $RepoRoot 'claude-harness\install.ps1'
+$harnessInstall = Join-Path $RepoRoot 'agent-agnostic-harness\install.ps1'
 if (Test-Path $harnessInstall) {
     Invoke-Step "Install harness (claude, with MCP config)" {
         & $harnessInstall -Target claude -Mcp
     }
 } else {
-    Write-Warning "claude-harness\install.ps1 not found under $RepoRoot - clone it manually and run install.ps1 -Target claude yourself."
+    Write-Warning "agent-agnostic-harness\install.ps1 not found under $RepoRoot - clone it manually and run install.ps1 -Target claude yourself."
 }
 
 Write-Host ""

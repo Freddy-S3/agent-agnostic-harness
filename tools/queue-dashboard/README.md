@@ -12,14 +12,14 @@ node tools/queue-dashboard/server.mjs
 
 The dashboard is a long-running service; the clone it runs from is also a working tree
 that other sessions check branches out of. Those two facts collide. A concurrent session
-switched `claude-harness` from this branch to another mid-session, which silently
+switched `agent-agnostic-harness` from this branch to another mid-session, which silently
 replaced `server.mjs` with a pre-auth version while a tailnet proxy was about to be
 pointed at the port.
 
 So give it its own checkout and point the hook there:
 
 ```
-git worktree add ~/Repo/claude-harness-dashboard feature/queue-dashboard
+git worktree add ~/Repo/agent-agnostic-harness-dashboard feature/queue-dashboard
 ```
 
 `start.ps1` also fails closed: it greps the server file for the token check and refuses
@@ -38,7 +38,7 @@ safe to run on every Claude Code session. Wire it up as a `SessionStart` hook in
     { "hooks": [ {
       "type": "command",
       "shell": "powershell",
-      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\Repo\\claude-harness-dashboard\\tools\\queue-dashboard\\start.ps1\"",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\Repo\\agent-agnostic-harness-dashboard\\tools\\queue-dashboard\\start.ps1\"",
       "async": true,
       "timeout": 20
     } ] }

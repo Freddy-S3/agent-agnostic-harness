@@ -49,7 +49,7 @@ Everything else is fair game, including creating branches, opening PRs, installi
 
 ## Status tracker
 
-Alongside the final report, append one line to `status/TRACKER.md` (repo-root of `claude-harness`, gitignored, not committed) for every assumption made instead of asking. Format: `- [ ] YYYY-MM-DD | /faruk | <repo-or-scope> | <one-line item>`. This feeds `/status-report`, so Faruk can catch up on assumptions across sessions without re-reading transcripts. Append, never overwrite.
+Alongside the final report, append one line to `status/TRACKER.md` (repo-root of `agent-agnostic-harness`, gitignored, not committed) for every assumption made instead of asking. Format: `- [ ] YYYY-MM-DD | /faruk | <repo-or-scope> | <one-line item>`. This feeds `/status-report`, so Faruk can catch up on assumptions across sessions without re-reading transcripts. Append, never overwrite.
 
 ## Reporting
 

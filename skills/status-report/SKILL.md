@@ -12,8 +12,8 @@ Every sentence that is not a decision or a fact is a sentence he has to skim pas
 
 ## What this reads
 
-1. `status/TRACKER.md` in `claude-harness` — the open-decision log that `/sleep`, `/faruk`, and `/queue` append to whenever they hit something they'd normally ask about but proceeded past instead.
-2. `QUEUE-PC.md` and `QUEUE-PHONE.md` — status and latest `Log:` line of every item, in both files. See `skills/queue/SKILL.md`'s Model section for how to resolve their directory (env var, then `~/.claude-harness/queue/`, then this repo's `queue/` as a last resort) — these are not tracked in `claude-harness` git.
+1. `status/TRACKER.md` in `agent-agnostic-harness` — the open-decision log that `/sleep`, `/faruk`, and `/queue` append to whenever they hit something they'd normally ask about but proceeded past instead.
+2. `QUEUE-PC.md` and `QUEUE-PHONE.md` — status and latest `Log:` line of every item, in both files. See `skills/queue/SKILL.md`'s Model section for how to resolve their directory (env var, then `~/.claude-harness/queue/`, then this repo's `queue/` as a last resort) — these are not tracked in `agent-agnostic-harness` git.
 3. Any scheduled-task or background-agent state visible in-session (e.g. a `/queue` run or `/faruk` task still in flight).
 
 Do not re-derive any of this from git log or transcripts; the tracker and queue files exist so this skill can be O(read three files), not O(investigate everything).

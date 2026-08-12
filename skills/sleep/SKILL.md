@@ -62,7 +62,7 @@ Every block handed back to Faruk carries an `Options:` list on its queue item �
 
 ## Status tracker
 
-Alongside the wake-up report, append one line to `status/TRACKER.md` (repo-root of `claude-harness`, gitignored, not committed) for every assumption, skip, or block from this run — the same events that land in the report's `Assumed`/`Skipped` lines. Format: `- [ ] YYYY-MM-DD | /sleep | <repo-or-scope> | <one-line item>`. This is what lets `/status-report` give Faruk a same-day rundown without re-deriving it from transcripts. Append, never overwrite; `/status-report` owns clearing resolved lines.
+Alongside the wake-up report, append one line to `status/TRACKER.md` (repo-root of `agent-agnostic-harness`, gitignored, not committed) for every assumption, skip, or block from this run — the same events that land in the report's `Assumed`/`Skipped` lines. Format: `- [ ] YYYY-MM-DD | /sleep | <repo-or-scope> | <one-line item>`. This is what lets `/status-report` give Faruk a same-day rundown without re-deriving it from transcripts. Append, never overwrite; `/status-report` owns clearing resolved lines.
 
 ## Wake-up report
 
