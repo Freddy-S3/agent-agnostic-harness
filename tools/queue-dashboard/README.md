@@ -80,6 +80,20 @@ section, so a later run can read the day's decisions in one place.
 
 An answer is a recorded decision, not executed work. Nothing here runs anything.
 
+## Study checklist
+
+`STUDY.md` in the queue directory is rendered as a live checklist under the queue cards.
+It is a plain GitHub-flavoured Markdown task list: `## ` headings become tracks, and every
+`- [ ]` / `- [x]` line becomes a row with a per-track and an overall count.
+
+Ticking a box rewrites that one line in the file. Nothing else about it is special: no
+`DECIDED` line, no `Log:` entry, no `TRIAGE` row, and it never appears under **Blocked on
+you**, because finishing a chapter is not a decision anyone is waiting on. Edit the file
+by hand whenever you like; the page picks it up on the next 5s poll.
+
+It lives here because this is the page already open on the phone, which is where the
+studying actually happens. Delete the file and the section just says so.
+
 ## Safety of the write-back
 
 The queue files are long and hand-written, so every write is guarded:
@@ -90,6 +104,11 @@ The queue files are long and hand-written, so every write is guarded:
   write, so a concurrent session or dispatch run is never clobbered
 - only the target item's block is rewritten; the rest of the file is passed through
   byte for byte
+
+A study tick is guarded the same way, plus one more check: the page sends the text of the
+task it thinks it is ticking, and a mismatch returns 409. The index alone would tick
+whatever line happens to sit at that position if the file were reordered between the read
+and the click.
 
 Polling pauses while the answer box has focus, so a repaint cannot wipe half-typed text.
 
