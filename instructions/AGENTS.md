@@ -75,6 +75,17 @@ Treat each completed phase handoff as the context summary; do not carry unnecess
 ## Self-Improvement
 
 Update the relevant native instruction or skill immediately when the user corrects style, architecture, or approach; when a task reveals missing reusable context; or when a skill is ambiguous.
+
+Treat Faruk's question as a finding in its own right whenever it surfaces something you had not thought to check.
+A defect he had to ask about is two defects: the thing itself, and the fact that nothing in the harness would have caught it.
+Fix both, in the same turn, and then carry on with the task rather than stopping to report the improvement.
+The rule holds whether or not the answer turns out to be bad news - "is X working?" coming back clean still means nothing was watching X.
+It does not apply to questions that merely request information you correctly judged out of scope; the trigger is a gap in what you checked, not a gap in what you said.
+Prefer a check that runs over a sentence that advises: the reason the question was needed is that no mechanism asked it.
+Worked example: an audit reported the skills junction healthy on the strength of its target path, and `/freddy` was unreachable at that moment in the running session.
+Only "can you confirm the skill is working?" found it.
+The artifact-versus-consumer rule in General Guidelines exists because of that question, not because of the outage.
+
 At the end of a substantial task, invoke `/closing` to capture remaining durable signal.
 In personal mode, run `/closing` only when the session actually produced a reusable lesson, not as a routine step.
 

@@ -56,6 +56,9 @@ Update the skill so the next invocation is unambiguous.
 Either add it to the closest existing skill or create a new one (only if clearly distinct).
 5. **Resolved open questions** - any "open questions" in memory or instructions that this session answered.
 Close them out.
+6. **Questions the user had to ask** - anything found only because Faruk asked something you had not thought to check.
+Ranks with corrections for signal. Each one names a blind spot no mechanism was watching, so capture the missing check rather than the fact it uncovered.
+The standing rule is to fix these inline when they happen; reaching `/closing` still holding one means the fix was skipped, not deferred.
 
 ## Where To Write
 

@@ -168,6 +168,8 @@ The native harness is self-contained; its commands rely only on native skills an
 
 - Prefer `/freddy` when choosing among user-invoked skills becomes uncertain.
 - Use `/closing` after substantial non-`/ship` sessions so a real reusable lesson is captured once, in the right home.
+- When Faruk's question surfaces something you had not thought to check, fix the harness gap in the same turn and keep going.
+  The question is the signal that no mechanism was asking it; a clean answer counts too.
 - Keep each skill focused on one discipline.
   Merge overlapping skills instead of adding duplicate rules in multiple places.
 - When updating a skill or instruction, use `/writing-for-agents` and validate both its mechanics and its actual behavior.
