@@ -50,6 +50,40 @@ safe to run on every Claude Code session. Wire it up as a `SessionStart` hook in
 port free, the loser exits quietly on `EADDRINUSE`. Server output goes to
 `%TEMP%\queue-dashboard.log`.
 
+## The stale-checkout guard
+
+A running dashboard looks identical whether it is serving current code or code from
+months ago, so a checkout left on a merged branch is invisible until someone notices a
+shipped feature missing from the page. That has now happened twice, most recently when
+the pinned worktree sat on the branch from PR #23 and kept serving it after #25 and #26
+merged - the study checklist was live in `main` and absent from the page for a day.
+
+Before the up-check, the launcher resolves the **running server's** repository from the
+listening process's command line - not its own `$PSScriptRoot`, which is a different
+checkout by design and would audit the wrong `HEAD` in exactly this split - and asks
+whether `origin/main` is contained in that `HEAD`. Two details matter:
+
+- The question is `merge-base --is-ancestor origin/main HEAD`, not the other way round.
+  The intuitive direction is wrong: a branch that was merged and then left behind is
+  still an ancestor of `main`, so it reports healthy for the one case this catches.
+- The staleness check runs **before** the "is the port already up" early exit. The whole
+  failure mode is a healthy-looking port serving old code, so a guard placed after that
+  exit would never run when it was needed.
+
+`origin` is fetched at most once an hour, and an unanswerable check - no git, no network,
+no `origin/main` - is treated as current rather than stale. A launcher that cries wolf
+offline gets ignored, which costs more than the problem it reports.
+
+It **warns** rather than killing, because submitted answers are on disk but text still
+being typed into an answer box is not, and discarding that to fix a staleness problem the
+user has not seen yet is the wrong trade. Pass `-Restart` to stop the old server and
+relaunch from the current checkout:
+
+```
+git -C <serving-repo> pull --ff-only
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/queue-dashboard/start.ps1 -Restart
+```
+
 ## Why it is a server and not an artifact
 
 An artifact is a snapshot. It is published once, so it cannot see a queue file that
@@ -84,7 +118,9 @@ An answer is a recorded decision, not executed work. Nothing here runs anything.
 
 `STUDY.md` in the queue directory is rendered as a live checklist under the queue cards.
 It is a plain GitHub-flavoured Markdown task list: `## ` headings become tracks, and every
-`- [ ]` / `- [x]` line becomes a row with a per-track and an overall count.
+`- [ ]` / `- [x]` line becomes a row with a per-track and an overall count. Prose that is
+not a track - a rationale note, a preamble - must sit under a `### ` or deeper heading, or
+it renders as an empty `0/0` track.
 
 Ticking a box rewrites that one line in the file. Nothing else about it is special: no
 `DECIDED` line, no `Log:` entry, no `TRIAGE` row, and it never appears under **Blocked on
