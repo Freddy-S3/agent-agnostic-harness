@@ -218,14 +218,48 @@ Do not replace this stub with a copy of AGENTS.md. A copy stops tracking the har
 
 function Test-IsJunction {
     <#
-        True when the path is a junction or symlink, meaning the destination is
-        already linked back to this repository and must not be copied over.
+        True when the path is a junction or symlink. Says nothing about where it
+        points - use Test-JunctionPointsTo when that is the question being asked.
     #>
     param([string]$Path)
 
     if (-not (Test-Path -LiteralPath $Path)) { return $false }
     $item = Get-Item -LiteralPath $Path -Force
     return ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0
+}
+
+function Get-JunctionTarget {
+    <# The path a junction resolves to, or $null if it is not a link. #>
+    param([string]$Path)
+
+    if (-not (Test-IsJunction $Path)) { return $null }
+    $target = (Get-Item -LiteralPath $Path -Force).Target
+    # .Target is a string collection on some PowerShell versions and a bare
+    # string on others; normalise before comparing or the compare silently fails.
+    if ($target -is [array]) { $target = $target[0] }
+    if ([string]::IsNullOrWhiteSpace($target)) { return $null }
+    return $target.TrimEnd('\')
+}
+
+function Test-JunctionPointsTo {
+    <#
+        True only when $Path is a link AND it resolves to $Target.
+
+        The distinction matters and has bitten once already. This function used to
+        be Test-IsJunction, whose docstring claimed it meant "already linked back to
+        this repository" while the code only ever asked "is this a link at all". When
+        the harness repository was renamed on disk, the installer re-ran, found the
+        old junctions still present but dangling, printed "already linked", and
+        skipped them - leaving every skill and memory unreachable while reporting a
+        clean install. An idempotency check has to compare the target state, not the
+        shape; "already linked" is exactly the kind of claim that needs the stronger
+        test behind it.
+    #>
+    param([string]$Path, [string]$Target)
+
+    $actual = Get-JunctionTarget $Path
+    if ($null -eq $actual) { return $false }
+    return $actual -ieq $Target.TrimEnd('\')
 }
 
 function Copy-Tree {
@@ -240,8 +274,19 @@ function Copy-Tree {
     if ([string]::IsNullOrWhiteSpace($DestName)) { $DestName = $Name }
     $dst = Join-Path $DestRoot $DestName
 
+    if (Test-JunctionPointsTo $dst $src) {
+        Write-Host "  ($DestName is linked to this repo - already live, skipped)"
+        return
+    }
+
     if (Test-IsJunction $dst) {
-        Write-Host "  ($DestName is linked to the repo - already live, skipped)"
+        # Same failure as the link step, reached when -Link was not passed: skipping
+        # here on the strength of "it is a link" would leave a dangling junction in
+        # place and copy nothing into it, so the install reports success and the
+        # destination stays empty. Say so instead of skipping quietly.
+        $stale = Get-JunctionTarget $dst
+        Write-Host "  WARNING: $DestName is a link to $stale, not to this repo." -ForegroundColor Yellow
+        Write-Host "           Nothing was copied. Re-run with -Link to repoint it." -ForegroundColor Yellow
         return
     }
 
@@ -336,12 +381,22 @@ if ($Link) {
         $dst = Join-Path $DestRoot $name
         if (-not (Test-Path -LiteralPath $src)) { continue }
 
-        if (Test-IsJunction $dst) {
-            Write-Host "  ($name already linked)"
+        if (Test-JunctionPointsTo $dst $src) {
+            Write-Host "  ($name already linked to this repo)"
             continue
         }
 
-        if ((Test-Path -LiteralPath $dst) -and -not $DryRun) {
+        if (Test-IsJunction $dst) {
+            # A link to somewhere else, or a dangling one left behind by a rename.
+            # A junction holds no data, so it is removed without a backup - and with
+            # Directory.Delete($path, $false) rather than Remove-Item -Recurse, which
+            # on PowerShell 5.1 can follow the reparse point and delete the target's
+            # contents. That target is the repository itself.
+            $stale = Get-JunctionTarget $dst
+            Write-Action 'relink ' "$name was -> $stale"
+            if (-not $DryRun) { [System.IO.Directory]::Delete($dst, $false) }
+        }
+        elseif ((Test-Path -LiteralPath $dst) -and -not $DryRun) {
             $backup = "$dst.bak-$Stamp"
             Write-Action 'backup ' (Split-Path -Leaf $backup)
             Copy-Item -LiteralPath $dst -Destination $backup -Recurse -Force
