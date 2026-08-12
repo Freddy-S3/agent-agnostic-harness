@@ -35,6 +35,12 @@ const FILES = [
   { file: "QUEUE-PHONE.md", gate: "On your phone", hint: "browser, GitHub app" },
 ];
 
+// The study checklist is read-and-write like the queues, but it is not a queue: nothing in
+// it is blocked on a decision and ticking a box is not an answer, so it never reaches the
+// decision cards or TRIAGE. It lives here because this is the page already open on the
+// phone, which is where the studying actually happens.
+const STUDY_FILE = "STUDY.md";
+
 const today = () => new Date().toISOString().slice(0, 10);
 
 // ---------------------------------------------------------------- auth
@@ -184,6 +190,42 @@ function parseItem(block) {
   };
 }
 
+// A GFM task line, at any indent. The index is assigned in file order across the whole
+// file rather than per section, so a tick identifies its line without the client needing
+// to know anything about the section structure.
+const TASK_RE = /^(\s*)- \[([ xX])\]\s?(.*)$/;
+
+function parseStudy(text) {
+  const sections = [];
+  let current = null;
+  let index = 0;
+  for (const line of text.split(/\r?\n/)) {
+    const head = line.match(/^## (.+)$/);
+    if (head) {
+      current = { title: head[1].trim(), tasks: [] };
+      sections.push(current);
+      continue;
+    }
+    const t = line.match(TASK_RE);
+    if (!t) continue;
+    // A task before any heading still counts; give it a home rather than dropping it.
+    if (!current) sections.push((current = { title: "Unsorted", tasks: [] }));
+    current.tasks.push({ index: index++, done: t[2] !== " ", text: t[3].trim() });
+  }
+  const tasks = sections.flatMap((s) => s.tasks);
+  return { sections, total: tasks.length, done: tasks.filter((t) => t.done).length };
+}
+
+async function studySnapshot() {
+  const path = join(QUEUE_DIR, STUDY_FILE);
+  try {
+    const [text, st] = await Promise.all([readFile(path, "utf8"), stat(path)]);
+    return { file: STUDY_FILE, ...parseStudy(text), mtime: st.mtimeMs, error: null };
+  } catch (err) {
+    return { file: STUDY_FILE, sections: [], total: 0, done: 0, mtime: 0, error: err.message };
+  }
+}
+
 // gh is slow enough that hammering it on every poll is rude; 60s is well inside
 // "live" for PR state while keeping the queue read itself uncached.
 let prCache = { at: 0, data: [] };
@@ -242,7 +284,14 @@ async function snapshot() {
     /* nothing to add */
   }
 
-  return { groups, prs: await openPrs(), triage, readAt: Date.now(), queueDir: QUEUE_DIR };
+  return {
+    groups,
+    study: await studySnapshot(),
+    prs: await openPrs(),
+    triage,
+    readAt: Date.now(),
+    queueDir: QUEUE_DIR,
+  };
 }
 
 // ---------------------------------------------------------------- write-back
@@ -324,6 +373,54 @@ async function writeAnswer({ file, title, answer, mtime }) {
   await rename(tmp, path);
 
   await appendTriage(title, answer);
+  return true;
+}
+
+// Ticking a box rewrites exactly one character on one line. The index locates the line and
+// the text the client saw confirms it: if the file was reordered or edited between the read
+// and the tick, the texts disagree and the write is refused rather than ticking whatever
+// item happens to sit at that index now.
+function applyTick(text, index, done, expected) {
+  const nl = text.includes("\r\n") ? "\r\n" : "\n";
+  const lines = text.split(/\r?\n/);
+  let n = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(TASK_RE);
+    if (!m) continue;
+    if (n++ !== index) continue;
+    if (typeof expected === "string" && m[3].trim() !== expected.trim()) return { mismatch: true };
+    lines[i] = `${m[1]}- [${done ? "x" : " "}] ${m[3]}`;
+    return { text: lines.join(nl) };
+  }
+  return { missing: true };
+}
+
+async function writeTick({ index, done, text: expected, mtime }) {
+  const path = join(QUEUE_DIR, STUDY_FILE);
+  const st = await stat(path);
+  if (mtime && st.mtimeMs > Number(mtime) + 1) {
+    const e = new Error("STUDY.md changed on disk since this page loaded - reload and retry");
+    e.code = 409;
+    throw e;
+  }
+
+  const current = await readFile(path, "utf8");
+  const out = applyTick(current, index, done, expected);
+  if (out.missing) {
+    const e = new Error(`no task at index ${index} in ${STUDY_FILE}`);
+    e.code = 404;
+    throw e;
+  }
+  if (out.mismatch) {
+    const e = new Error("that task moved in the file - reload and retry");
+    e.code = 409;
+    throw e;
+  }
+
+  await copyFile(path, path + ".bak");
+  const tmp = `${path}.tmp-${process.pid}`;
+  await writeFile(tmp, out.text, "utf8");
+  await rename(tmp, path);
   return true;
 }
 
@@ -451,6 +548,24 @@ gap:1rem;flex-wrap:wrap}
 font-variant-numeric:tabular-nums}
 .tally b{color:var(--ink)}
 .spacer{flex:1 1 auto}
+/* Study checklist. Rows are large enough to hit with a thumb on a moving train, which is
+   the only place this section is ever used. */
+.study{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--accent);
+border-radius:3px;padding:.85rem 1rem;display:flex;flex-direction:column;gap:.9rem}
+.study-head{display:flex;gap:.7rem;align-items:baseline;flex-wrap:wrap}
+.study-head strong{font-size:.97rem}
+.bar{flex:1 1 8rem;height:5px;background:var(--surface-2);border-radius:3px;overflow:hidden;min-width:6rem}
+.bar i{display:block;height:100%;background:var(--accent)}
+.track{display:flex;flex-direction:column;gap:.15rem}
+.track h4{margin:.35rem 0 .2rem;font-family:ui-monospace,Consolas,monospace;font-size:.72rem;
+letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);display:flex;gap:.5rem;flex-wrap:wrap}
+.track h4 em{font-style:normal;color:var(--accent)}
+.task{display:flex;gap:.6rem;align-items:flex-start;padding:.42rem .4rem;border-radius:2px;
+cursor:pointer;font-size:.88rem;line-height:1.4}
+.task:hover{background:var(--surface-2)}
+.task input{margin:.2rem 0 0;width:1.05rem;height:1.05rem;flex:0 0 auto;accent-color:var(--accent);cursor:pointer}
+.task.on{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--rule)}
+.study .empty{margin:0}
 </style></head><body>
 <div class="wrap">
   <header>
@@ -468,6 +583,8 @@ font-variant-numeric:tabular-nums}
   </section>
 
   <div class="cols" id="cols"></div>
+
+  <section class="study" id="study"></section>
 
   <div class="prs" id="prs"></div>
   <footer id="foot"></footer>
@@ -496,6 +613,82 @@ async function send(file, title, answer, note){
   note.textContent = 'written to ' + file;
   paused = false;
   tick();
+}
+
+let studyMtime = 0;
+
+// Optimistic: the box flips immediately because a checkbox that waits on a round trip feels
+// broken on a phone. A refused write puts it straight back and says why.
+async function tickTask(t, input, note){
+  const want = input.checked;
+  paused = true;
+  note.textContent = '';
+  try {
+    const r = await fetch('/api/study', {
+      method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({index: t.index, done: want, text: t.text, mtime: studyMtime})
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok){
+      input.checked = !want;
+      note.className = 'said bad';
+      note.textContent = body.error || ('failed: ' + r.status);
+      return;
+    }
+  } catch {
+    input.checked = !want;
+    note.className = 'said bad';
+    note.textContent = 'server unreachable';
+    return;
+  } finally {
+    paused = false;
+  }
+  tick();
+}
+
+function renderStudy(s){
+  const host = document.getElementById('study');
+  host.innerHTML = '';
+  if (s.error){
+    host.innerHTML = '<div class="study-head"><strong>Study checklist</strong></div>'
+      + '<p class="empty">No ' + esc(s.file) + ' in the queue directory yet.</p>';
+    return;
+  }
+  studyMtime = s.mtime;
+
+  const head = document.createElement('div');
+  head.className = 'study-head';
+  const pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
+  head.innerHTML = '<strong>Study checklist</strong>'
+    + '<span class="meta">' + s.done + '/' + s.total + ' done &middot; ' + pct + '%</span>'
+    + '<span class="bar"><i style="width:' + pct + '%"></i></span>';
+  host.appendChild(head);
+
+  const note = document.createElement('span');
+  note.className = 'said';
+
+  for (const sec of s.sections){
+    const wrap = document.createElement('div');
+    wrap.className = 'track';
+    const done = sec.tasks.filter(t => t.done).length;
+    const h = document.createElement('h4');
+    h.innerHTML = esc(sec.title) + ' <em>' + done + '/' + sec.tasks.length + '</em>';
+    wrap.appendChild(h);
+    for (const t of sec.tasks){
+      const lab = document.createElement('label');
+      lab.className = 'task' + (t.done ? ' on' : '');
+      const inp = document.createElement('input');
+      inp.type = 'checkbox';
+      inp.checked = t.done;
+      inp.onchange = () => tickTask(t, inp, note);
+      const sp = document.createElement('span');
+      sp.textContent = t.text;
+      lab.append(inp, sp);
+      wrap.appendChild(lab);
+    }
+    host.appendChild(wrap);
+  }
+  host.appendChild(note);
 }
 
 // One card builder for both sections. An item that is not flagged as blocked is still
@@ -620,6 +813,8 @@ async function tick(){
     cols.appendChild(sec);
   }
 
+  renderStudy(d.study);
+
   document.getElementById('prs').innerHTML = '<strong>Open PRs</strong> <span class="meta">(gh, cached 60s)</span>'
     + (d.prs.length
        ? '<ul>' + d.prs.map(p => '<li><a href="' + esc(p.url) + '" target="_blank"><code>' + esc(p.repo) + ' #' + p.number + '</code> ' + esc(p.title) + '</a></li>').join('') + '</ul>'
@@ -682,6 +877,16 @@ const handler = async (req, res) => {
         return res.end(JSON.stringify({ error: "file, title and answer are required" }));
       }
       await writeAnswer({ file, title, answer, mtime });
+      res.writeHead(200, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ ok: true }));
+    }
+    if (req.method === "POST" && req.url === "/api/study") {
+      const { index, done, text, mtime } = JSON.parse((await readBody(req)) || "{}");
+      if (!Number.isInteger(index) || index < 0 || typeof done !== "boolean") {
+        res.writeHead(400, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ error: "index (int) and done (bool) are required" }));
+      }
+      await writeTick({ index, done, text, mtime });
       res.writeHead(200, { "content-type": "application/json" });
       return res.end(JSON.stringify({ ok: true }));
     }
