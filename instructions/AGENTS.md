@@ -70,6 +70,8 @@ State grounded assumptions explicitly instead of asking speculative implementati
 Load only files that will be changed or directly referenced.
 Prefer targeted reads.
 Give subagents only the assigned sub-task, handoff artifact, and reference path.
+A subagent inherits none of the parent conversation and does not reliably inherit these instructions - verified on 2026-08-12, where two probe agents reported no prior messages and no visible `CLAUDE.md`/`AGENTS.md` content.
+So every subagent prompt must open with `First read ~/Repo/agent-agnostic-harness/instructions/AGENTS.md and follow it.` Without that line the worker writes em dashes, commits to a default branch, and skips the browser-render rule, and the parent has no way to tell it happened.
 Treat each completed phase handoff as the context summary; do not carry unnecessary history forward.
 
 ## Self-Improvement

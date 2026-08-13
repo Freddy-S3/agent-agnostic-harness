@@ -32,6 +32,8 @@ The chat history before that gate does not.
 
 **Subagent invocations:** pass only the specific sub-task + handoff artifact + reference file path.
 Never pass conversation history or full exploration output.
+Open every worker prompt with `First read ~/Repo/agent-agnostic-harness/instructions/AGENTS.md and follow it.` - a worker starts with none of this conversation and no guarantee of the standing rules, so an uninstructed one will violate them silently.
+Require each worker to end with a compact report: files written, the validation it ran and that check's actual output, and anything it could not complete. A worker that reports only prose has not been verified.
 
 **Parallel delegation:** when the plan identifies independent sub-tasks, launch their workers in the same parallel delegation batch.
 Do not wait for one worker before starting another worker in the same wave.
