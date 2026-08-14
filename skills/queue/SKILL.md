@@ -46,6 +46,21 @@ Adding an item is appending a new `## ` entry with `Status: pending` to whicheve
 
 For every item worked, in addition to the item's own `Log:` line, append one line to `status/TRACKER.md` (gitignored, not committed) for each assumption, skip, or block — same content, cross-skill format: `- [ ] YYYY-MM-DD | /queue | <repo-or-scope> | <one-line item>`. This is what `/status-report` reads to give Faruk a same-day rundown across every skill's unattended runs.
 
+The tracker is the secondary record, not the primary one. `tools/queue-dashboard` parses `QUEUE-PC.md` and `QUEUE-PHONE.md` and reads no other file, so contract step 7's queue write is what actually reaches Faruk and a tracker line never substitutes for it. Write both; if only one is possible, write the queue file and say in the report that the tracker write was refused, naming the path and the real error.
+
+## Ending a run (required)
+
+A `/queue` run may not end while holding an unpersisted decision, including one it discovered incidentally rather than as the worked item's own blocker. A defect noticed in a neighbouring repo, a question the brief did not anticipate, an assumption taken to keep moving - each gets a `## ` entry in the queue file matching its gate, with `Status: blocked`, a `Blocked reason:`, and an `Options:` list, before the report is written. Write it against whichever item it belongs to, or as a new one if it belongs to none.
+
+Read back every entry written. Then check the run's own output against the dashboard's contract, because an entry can be well written and still invisible:
+
+- An item carrying a `DECIDED` line or a log line starting with `ANSWERED` is treated as settled and shown to nobody. When the decision is made but the work it authorises has not happened, the remaining work goes in a NEW item rather than as a log line under the answered one.
+- An item at `Status: done` is likewise never shown. Do not mark an item done because its decision was answered; done means the work landed.
+
+Both of these were live on 2026-08-14: several items sat `pending` with a `DECIDED` line and real outstanding work, and the dashboard correctly showed none of them, because the file said they were answered.
+
+This applies without exception to a run spawned as a subagent or a parallel task. Reporting a blocker to an orchestrator is not persisting it - the orchestrator's context ends with the turn, the queue file does not.
+
 ## Direct item commands
 
 Normally `/queue` picks the next item itself, top-down. Faruk can override that for one item by naming it, either typed or by clicking a card (see Rendering):

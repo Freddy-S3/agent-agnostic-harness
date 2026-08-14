@@ -148,6 +148,7 @@ It selects the workflow, explains the relevant skill stack, and adds the coverag
 - `tools/queue-dashboard` - `node tools/queue-dashboard/server.mjs` serves a live view of every queue item waiting on Faruk, with an answer box per blocker.
   Answers are written back into the item as a `DECIDED` line and recorded in `TRIAGE-<date>.md`, so a decision never needs hand-carrying into the queue afterwards.
   It reads disk on every request rather than publishing a snapshot; see that directory's README for the write-back guards.
+  It reads `QUEUE-PC.md` and `QUEUE-PHONE.md` and no other file - not `status/TRACKER.md`, not session transcripts. That is why `/closing`, `/faruk`, `/sleep`, and `/queue` all require writing open decisions into a queue file before a session ends: an empty dashboard means nothing was written, not that nothing is waiting.
 - Clickable skill cards - `instructions/WIDGETS.md` defines how `/status-report` and `/queue` render their reports as cards inside the Claude desktop app, with buttons for approve/reject and run/skip/requeue.
 
   These two overlap deliberately and should not be merged.

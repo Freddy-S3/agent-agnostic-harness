@@ -60,9 +60,20 @@ Stopping at item one to ask is a wasted one.
 
 Every block handed back to Faruk carries an `Options:` list on its queue item — two to four answers you actually weighed, each phrased as the instruction he would be giving you (`Branch, commit, push, PR`, not `Yes`). You are the only party who knows the alternatives at the moment you hit the wall; by morning that reasoning is gone unless it was written down. The dashboard turns those lines into one-click answers, so the difference between listing them and not is whether Faruk clears the blocker in a second or has to reconstruct the problem and type a reply. See `queue/README.md` for the field.
 
-## Status tracker
+## Persist before you sleep (required)
 
-Alongside the wake-up report, append one line to `status/TRACKER.md` (repo-root of `agent-agnostic-harness`, gitignored, not committed) for every assumption, skip, or block from this run — the same events that land in the report's `Assumed`/`Skipped` lines. Format: `- [ ] YYYY-MM-DD | /sleep | <repo-or-scope> | <one-line item>`. This is what lets `/status-report` give Faruk a same-day rundown without re-deriving it from transcripts. Append, never overwrite; `/status-report` owns clearing resolved lines.
+A night run's entire output to Faruk is what it wrote down. He is not reading a transcript at 7am; he is opening a dashboard.
+
+Before the wake-up report, every assumption, skip, and block from this run gets persisted twice:
+
+1. **Into the queue file matching its gate** (`QUEUE-PC.md` or `QUEUE-PHONE.md`, resolved per `skills/queue/SKILL.md`) as a `## ` entry with `Status: blocked`, a `Blocked reason:`, and the `Options:` list described above. This is the one that reaches him - `tools/queue-dashboard` parses those two files and nothing else.
+2. **Into `status/TRACKER.md`**, one line each: `- [ ] YYYY-MM-DD | /sleep | <repo-or-scope> | <one-line item>`. Append, never overwrite; `/status-report` owns clearing resolved lines.
+
+Read back what you wrote. A refused write is reported in the wake-up report with the exact path and the actual error, never passed over in silence - a night that finds a blocker and loses it is worse than one that never looked, because the report reads clean either way.
+
+The `Assumed:` and `Skipped:` lines in the wake-up report are a summary of what was persisted. They are not a substitute for persisting it, and a session that writes only the report has not done this step.
+
+This binds subagents and parallel tasks in full. A worker that reports a blocker to its orchestrator has not persisted it: the orchestrator's context ends with the run, the queue file survives the night.
 
 ## Wake-up report
 
