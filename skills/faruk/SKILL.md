@@ -47,9 +47,19 @@ Everything else is fair game, including creating branches, opening PRs, installi
 - Commit and push when the work is a coherent unit and the user asked for it to land. Use `/pr` for the PR itself.
 - Never add an agent as a commit co-author.
 
-## Status tracker
+## Persist the decisions before you report (required)
 
-Alongside the final report, append one line to `status/TRACKER.md` (repo-root of `agent-agnostic-harness`, gitignored, not committed) for every assumption made instead of asking. Format: `- [ ] YYYY-MM-DD | /faruk | <repo-or-scope> | <one-line item>`. This feeds `/status-report`, so Faruk can catch up on assumptions across sessions without re-reading transcripts. Append, never overwrite.
+Personal mode trades approval gates for speed, and the thing it hands back in exchange is a written record of what was decided without him. That record is worthless if it only exists in the reply.
+
+Before the final report - not after, and not only when it feels significant:
+
+1. Every open decision, blocker, and assumption goes into the queue file matching its gate (`QUEUE-PC.md` or `QUEUE-PHONE.md`, resolved per `skills/queue/SKILL.md`), as a `## ` entry with `Status: blocked`, a `Blocked reason:`, and an `Options:` list phrased as instructions he would give.
+2. The same items also go to `status/TRACKER.md`, one line each: `- [ ] YYYY-MM-DD | /faruk | <repo-or-scope> | <one-line item>`. Append, never overwrite.
+3. Read back what you wrote. If a write is refused, report the exact path and the real error in the final report rather than continuing as though it landed.
+
+The queue file is the one that must not be skipped: Faruk's dashboard parses those two files and nothing else, so a blocker recorded only in `TRACKER.md` or only in the reply is one he will not see. The `Assumed:` line in the report below summarises what was persisted; it does not replace persisting it.
+
+This applies in full when running as a subagent or a parallel task. Telling the orchestrator is not persisting - write the entry yourself, then say you did.
 
 ## Reporting
 
