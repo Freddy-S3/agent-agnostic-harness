@@ -25,7 +25,9 @@ Sweep the session for everything that is now waiting on Faruk:
 
 Write each one into the queue file matching its gate - `QUEUE-PC.md` if it needs his desk, `QUEUE-PHONE.md` if a reply or a click settles it, `QUEUE-PC.md` when genuinely unclear - resolving the directory exactly as `skills/queue/SKILL.md` describes.
 Either amend the existing `## ` entry it belongs to or add a new one.
-Each carries `Status: blocked`, a one-line `Blocked reason:`, and an `Options:` list of the two to four answers you actually weighed, each phrased as the instruction he would give (`Branch, commit, push, PR`, not `Yes`).
+Each carries `Status: blocked`, a `Blocked reason:`, and an `Options:` list of the two to four answers you actually weighed, each phrased as the instruction he would give (`Branch, commit, push, PR`, not `Yes`).
+
+Write the `Blocked reason:` for someone reading it cold on a phone who has never seen this session: state the whole decision - what is being asked, what it affects, and what happens either way - in as many sentences as that takes. It is the field the dashboard renders, so it has to stand alone. Put the history in `Log:` instead: dates, what you measured, what a previous run concluded. Never point the decision field at that history (`the four fixes`, `see above`, `restating the earlier answer`, a bare prior date), and never narrate why the item was rewritten. See `instructions/AGENTS.md` under the unpersisted-decision rule for the full convention and a worked example.
 See `queue/README.md` for the field.
 
 Then append the same items to `status/TRACKER.md` in the cross-skill format, so `/status-report` sees them too.

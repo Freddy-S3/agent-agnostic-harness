@@ -49,6 +49,34 @@ logs the blocker, because that run is the one that knows what the alternatives a
 reader has to reconstruct them from prose. Options are also the cheapest handoff to the next
 agent: they record which paths were considered, not just which was chosen.
 
+## Write the decision, not its history
+
+`Blocked reason:` and `Options:` are read cold, on a phone, by someone who has never seen the
+session that wrote them. They must state the whole decision on their own: what is being asked,
+what it affects, and what happens either way. `Log:` is the other audience - dates, measurements,
+what a previous run concluded, what changed. Keep them apart. Audit prose written into the
+decision field is why the dashboard filled with items nobody could action.
+
+Do not write into `Blocked reason:` or `Options:`: back-references with no referent (`the four
+fixes`, `see above`, `as previously noted`), continuity claims (`unchanged since`, `restating the
+earlier answer`), bare dates pointing at earlier prose (`the 2026-08-11 partial answer`), or any
+narration of why the item was rewritten. Each option is a complete sentence describing what it
+does, because the button label is all the reader gets - `Apply all four fixes` names nothing.
+
+The dashboard renders `blockedReason || asks[0] || ''`, so a good `Blocked reason:` is what
+reaches the card. Do not leave a question in a log line and expect it to be seen.
+
+Two format rules, because the parser drops what it cannot match and never says so:
+
+- Write options as `- ` bullets, one line each. A numbered list produces no buttons at all,
+  and a bullet that wraps onto a second line silently truncates every option after it.
+- Keep `Blocked reason:`, `Options:`, `Repo:` and `Added:` contiguous, with no free prose
+  between them. `Blocked reason:` runs until the next `Field:` line, so prose placed under it
+  is swallowed into the description and lands on the card.
+
+The full rule, with a worked good/bad example taken from a real item, is in
+`instructions/AGENTS.md` under the unpersisted-decision rule.
+
 ## Where the real queue files live
 
 `QUEUE-PC.md` and `QUEUE-PHONE.md` are gitignored and not tracked in this repo. Real
