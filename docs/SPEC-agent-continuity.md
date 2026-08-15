@@ -104,6 +104,14 @@ durable outcome. Both are outside any public repository. The rule that follows i
 journal is local and candid; anything that must travel is promoted to the queue or the
 tracker in the sanitised register the shared instructions already define.
 
+**Relocation is deferred, deliberately.** The INTENT/OUTCOME protocol and the live-ledger
+posture are already merged into `skills/ship` and `skills/freddy` at the existing shared
+path (`/memories/repo/tasks/`), because they work at either location and delaying them
+costs the recovery property on every run in the meantime. Moving that record into per-repo
+`.agent/` is the part awaiting the decision above. Until it is answered there is one
+mechanism at one path, which is the point; implementing both at once would create the
+duplication this spec exists to remove.
+
 ### D2. Every file opens with a fixed header block
 
 Progressive disclosure is a property of the file format, not of a convention someone

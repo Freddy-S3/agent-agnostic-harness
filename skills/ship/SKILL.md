@@ -24,13 +24,68 @@ When the host supports scoped agent modes, invoking `/ship` from a project-speci
 ## Context Management
 
 Token cost accumulates with conversation length. Each presented gate is a valid fork point.
-After every presented gate approval, the handoff artifact is written or updated - it contains everything the next conversation needs.
-The chat history before that gate does not.
+The live ledger below - not the chat history - is what the next conversation needs.
 
 **At every gate**, append after the reply options:
-`→ Reply "fork" to start a new chat with "/ship continue <ticket-id>" — resets token count, handoff preserves full state.`
+`→ Reply "fork" to start a new chat with "/ship continue <task-id>" — resets token count, the ledger preserves full state.`
+`→ Reply "REALIGN" to reread the ledger and continue from its recorded state.`
 
-**Subagent invocations:** pass only the specific sub-task + handoff artifact + reference file path.
+## Live Task Ledger
+
+The handoff artifact is a **live ledger**, not an end-of-session summary.
+It is the compact recovery source of truth; the conversation is supplementary context.
+Writing it only at the end is worthless, because a session that dies on a usage limit never reaches the end.
+
+Create it at preflight, before any work: `/memories/repo/tasks/<ticket-id>-<slug>.md` for tracker-backed work, `/memories/repo/tasks/adhoc-<slug>.md` otherwise.
+Keep one ledger per active task and never overwrite an unrelated active one.
+
+```text
+status: active | paused
+mode: personal | delivery
+director: /freddy | /faruk | none
+owner: /ship
+phase: plan | implement | synthesize | review | reflect
+gate: none | 1 | 2 | 3
+objective: <one sentence>
+acceptance: <observable definition of done>
+decisions: <settled choices>
+changed: <paths or none>
+evidence: <validation and its actual output, or none>
+blocker: <none, or the one blocking decision>
+next: <single next action>
+updated: <timestamp>
+```
+
+Refresh it at startup, after each settled decision, after each worker wave, after each validation, at every phase transition and gate reply, and on any change to `objective`, `changed`, `evidence`, `blocker`, or `next`.
+
+### Write-Ahead Entries
+
+Death is unannounced, so the ledger records what is **about to** happen, not only what did.
+
+Before any risky operation - an irreversible change, an outward-facing action, a git operation beyond reading, or a pass that crosses a repository boundary - append to the ledger body:
+
+```text
+## INTENT <n> <timestamp>
+op: <what is about to be attempted>
+partial: <the half-completed state this could leave>
+discriminator: <the exact command a successor runs to tell which happened>
+```
+
+Append `## OUTCOME <n>` with `result: done | failed | abandoned` when it finishes.
+`discriminator` must be a runnable command whose output differs between the two states; a description is not a discriminator.
+
+A run of independently reversible same-kind edits may share one INTENT. Anything irreversible gets its own.
+
+An INTENT with no matching OUTCOME is unfinished work, and it is how a successor distinguishes a session that **died** from one that **chose to stop** - a deliberate stop writes `status: paused` with every INTENT closed.
+
+### Lifecycle
+
+If a matching active ledger conflicts with the new task, ask whether to `resume`, `restart with a new task id`, or `archive`. Never silently replace it.
+At `fork` or `pause`, set `status: paused` and record the exact next action.
+On `REALIGN`, reread the ledger, print the state record, reconcile it with the newest request, and continue at the recorded phase or gate - do not re-plan and do not re-route.
+Delete a completed ledger only after the task finishes and any approved harness updates are applied, so it cannot bind a later task.
+
+**Subagent invocations:** pass only the specific sub-task + ledger + reference file path.
 Never pass conversation history or full exploration output.
 Open every worker prompt with `First read ~/Repo/agent-agnostic-harness/instructions/AGENTS.md and follow it.` - a worker starts with none of this conversation and no guarantee of the standing rules, so an uninstructed one will violate them silently.
 Require each worker to end with a compact report: files written, the validation it ran and that check's actual output, and anything it could not complete. A worker that reports only prose has not been verified.
@@ -44,9 +99,9 @@ Do not wait for one worker before starting another worker in the same wave.
 - If the harness cannot perform parallel delegation, state `Parallel delegation unavailable` and continue sequentially; never imply that the work ran in parallel.
 
 **Drop after each phase:**
-- Post-Gate 1: Phase 1 exploration is dead weight (lives in handoff). Fork here for cheapest implementation phase.
-- Post-Phase 3: implementation details are dead weight (live in changed files). Fork here for cheapest review.
-- Post-Phase 6: after explicit Gate 3 approval or implicit no-update completion, delete the completed handoff artifact (knowledge absorbed into instruction files and memory).
+- Post-Gate 1: Phase 1 exploration is dead weight (it lives in the ledger). Fork here for cheapest implementation phase.
+- Post-Phase 3: implementation details are dead weight (they live in the changed files). Fork here for cheapest review.
+- Post-Phase 6: after explicit Gate 3 approval or implicit no-update completion, delete the completed ledger (knowledge absorbed into instruction files and memory).
 
 ### Phase-Boundary Decision Rule
 
@@ -83,11 +138,11 @@ Classify the request before looking up Jira:
 
 Check `/memories/repo/tasks/` for a handoff artifact matching this task. For ticket-backed work, match `<ticket-id>-*.md`. For ticketless work, match `adhoc-<slug>.md`.
 
-- **Found:** state what was already decided and what was already done.
+- **Found:** read it, state what was already decided and what was already done, and run the `discriminator` of any INTENT with no OUTCOME before touching anything - that entry is a half-applied operation from a session that did not survive.
 Skip Phase 1-2 and jump directly to Gate 1 with the existing plan pre-filled.
-- **Not found:** proceed to Phase 1.
+- **Not found:** create the ledger, then proceed to Phase 1.
 
-For ticketless work, create an ad hoc handoff only when the task is paused or forked. Delete it when the task completes, just like a ticket handoff.
+The ad hoc ledger is created at startup like a tracker-backed one, not only when the task pauses. A ledger that only appears on a clean pause is absent in exactly the case it exists for.
 
 ---
 

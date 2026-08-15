@@ -66,6 +66,15 @@ When trade-offs arise, prefer lower token cost, then less human effort, then fas
 If the user alone has the answer to a requirement, business decision, or stakeholder context, ask once.
 If the answer is available in code, read the code instead of asking.
 State grounded assumptions explicitly instead of asking speculative implementation questions.
+Ask at most one question per checkpoint; when several unknowns exist, ask only the single most blocking one.
+Never ask how to implement something - that is the agent's job, and the question spends a checkpoint on nothing.
+
+The installed skill catalog is progressive-disclosure context: load a skill's body when its route fires, not to decide whether it is relevant.
+Acquire it through the skill loader or its registered path rather than asking for it to be pasted in, and treat a one-time file-access confirmation as a tool security check rather than a decision gate.
+
+A selected route is sticky. Once a router has chosen an owner for a task, follow-up questions, clarifications, status requests, and scope adjustments inherit that route instead of re-deriving it, and the choice is recorded in the task ledger `/ship` owns rather than in a second record. See `skills/freddy/SKILL.md` for the release triggers and how the route interacts with personal and delivery mode.
+
+Task state is written ahead of risk, not after success. Before a risky operation, the ledger records what is about to be attempted, the half-finished state it could leave, and a runnable command a successor uses to tell which happened. A session killed on a usage limit never reaches its end-of-run capture, so anything written only at the end is written only when it was not needed.
 
 Load only files that will be changed or directly referenced.
 Prefer targeted reads.
