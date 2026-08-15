@@ -66,6 +66,14 @@ does, because the button label is all the reader gets - `Apply all four fixes` n
 The dashboard renders `blockedReason || asks[0] || ''`, so a good `Blocked reason:` is what
 reaches the card. Do not leave a question in a log line and expect it to be seen.
 
+Two format rules, because the parser drops what it cannot match and never says so:
+
+- Write options as `- ` bullets, one line each. A numbered list produces no buttons at all,
+  and a bullet that wraps onto a second line silently truncates every option after it.
+- Keep `Blocked reason:`, `Options:`, `Repo:` and `Added:` contiguous, with no free prose
+  between them. `Blocked reason:` runs until the next `Field:` line, so prose placed under it
+  is swallowed into the description and lands on the card.
+
 The full rule, with a worked good/bad example taken from a real item, is in
 `instructions/AGENTS.md` under the unpersisted-decision rule.
 
