@@ -43,7 +43,7 @@ Cover these, because each one has failed in real work:
 
 1. **Content actually rendered.** Count the elements that should exist. Generated markup is where silent breakage hides.
 2. **Images decoded.** Filter on `!img.complete || img.naturalWidth === 0`. A 200 response is not a rendered image.
-3. **Interaction.** Click every nav control, tab, and toggle; assert the state that should follow.
+3. **Interaction, asserted as effect rather than as wiring.** Click every control - nav, tab, toggle, button, chip, select - and require something a visitor could *perceive* to change. See "A control that renders and does nothing" below; this is the check that was nominally present and still missed a dead button on the live site.
 4. **Both themes.** Compute the contrast ratio of new text against its background and assert 4.5 or better. A palette that works in dark mode routinely collapses in light mode, because the same token means different things in each.
 5. **Horizontal overflow at every breakpoint.** `scrollWidth - clientWidth` on `documentElement`, at desktop, tablet, and mobile widths. This is the single highest-yield check; it catches responsive rules that silently do not match.
 6. **Console errors and failed requests.** Collect via `page.on("console")` and `page.on("requestfailed")`. Ignore font CDNs when offline.
@@ -52,6 +52,55 @@ Cover these, because each one has failed in real work:
 9. **Sibling controls share a height and a baseline.** Buttons in a row, cards in a grid, form fields in a group. A missing glyph or a one-off padding leaves one item a few pixels short, which reads as sloppy long before anyone can say why.
 
 Reference implementation of 7-9: `Portfolio-Website/tools/visual_check.py`, which sweeps eleven widths and exits non-zero on any defect.
+
+### A control that renders and does nothing
+
+A button that exists, is styled, has a listener attached, and changes nothing when pressed
+passes every check in this file that predates it.
+It is also the defect most likely to be found first by whoever the page was built for.
+
+On 2026-08-15 the portfolio's primary "Route this task" button did nothing when pressed with
+an empty box, which is the state every visitor arrives in.
+The handler ran, threw nothing, and re-rendered the same idle placeholder that was already on
+screen. `tools/test_site.py` was green at 37/37 throughout, because it asserted that the
+control existed, that a handler was attached, and that a *typed* task produced a result.
+It never pressed the button in the state a visitor actually meets it in.
+Faruk found it on the live site during a job search.
+
+So the assertion is not "a handler is attached" but "the page observably changed":
+
+Fingerprint the page before and after each click - active section, body class, the text of the
+result regions, field values, chip and nav classes, the hash - and require a difference.
+Assert the console stayed clean across the interaction, and register `page.on("pageerror")`
+as well as `page.on("console")`, because an uncaught exception in a click handler never
+reaches the console handler and would otherwise leave the suite green.
+
+Three calibrations decide whether this reports real defects or noise. All three were found by
+constructing the failure rather than by reading the assertion, and each one had silently
+disabled the check:
+
+- **Exclude `document.activeElement` from the fingerprint.** Clicking a button moves focus to
+  it by definition, so including it makes every click look effective. This alone let the dead
+  button pass.
+- **Wait for `requestIdleCallback` work to settle first.** Anything rendering in the background
+  makes consecutive snapshots differ for reasons unrelated to the control under test.
+- **Exercise each control from a state it is not already in.** A pre-selected chip or the
+  already-active nav item correctly changes nothing. "Already in the target state" is not the
+  same defect as "does nothing", and a check that cannot tell them apart will cry wolf.
+
+Two related dead controls, worth asserting directly because both look correct in a diff:
+
+- **Links with no destination.** `href=""` or `href="#"` renders as a link and invites a click.
+  Where the markup is generated, fix the generator so a missing URL emits a non-link element
+  rather than a placeholder `#`.
+- **Inline `on*` attributes that name an unreachable function.** Run each one and require it to
+  resolve. `onclick="submitForm()"` threw `ReferenceError` on every press because `submitForm`
+  was defined inside an IIFE; it appeared to work only because a separate `addEventListener`
+  did the real work, so the button behaved while logging an error on every click.
+
+Verify this class of check in **both** directions before trusting it: reinstate the bug and
+confirm the suite goes red, then restore the fix and confirm it goes green.
+A guard that has only ever been observed passing has not been tested.
 
 ### Sweep real widths, not two
 
