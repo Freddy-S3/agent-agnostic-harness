@@ -12,6 +12,12 @@ When the deliverable is something a person looks at, the check has to look at it
 
 Run this before reporting any front-end change as complete.
 
+This skill owns the mechanics: engine choice, setup, width sweeps, and what to do when an
+assertion fails. `/polish` owns the pre-ship sweep of a whole surface and the defect taxonomy
+that goes with it - controls that do nothing, elements that collide, links to nowhere, forms
+with no backend. Reach for `/polish` when a page is about to ship or a rendered defect reached
+a real visitor; reach for this one to actually drive the browser.
+
 ## Choosing the engine
 
 | Situation | Use |
