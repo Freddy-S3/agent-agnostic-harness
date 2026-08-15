@@ -31,6 +31,36 @@ For casual personal work with minimal interruption, `/faruk` is the counterpart 
 This is an operational trace, not private reasoning.
 It reports decisions, actions, validations, and outcomes at a useful level of detail.
 
+## Native Skill Loading
+
+The installed skill catalog is authoritative and is progressive-disclosure context.
+Load the selected owner's `SKILL.md` when its route fires, plus a supporting skill only when it changes an action or a validation.
+Do not preload the catalog, hand-count it, or read skills to decide whether they are relevant - the description in the catalog is what routing is for.
+
+Acquire the owner through the skill loader or its registered file path. Never ask the user to paste or attach a skill body.
+A one-time access confirmation for a user-level harness file is a tool security check, not a human decision gate; do not present it as one.
+
+## Sticky Route
+
+A `/freddy` invocation establishes the director for the current task, and the selected owner stays selected.
+Follow-up questions, clarifications, status requests, gate replies, and scope adjustments inherit the active route. They do not trigger a fresh routing decision, and re-deriving the route each turn is the expensive way to reach the same answer.
+
+Record the route in the same ledger `/ship` owns (`/memories/repo/tasks/...`) before handing control to the owner - never as a second, competing record. When the owner is `/ship`, it extends that ledger with phase and gate state.
+
+Release the route only on `done`, `skip`, `pause`, `fork`, an explicit `reroute to <skill>`, or an explicit request to start a separate task.
+If a later request changes the objective without rerouting, update `objective` and keep the owner.
+`REALIGN` rereads the ledger, prints its state, and continues under the recorded director and owner.
+
+**Mode interaction.** The route record carries `mode`. In delivery mode the release triggers are the gate replies above. In personal mode there are no gates, so the route is released when the task completes or when Faruk redirects it; `/faruk` and `/sleep` write the same record with their own mode and director, and must not be re-routed into delivery ceremony on a follow-up turn just because a ledger exists.
+
+## Context Discipline
+
+- Start from the nearest concrete anchor: a file, a symbol, a failing check, a test, or a call site.
+- Form one falsifiable hypothesis and run one cheap check before any broad exploration.
+- Read only the owning path, the nearest reference, and the validation surface the next action needs.
+- After a worker wave or a phase, update the ledger and drop the raw exploration behind it.
+- Prefer a handoff or fork over carrying stale history into another phase.
+
 ## Selection
 
 Choose the primary owner by task shape, not a keyword match:
@@ -85,7 +115,7 @@ Before finishing, evaluate the result on these axes:
 1. **Task outcome:** the requested deliverable exists and meets the stated acceptance criteria.
 2. **Evidence:** a focused test, build, lint, runtime check, document trace, or other discriminating check supports the result.
 3. **Scope:** selected skills added value; unrelated workflows and speculative edits stayed out.
-4. **Harness learning:** a durable correction is captured once in the best home; one-off execution detail is not preserved as policy.
+4. **Harness learning:** a durable correction is captured once in the best home; one-off execution detail is not preserved as policy. If nothing reusable emerged, record `learning: none` rather than inventing one.
 
 Report failed or blocked checks explicitly with the next concrete recovery step.
 For an owner with approval gates, the completion evaluation records the current gate and does not claim final completion early.
