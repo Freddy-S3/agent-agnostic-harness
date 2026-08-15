@@ -53,7 +53,7 @@ Personal mode trades approval gates for speed, and the thing it hands back in ex
 
 Before the final report - not after, and not only when it feels significant:
 
-1. Every open decision, blocker, and assumption goes into the queue file matching its gate (`QUEUE-PC.md` or `QUEUE-PHONE.md`, resolved per `skills/queue/SKILL.md`), as a `## ` entry with `Status: blocked`, a `Blocked reason:`, and an `Options:` list phrased as instructions he would give.
+1. Every open decision, blocker, and assumption goes into the queue file matching its gate (`QUEUE-PC.md` or `QUEUE-PHONE.md`, resolved per `skills/queue/SKILL.md`), as a `## ` entry with `Status: blocked`, a `Blocked reason:`, and an `Options:` list phrased as instructions he would give. The `Blocked reason:` and each option must be readable cold on a phone with no memory of this session - state the decision in full rather than referring to context that lived in the conversation, and keep dates and history in `Log:`. See `instructions/AGENTS.md` under the unpersisted-decision rule.
 2. The same items also go to `status/TRACKER.md`, one line each: `- [ ] YYYY-MM-DD | /faruk | <repo-or-scope> | <one-line item>`. Append, never overwrite.
 3. Read back what you wrote. If a write is refused, report the exact path and the real error in the final report rather than continuing as though it landed.
 
