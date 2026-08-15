@@ -703,7 +703,12 @@ function card(g, i){
   el.dataset.resolved = i.decided ? '1' : '0';
 
   const chip = decide ? 'blocked on you' : i.decided ? 'answered' : i.status;
-  const ask = i.asks[0] || i.blockedReason || '';
+  // Blocked reason first: it is the field the item convention governs, so it is the one
+  // written to be read cold. asks[0] is a log line, and a log line is written for the
+  // audit trail - when it won, any "DECISION NEEDED" note shadowed a well-written field
+  // and put history on the card instead of the question. Still falls back to the log line
+  // so an item with no Blocked reason renders its ask rather than going blank.
+  const ask = i.blockedReason || i.asks[0] || '';
 
   el.innerHTML = '<span class="chip ' + (decide ? 'decide' : i.status === 'pending' ? 'pending' : '') + '">'
       + esc(chip) + '</span>'
