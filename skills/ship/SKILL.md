@@ -90,8 +90,11 @@ Never pass conversation history or full exploration output.
 Open every worker prompt with `First read ~/Repo/agent-agnostic-harness/instructions/AGENTS.md and follow it.` - a worker starts with none of this conversation and no guarantee of the standing rules, so an uninstructed one will violate them silently.
 Require each worker to end with a compact report: files written, the validation it ran and that check's actual output, and anything it could not complete. A worker that reports only prose has not been verified.
 
-**Parallel delegation:** when the plan identifies independent sub-tasks, launch their workers in the same parallel delegation batch.
-Do not wait for one worker before starting another worker in the same wave.
+**Parallel delegation:** fan out reads, serialise writes.
+Read-only workers - exploration, audits, verification, research - take no claim, cannot conflict, and should be launched as wide as the plan usefully allows.
+A writing worker must hold the claim for the tree it writes in before it starts: `tools/claim.ps1 acquire -Tree <path> -Session <id>`, exit 3 meaning the tree is taken and the worker needs its own worktree instead.
+A worker producing shared generated output also claims that cascade by name (`-Cascade <name>`); one owner at a time, because those files collide at merge rather than corrupting on write.
+Launch independent workers in the same batch; do not wait for one before starting another in the same wave.
 - Parallelize only tasks that have no dependency on another task's output and have disjoint write ownership.
 - Run tasks sequentially when they touch the same files, share mutable state, require prior output, or the harness does not expose the agent/runSubagent tool.
 - Wait for every worker in a parallel wave to finish before starting dependent work or Phase 4 synthesis.

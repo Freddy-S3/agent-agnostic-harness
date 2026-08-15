@@ -43,6 +43,121 @@ The six observed failures:
 6. An agent made a content judgement about the user's own claimed experience that it had
    no basis to make, and the result reached published artifacts.
 
+## Headline Principle: Fan Out Reads, Serialise Writes
+
+This is the largest practical lever in the design, and everything below is a consequence
+of it.
+
+A read-only agent cannot conflict with anything. It needs no exclusivity, no claim, and no
+turn-taking, so investigation parallelises nearly free. Every parallel session that ran
+cleanly on the incident day was investigative - a requirements research pass, a skills
+coverage audit, a storefront verification. Every collision came from concurrent editing.
+
+Most swarm work is investigation: audit N repositories, verify a claim, research a
+decision, check whether a change landed. That work should fan out as wide as it usefully
+can. Writing serialises, and the mechanisms below exist only to make that serialisation
+automatic rather than remembered.
+
+The failure mode to avoid is over-correcting into one-agent-per-repository, which pays the
+full cost of serialisation to prevent collisions that were never possible.
+
+## Coordination Model
+
+### C1. The unit of conflict is the working tree, not the repository
+
+Two agents in the same repository but different git worktrees cannot collide - they have
+separate checkouts, separate indexes, and separate files on disk. The observed incident
+was two agents in *one* tree, and the session that noticed resolved it exactly by moving
+to an isolated worktree off the default branch.
+
+Claims are therefore keyed on a **normalised tree path**, not a repository name. A
+repository with four worktrees supports four concurrent writers without any of them
+waiting. Normalisation matters: trailing separators and case variations name the same
+tree, and a registry that treats them as different keys grants two exclusive claims on one
+directory.
+
+### C2. Claims are exclusive for writes, unlimited for reads
+
+A writing agent acquires an exclusive claim on its tree before its first write. A
+read-only agent takes no claim at all and is never blocked by one. This asymmetry is the
+core of the model; it is what keeps the mechanism from taxing the work that is already
+safe.
+
+### C3. The generated cascade is a second, separate claim
+
+Shared generated artifacts - a site's built HTML and stylesheet, resume outputs and their
+source data, job-board exports - behave differently from source. Concurrent edits do not
+corrupt them; they collide at merge time. That is a cost rather than a hazard, and it cost
+three rebases on the incident day.
+
+One agent owns a cascade at a time, claimed **by name and independently of any tree**,
+because the cascade's members are related by the generator that produces them rather than
+by where they sit. An agent can hold a tree without the cascade, or the cascade without a
+tree.
+
+### C4. Compare-and-swap for shared mutable state
+
+The queue files are written by multiple sessions and are not covered by a tree claim,
+since they live outside every repository. A session reads one, spends minutes deciding
+what to write, and can append over a peer's entry that landed in between.
+
+Every write to a queue file must therefore be a compare-and-swap: capture a fingerprint of
+the file when it is read, and abort the write if the fingerprint changed. One session
+improvised this by hand with a byte-size check; the standard version uses a content hash,
+because two edits of equal length are not rare in a file of similarly-shaped entries. A
+mismatch means re-read and re-decide, not retry - the peer's entry may be the same finding.
+
+### C5. Enforcement at spawn time, not by instruction
+
+This is the part that must not soften into a guideline.
+
+Every agent on the incident day was already instructed to check `git status` first. Not one
+could tell whose changes it was looking at, because a working tree does not record who
+wrote into it. An instruction to check is not a mechanism, and a check whose output cannot
+distinguish the two cases is not a check.
+
+The spawner therefore refuses to start a **writing** agent on a claimed tree. Acquisition
+is a precondition of spawning, not a step the spawned agent is trusted to perform on
+itself. Concretely:
+
+- **Where the registry lives.** Outside every repository, machine-local, one small file
+  per claim. It cannot live inside the repo it protects: the spawner must be able to check
+  a tree before entering it, and a tree that does not exist yet has nowhere to hold its own
+  claim. This is the one part of the design that is deliberately *not* per-repo - it
+  arbitrates *between* trees, so it cannot live inside one. The per-repo journal and the
+  machine-level claim registry answer different questions and are not the same file.
+- **How a spawner checks cheaply.** One file read keyed by a hash of the claim key, and an
+  exit code. No directory scan, no parsing of the protected tree, no git invocation on the
+  hot path. The decision is the process exit status, so a spawner refuses by checking a
+  number rather than by interpreting prose.
+- **How stale claims expire.** Sessions die unannounced on usage limits, so a claim
+  carries a heartbeat and expires after a staleness window. An expired claim never
+  deadlocks the tree. It is reported as stale rather than silently taken, and taking it
+  requires an explicit override, because the previous holder may have died mid-operation -
+  the successor is told to read that session's journal for an INTENT with no OUTCOME
+  first. The takeover is recorded in the new claim so the chain stays visible.
+- **How release works.** Normal completion releases the claim explicitly. A session that
+  re-acquires its own claim refreshes it rather than conflicting with itself, so a resumed
+  session is never blocked by its own earlier record.
+
+### C6. Warm starts are the actual win
+
+Persistence is not valuable for its own sake. Its value is that a session which resumes
+from a good record skips rediscovery - the exploration, the re-reading, the re-deriving of
+decisions already made. That makes a *new* session nearly as cheap to start as continuing
+an old one, which in turn makes session length stop mattering very much.
+
+This reshapes the handoff. It is not primarily a record of what happened; it is the
+starting context a successor would otherwise have to rebuild. Its structure follows from
+that:
+
+- The expensive things to rediscover go in explicitly: which files own the behaviour, what
+  was already ruled out and why, the validation command and its actual output.
+- Narrative of what happened is the least valuable content and gets the least room.
+- Anything reconstructible in one cheap command is referenced, not copied.
+- Because starting fresh is cheap, forking at a phase boundary becomes the normal move
+  rather than a last resort - which is what keeps context small enough to stay accurate.
+
 ## Desired Outcome
 
 One continuity record per repository, per session, that a successor or a peer can act
@@ -138,24 +253,33 @@ Run-journal header carries `session`, `status`, `objective` (one sentence),
 A peer reads headers only. A resuming session reads its own header, then the tail of its
 own journal, and reads the body of anything else only when the header says it must.
 
-### D3. The claim, and how a collision is detected
+### D3. The claim registry - implemented
 
-Before the first write in a repository, a session writes `claims/<session-id>.md`, then
-lists sibling claims and reads their headers.
+Implemented in this change as `tools/claim.ps1`. It is the mechanism behind C1, C2, C3,
+and C5.
 
-A collision is: another claim with `status: active`, the same `worktree`, and an `owns`
-pattern intersecting this session's. On collision the session does not proceed. It
-either takes its own worktree - which the shared instructions already require for
-concurrent work and which so far has had no mechanism behind it - or reports the
-collision and stops.
+Verbs: `check`, `acquire`, `release`, `heartbeat`, `list`. Claims are keyed by
+`-Tree <path>` (normalised: resolved, case-folded, trailing separators stripped) or
+`-Cascade <name>`. Exit `0` means proceed, exit `3` means conflict - a spawner gates on
+that number.
 
-A claim with a `heartbeat` older than the staleness window and `status: active` is
-presumed dead, not active. A presumed-dead claim may be taken over, but only by a
-session that first reads the dead session's journal and records in its own what it found
-half-applied. Taking over without reading is the failure this exists to prevent.
+Behaviour worth stating because it is what the tests construct:
 
-The heartbeat is refreshed on each journal write. It costs nothing extra because it is
-the same write.
+- A second writing session on a claimed tree is refused; a session on a *different* tree
+  is granted. A mechanism that refused both would be indistinguishable from a broken one.
+- Different spellings of one path collide, as they must.
+- A session re-acquiring its own claim refreshes it rather than conflicting with itself.
+- Heartbeating or releasing another session's live claim is refused.
+- A stale claim is refused *by default* and reported as stale, with the successor told to
+  read the dead session's journal for an open INTENT before writing. `-Force` takes it
+  over and records `takeover_of` so the chain stays visible.
+
+The heartbeat is refreshed on journal writes, costing nothing extra because it is the same
+moment. The staleness window defaults to 30 minutes; see the open decisions.
+
+Not yet enforced automatically: the spawner-side call. The tool refuses correctly when
+invoked, and the skills now require invoking it, but nothing yet *prevents* a session that
+skips the call. See the open decisions.
 
 ### D4. Write-ahead: INTENT before, OUTCOME after
 
@@ -359,9 +483,15 @@ correctly still may not decide that it should be made.
 - Assumed: the global per-task ledger is superseded rather than kept in parallel. Keeping
   both would recreate the drift this spec exists to remove, but the migration of any
   in-flight ledger is unspecified.
-- Open: whether the claim check should be enforced by a hook rather than left to skill
-  instructions. The harness's own rule is that a convention living only in prose is one
-  that tooling will quietly violate, which argues for a hook; the counter-argument is
-  that a session's first write is not a single interceptable event.
+- Open: how the spawn-time gate becomes unskippable. `tools/claim.ps1` refuses correctly
+  when called, and the skills require calling it, but "the skills require it" is exactly
+  the prose-only enforcement this harness distrusts. A `PreToolUse` hook on the first
+  write tool is the obvious candidate; the difficulty is that a session's first write is
+  not a single interceptable event and the hook would need to hold per-session state.
+- Open: the 30-minute staleness window. Too short and a slow legitimate operation has its
+  tree taken; too long and a killed session holds it for most of a sitting.
+- Open: whether read-only agents should record a non-exclusive presence entry. They need
+  no claim, but a peer currently cannot see that eight readers are in a tree it is about
+  to rewrite. The cost is a write on the path the design deliberately keeps free.
 - Open: whether findings should be promoted to the queue automatically or only on
   explicit orchestrator action.
