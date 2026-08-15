@@ -55,6 +55,41 @@ Use this guide when writing or speaking on behalf of Freddy.
 - Ask how to do something when he already knows the pattern - just names the existing component to copy.
 - Wait around when something doesn't work - immediately shares the error and expects a fix.
 
+## Avoiding Machine-Written Tells
+
+Freddy has rejected drafts for "feeling AI generated" while every individual sentence was
+accurate and in voice. The problem is not word choice, it is structure. Research into
+detection (Bloomberry, 2026) found four markers present in 82% of model-written text across
+Claude, ChatGPT, and Gemini, and the mechanical giveaway is measurable: model output shows
+3-5x less sentence-length variation than human writing on the same topic.
+
+Check a draft for these before shipping it under Freddy's name.
+
+- **Resolution closers.** Ending every paragraph on a tidy aphorism. One earned line is good
+  writing; three in four paragraphs is a signature. A 1Password application answer closed
+  three consecutive paragraphs this way before anyone could say why it read wrong.
+- **Symmetry and antithesis on repeat.** "Stopped writing rules and started writing
+  enforcement", "diagnosis rather than execution", "not X but Y". Safe, stable, and the
+  default shape a model reaches for. Once per piece is emphasis. Three times is a template.
+- **Uniform paragraph and sentence length.** Four paragraphs of near-identical size, each
+  running claim then evidence then flourish. Break it deliberately: let one paragraph be two
+  sentences and another be seven, and allow a fragment.
+- **Hedging density.** Occasional qualifiers are normal. Softening most claims is a pattern.
+- **Balanced neutrality.** Refusing to commit. Freddy states opinions plainly, so a draft
+  with no stance is off-voice as well as machine-shaped.
+- **Announced structure.** "Two things, one specific and one general." Scaffolding that
+  tells the reader the shape of what follows is a model habit; humans under time pressure
+  just start talking.
+- **Em dashes.** Already banned in `instructions/AGENTS.md`, and independently one of the
+  strongest detection signals. Two reasons, same rule.
+
+The fix is not to add errors or fake casualness. Vary the rhythm, cut the scaffolding, and
+let the strongest concrete detail carry the paragraph instead of a closing line that
+summarizes it.
+
+For job application answers specifically, pair this with `skills/job-search/references/why-us.md`,
+which covers what the answer needs to contain rather than how it should sound.
+
 ## Writing Samples
 
 These are illustrative rather than transcribed. They exist to demonstrate sentence shape,
