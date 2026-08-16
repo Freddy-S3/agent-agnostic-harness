@@ -40,6 +40,8 @@ const FILES = [
 // decision cards or TRIAGE. It lives here because this is the page already open on the
 // phone, which is where the studying actually happens.
 const STUDY_FILE = "STUDY.md";
+const JOBS_FILE = "JOBS.md";
+const JOB_STATUSES = ["new", "interested", "applied", "pass"];
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -227,6 +229,106 @@ async function studySnapshot() {
   }
 }
 
+function fieldValue(body, name) {
+  return (body.match(new RegExp(`^${name}:\\s*(.*)$`, "m"))?.[1] || "").trim();
+}
+
+function numericValue(value) {
+  const match = String(value).match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
+function salaryValue(value) {
+  const values = String(value)
+    .match(/\d[\d,]*(?:\.\d+)?\s*[kK]?/g)
+    ?.map((raw) => {
+      const amount = Number(raw.replace(/[,\s]/g, "").replace(/[kK]$/, ""));
+      return /[kK]$/i.test(raw) ? amount * 1000 : amount;
+    }) || [];
+  return values.length ? Math.max(...values) : 0;
+}
+
+function parseJobs(text) {
+  const sections = [];
+  const sectionRe = /^## (Tier .+)$/gm;
+  const sectionHeads = [];
+  let match;
+  while ((match = sectionRe.exec(text))) {
+    sectionHeads.push({ title: match[1].trim(), at: match.index, bodyAt: sectionRe.lastIndex });
+  }
+
+  for (let i = 0; i < sectionHeads.length; i++) {
+    const section = sectionHeads[i];
+    const end = i + 1 < sectionHeads.length ? sectionHeads[i + 1].at : text.length;
+    const body = text.slice(section.bodyAt, end);
+    const jobRe = /^### (.+)$/gm;
+    const jobHeads = [];
+    let jobMatch;
+    while ((jobMatch = jobRe.exec(body))) {
+      jobHeads.push({ title: jobMatch[1].trim(), at: jobMatch.index, bodyAt: jobRe.lastIndex });
+    }
+
+    const jobs = jobHeads.map((job, jobIndex) => {
+      const jobEnd = jobIndex + 1 < jobHeads.length ? jobHeads[jobIndex + 1].at : body.length;
+      const jobBody = body.slice(job.bodyAt, jobEnd);
+      const rawStatus = fieldValue(jobBody, "Status").toLowerCase();
+      const status = JOB_STATUSES.find((candidate) => rawStatus.startsWith(candidate)) || "new";
+      const fit = fieldValue(jobBody, "Fit");
+      const culture = fieldValue(jobBody, "Culture");
+      const salary = fieldValue(jobBody, "Salary");
+      return {
+        title: job.title,
+        tier: section.title,
+        company: fieldValue(jobBody, "Company"),
+        location: fieldValue(jobBody, "Location"),
+        salary,
+        salaryValue: salaryValue(salary),
+        culture,
+        cultureScore: numericValue(culture),
+        fit,
+        fitScore: numericValue(fieldValue(jobBody, "Fit score")) || numericValue(fit),
+        posted: fieldValue(jobBody, "Posted"),
+        url: fieldValue(jobBody, "URL"),
+        glassdoorUrl: fieldValue(jobBody, "Glassdoor"),
+        status,
+      };
+    });
+
+    // Tier remains the primary recommendation. Within a tier, the requested order is
+    // salary, Glassdoor culture, then estimated likelihood of success.
+    jobs.sort((a, b) =>
+      b.salaryValue - a.salaryValue ||
+      b.cultureScore - a.cultureScore ||
+      b.fitScore - a.fitScore ||
+      a.title.localeCompare(b.title)
+    );
+    sections.push({ title: section.title, jobs });
+  }
+
+  const tierOrder = { S: 0, A: 1, B: 2, C: 3 };
+  sections.sort((a, b) => {
+    const aTier = a.title.match(/^Tier ([SABC])\b/i)?.[1]?.toUpperCase();
+    const bTier = b.title.match(/^Tier ([SABC])\b/i)?.[1]?.toUpperCase();
+    return (tierOrder[aTier] ?? 99) - (tierOrder[bTier] ?? 99)
+      || a.title.localeCompare(b.title);
+  });
+
+  return {
+    sections,
+    total: sections.reduce((sum, section) => sum + section.jobs.length, 0),
+  };
+}
+
+async function jobsSnapshot() {
+  const path = join(QUEUE_DIR, JOBS_FILE);
+  try {
+    const [text, st] = await Promise.all([readFile(path, "utf8"), stat(path)]);
+    return { file: JOBS_FILE, ...parseJobs(text), mtime: st.mtimeMs, error: null };
+  } catch (err) {
+    return { file: JOBS_FILE, sections: [], total: 0, mtime: 0, error: err.message };
+  }
+}
+
 // gh is slow enough that hammering it on every poll is rude; 60s is well inside
 // "live" for PR state while keeping the queue read itself uncached.
 let prCache = { at: 0, data: [] };
@@ -288,6 +390,7 @@ async function snapshot() {
   return {
     groups,
     study: await studySnapshot(),
+    jobs: await jobsSnapshot(),
     prs: await openPrs(),
     triage,
     readAt: Date.now(),
@@ -421,6 +524,57 @@ async function writeTick({ index, done, text: expected, mtime }) {
   await copyFile(path, path + ".bak");
   const tmp = `${path}.tmp-${process.pid}`;
   await writeFile(tmp, out.text, "utf8");
+  await rename(tmp, path);
+  return true;
+}
+
+function applyJobStatus(text, title, status) {
+  const nl = text.includes("\r\n") ? "\r\n" : "\n";
+  const lines = text.split(/\r?\n/);
+  const headingAt = lines.findIndex((line) => line === "### " + title);
+  if (headingAt === -1) return null;
+
+  let end = lines.length;
+  for (let i = headingAt + 1; i < lines.length; i++) {
+    if (/^### /.test(lines[i]) || /^## /.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+  const block = lines.slice(headingAt, end);
+  const statusAt = block.findIndex((line) => /^Status:\s*/.test(line));
+  if (statusAt === -1) block.push("Status: " + status);
+  else block[statusAt] = "Status: " + status;
+  lines.splice(headingAt, end - headingAt, ...block);
+  return lines.join(nl);
+}
+
+async function writeJobStatus({ title, status, mtime }) {
+  if (!JOB_STATUSES.includes(status)) {
+    const e = new Error(`status must be one of: ${JOB_STATUSES.join(", ")}`);
+    e.code = 400;
+    throw e;
+  }
+
+  const path = join(QUEUE_DIR, JOBS_FILE);
+  const st = await stat(path);
+  if (mtime && st.mtimeMs > Number(mtime) + 1) {
+    const e = new Error(`${JOBS_FILE} changed on disk since this page loaded - reload and retry`);
+    e.code = 409;
+    throw e;
+  }
+
+  const current = await readFile(path, "utf8");
+  const next = applyJobStatus(current, title, status);
+  if (next === null) {
+    const e = new Error(`no job titled "${title}" in ${JOBS_FILE}`);
+    e.code = 404;
+    throw e;
+  }
+
+  await copyFile(path, path + ".bak");
+  const tmp = `${path}.tmp-${process.pid}`;
+  await writeFile(tmp, next, "utf8");
   await rename(tmp, path);
   return true;
 }
@@ -583,6 +737,32 @@ cursor:pointer;font-size:.88rem;line-height:1.4}
 .task input{margin:.2rem 0 0;width:1.05rem;height:1.05rem;flex:0 0 auto;accent-color:var(--accent);cursor:pointer}
 .task.on{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--rule)}
 .study .empty{margin:0}
+.jobs{display:flex;flex-direction:column;gap:1rem;margin-top:1rem}
+.jobs-note{margin:0;color:var(--ink-3);font-size:.84rem}
+.job-group{display:flex;flex-direction:column;gap:.7rem}
+.job-group .col-head{margin-bottom:0}
+.job-card{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--accent);
+border-radius:3px;padding:.85rem 1rem;display:flex;flex-direction:column;gap:.55rem}
+.job-card.tier-s{border-left-color:var(--clear)}
+.job-card.tier-a{border-left-color:var(--accent)}
+.job-card.tier-b{border-left-color:var(--waiting)}
+.job-card.tier-c{border-left-color:var(--ink-3);opacity:.7}
+.job-card h3{margin:0;font-size:.98rem;line-height:1.3;letter-spacing:-.01em}
+.job-company{font-weight:600;color:var(--ink-2)}
+.job-meta{display:flex;gap:.7rem;flex-wrap:wrap}
+.job-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.45rem}
+.job-metric{background:var(--surface-2);border-radius:2px;padding:.42rem .5rem;min-width:0}
+.job-metric span{display:block;color:var(--ink-3);font-family:ui-monospace,Consolas,monospace;
+font-size:.64rem;letter-spacing:.08em;text-transform:uppercase}
+.job-metric strong{display:block;font-size:.82rem;line-height:1.25;overflow-wrap:anywhere}
+.job-fit{font-size:.84rem;color:var(--ink-2);background:var(--surface-2);border-radius:2px;padding:.5rem .6rem}
+.job-actions{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-top:1px dashed var(--rule);padding-top:.55rem}
+.job-actions a{font-size:.78rem;padding:.28rem .6rem;border:1px solid var(--rule);border-radius:2px;
+color:var(--ink);text-decoration:none;background:var(--surface-2)}
+.job-actions a:hover{border-color:var(--ink-3)}
+.job-actions select{font:inherit;font-size:.78rem;padding:.28rem .45rem;border:1px solid var(--rule);
+border-radius:2px;background:var(--surface);color:var(--ink);min-width:8rem}
+@media(max-width:560px){.job-metrics{grid-template-columns:1fr}.job-actions{align-items:stretch}.job-actions a,.job-actions select{flex:1 1 auto;text-align:center}}
 </style></head><body>
 <div class="wrap">
   <header>
@@ -601,6 +781,8 @@ cursor:pointer;font-size:.88rem;line-height:1.4}
       aria-selected="false" data-panel="history">History <span class="count" id="t-history">0</span></button>
     <button class="tab" type="button" role="tab" id="tab-reading-list" aria-controls="panel-reading-list"
       aria-selected="false" data-panel="reading-list">Reading list <span class="count" id="t-reading">0</span></button>
+    <button class="tab" type="button" role="tab" id="tab-jobs" aria-controls="panel-jobs"
+      aria-selected="false" data-panel="jobs">Jobs <span class="count" id="t-jobs">0</span></button>
   </nav>
 
   <main>
@@ -632,6 +814,15 @@ cursor:pointer;font-size:.88rem;line-height:1.4}
       <p class="panel-note">Your study checklist, kept separate from queue decisions.</p>
       <section class="study" id="study"></section>
     </section>
+
+    <section class="panel" id="panel-jobs" role="tabpanel" aria-labelledby="tab-jobs" hidden>
+      <div class="panel-head">
+        <h2 class="sec">Recommended jobs</h2>
+        <span class="gate" id="jobs-summary"></span>
+      </div>
+      <p class="panel-note">Tiers first. Within each tier: salary, Glassdoor culture, then estimated application likelihood.</p>
+      <div class="jobs" id="jobs"></div>
+    </section>
   </main>
   <footer id="foot"></footer>
 </div>
@@ -643,8 +834,9 @@ cursor:pointer;font-size:.88rem;line-height:1.4}
 </div>
 <script>
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const safeUrl = value => /^https?:\/\//i.test(String(value)) ? String(value) : '';
 
-const panels = ['queue', 'history', 'reading-list'];
+const panels = ['queue', 'history', 'reading-list', 'jobs'];
 
 function selectPanel(name, updateHash = true){
   const active = panels.includes(name) ? name : 'queue';
@@ -667,6 +859,7 @@ window.addEventListener('hashchange', () => selectPanel(location.hash.slice(1), 
 
 let paused = false;   // stop the 5s repaint from wiping what is being typed
 let mtimes = {};
+let jobsMtime = 0;
 
 async function send(file, title, answer, note){
   if (!answer.trim()) return;
@@ -756,6 +949,98 @@ function renderStudy(s){
     host.appendChild(wrap);
   }
   host.appendChild(note);
+}
+
+async function saveJobStatus(job, status, select, note){
+  const previous = job.status;
+  select.disabled = true;
+  note.className = 'said';
+  note.textContent = 'saving...';
+  try {
+    const r = await fetch('/api/job-status', {
+      method: 'POST', headers: {'content-type': 'application/json'},
+      body: JSON.stringify({title: job.title, status, mtime: jobsMtime})
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.error || ('failed: ' + r.status));
+    job.status = status;
+    note.textContent = 'written to JOBS.md';
+    jobsMtime = 0;
+    tick();
+  } catch (err) {
+    select.value = previous;
+    note.className = 'said bad';
+    note.textContent = err.message || 'could not save';
+  } finally {
+    select.disabled = false;
+  }
+}
+
+function renderJobs(s){
+  const host = document.getElementById('jobs');
+  host.innerHTML = '';
+  if (s.error){
+    host.innerHTML = '<p class="empty">No ' + esc(s.file) + ' in the queue directory yet.</p>';
+    document.getElementById('jobs-summary').textContent = 'unavailable';
+    return;
+  }
+  jobsMtime = s.mtime;
+  document.getElementById('jobs-summary').textContent = s.total
+    + (s.total === 1 ? ' posting' : ' postings') + ' - sorted by salary, culture, fit';
+  if (!s.total){
+    host.innerHTML = '<p class="empty">No recommended jobs yet.</p>';
+    return;
+  }
+
+  for (const section of s.sections){
+    const group = document.createElement('section');
+    group.className = 'job-group';
+    const head = document.createElement('div');
+    head.className = 'col-head';
+    head.innerHTML = '<h2>' + esc(section.title) + '</h2><span class="count">' + section.jobs.length + '</span>';
+    group.appendChild(head);
+
+    for (const job of section.jobs){
+      const tierClass = /^Tier S\b/i.test(section.title) ? 'tier-s'
+        : /^Tier A\b/i.test(section.title) ? 'tier-a'
+        : /^Tier B\b/i.test(section.title) ? 'tier-b' : 'tier-c';
+      const card = document.createElement('article');
+      card.className = 'job-card ' + tierClass;
+      const cultureScore = job.cultureScore ? job.cultureScore.toFixed(1) + '/5' : 'not scored';
+      const fitScore = job.fitScore ? Math.round(job.fitScore) + '/100' : 'not scored';
+      const salary = job.salary || 'not posted';
+      const applyUrl = safeUrl(job.url);
+      const glassdoorUrl = safeUrl(job.glassdoorUrl);
+      card.innerHTML = '<span class="chip">' + esc(job.status) + '</span>'
+        + '<h3>' + esc(job.title) + '</h3>'
+        + '<div class="job-company">' + esc(job.company || 'Company not listed') + '</div>'
+        + '<div class="job-meta"><span class="meta">' + esc(job.location || 'Location not listed') + '</span>'
+        + (job.posted ? '<span class="meta">posted ' + esc(job.posted) + '</span>' : '') + '</div>'
+        + '<div class="job-metrics">'
+        + '<div class="job-metric"><span>Salary</span><strong>' + esc(salary) + '</strong></div>'
+        + '<div class="job-metric"><span>Glassdoor</span><strong>' + esc(cultureScore) + '</strong></div>'
+        + '<div class="job-metric"><span>Fit likelihood</span><strong>' + esc(fitScore) + '</strong></div>'
+        + '</div>'
+        + (job.fit ? '<div class="job-fit">' + esc(job.fit) + '</div>' : '')
+        + '<div class="job-actions">'
+        + (applyUrl ? '<a href="' + esc(applyUrl) + '" target="_blank" rel="noreferrer">Open posting</a>' : '')
+        + (glassdoorUrl ? '<a href="' + esc(glassdoorUrl) + '" target="_blank" rel="noreferrer">Glassdoor</a>' : '')
+        + '<label class="meta">Status <select class="job-status"></select></label>'
+        + '<span class="said job-note"></span>'
+        + '</div>';
+      const select = card.querySelector('.job-status');
+      for (const status of ['new', 'interested', 'applied', 'pass']){
+        const option = document.createElement('option');
+        option.value = status;
+        option.textContent = status;
+        option.selected = status === job.status;
+        select.appendChild(option);
+      }
+      select.onchange = () => saveJobStatus(job, select.value, select, card.querySelector('.job-note'));
+      group.appendChild(card);
+    }
+    host.appendChild(group);
+  }
 }
 
 // One card builder for both sections. An item that is not flagged as blocked is still
@@ -919,6 +1204,9 @@ async function tick(){
   document.getElementById('t-reading').textContent = d.study.error
     ? '0' : Math.max(0, d.study.total - d.study.done);
 
+  renderJobs(d.jobs);
+  document.getElementById('t-jobs').textContent = d.jobs.error ? '0' : d.jobs.total;
+
   document.getElementById('prs').innerHTML = '<strong>Open PRs</strong> <span class="meta">(gh, cached 60s)</span>'
     + (d.prs.length
        ? '<ul>' + d.prs.map(p => '<li><a href="' + esc(p.url) + '" target="_blank"><code>' + esc(p.repo) + ' #' + p.number + '</code> ' + esc(p.title) + '</a></li>').join('') + '</ul>'
@@ -991,6 +1279,16 @@ const handler = async (req, res) => {
         return res.end(JSON.stringify({ error: "index (int) and done (bool) are required" }));
       }
       await writeTick({ index, done, text, mtime });
+      res.writeHead(200, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ ok: true }));
+    }
+    if (req.method === "POST" && req.url === "/api/job-status") {
+      const { title, status, mtime } = JSON.parse((await readBody(req)) || "{}");
+      if (!title || !status) {
+        res.writeHead(400, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ error: "title and status are required" }));
+      }
+      await writeJobStatus({ title, status, mtime });
       res.writeHead(200, { "content-type": "application/json" });
       return res.end(JSON.stringify({ ok: true }));
     }

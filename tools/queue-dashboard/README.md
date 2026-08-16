@@ -8,11 +8,12 @@ node tools/queue-dashboard/server.mjs
 # http://127.0.0.1:4317
 ```
 
-The page is split into three tabs:
+The page is split into four tabs:
 
 - **Queue** shows only unanswered and unfinished work, including the PC and phone gates.
 - **History** keeps answered and completed items available without crowding the working queue.
 - **Reading list** contains the live `STUDY.md` checklist.
+- **Jobs** contains the live `JOBS.md` recommendation board.
 
 Items are hidden from the Queue tab, not deleted.
 The Open PR list stays on the Queue tab, while live status remains visible everywhere.
@@ -140,6 +141,18 @@ by hand whenever you like; the page picks it up on the next 5s poll.
 
 It lives here because this is the page already open on the phone, which is where the
 studying actually happens. Delete the file and the tab just says so.
+
+## Jobs tab
+
+`JOBS.md` in the queue directory is rendered as a tiered application board under the Jobs tab.
+Tier order is the recommendation priority.
+Within each tier, postings are sorted by salary ceiling, Glassdoor culture score, then estimated fit likelihood.
+
+Each card links to the posting and, when available, the relevant Glassdoor page.
+The status selector writes `new`, `interested`, `applied`, or `pass` back to the matching job in `JOBS.md`.
+Changing a status does not submit an application; it only records the tracking state.
+Fit likelihood is an estimate based on resume overlap and the posting, not a hiring prediction.
+Missing salary or culture data is shown as unverified rather than invented.
 
 ## Safety of the write-back
 

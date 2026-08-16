@@ -50,6 +50,47 @@ STUDY = """## Reading
 - [x] Finish the introduction
 """
 
+JOBS = """# Job board
+
+## Tier A - apply if the pitch is easy
+
+### Higher salary - Example A
+Company: Example A
+Location: Remote Canada
+Salary: CAD 150,000 - 200,000
+Culture: 3.8/5 Glassdoor
+Fit score: 70/100
+Posted: 2026-08-15
+URL: https://example.com/high
+Fit: Higher compensation, weaker fit.
+Status: new
+
+### Lower salary - Example B
+Company: Example B
+Location: Toronto, Ontario (hybrid)
+Salary: CAD 120,000 - 150,000
+Culture: 4.6/5 Glassdoor
+Fit score: 95/100
+Posted: 2026-08-15
+URL: https://example.com/low
+Fit: Lower compensation, stronger fit.
+Status: new
+
+## Tier S - apply this week
+
+### Senior AI Platform Engineer - Example S
+Company: Example S
+Location: Toronto, Ontario (hybrid)
+Salary: CAD 135,000 - 185,000
+Culture: 4.0/5 Glassdoor
+Fit score: 88/100
+Posted: 2026-08-15
+URL: https://example.com/s
+Glassdoor: https://www.glassdoor.ca/Reviews/example-s-Reviews-E1.htm
+Fit: Strong AI platform and AWS overlap.
+Status: new
+"""
+
 
 def free_port() -> int:
     with socket.socket() as sock:
@@ -105,6 +146,7 @@ def main() -> None:
         (queue_dir / "QUEUE-PC.md").write_text(PC_QUEUE, encoding="utf-8")
         (queue_dir / "QUEUE-PHONE.md").write_text(PHONE_QUEUE, encoding="utf-8")
         (queue_dir / "STUDY.md").write_text(STUDY, encoding="utf-8")
+        (queue_dir / "JOBS.md").write_text(JOBS, encoding="utf-8")
 
         port = free_port()
         env = os.environ.copy()
@@ -147,6 +189,14 @@ def main() -> None:
                         f"{request.method} {request.url}: {request.failure}"
                     ),
                 )
+                page.on(
+                    "response",
+                    lambda response: request_failures.append(
+                        f"{response.request.method} {response.url}: HTTP {response.status}"
+                    )
+                    if response.status >= 400
+                    else None,
+                )
 
                 url = f"http://127.0.0.1:{port}/"
                 wait_for_server(port)
@@ -171,6 +221,7 @@ def main() -> None:
                 history_count = page.locator("#t-history").inner_text()
                 assert queue_count == "2", f"queue count: {queue_count}"
                 assert history_count == "2", f"history count: {history_count}"
+                assert page.locator("#t-jobs").inner_text() == "3"
                 assert page.locator("#panel-queue .card").count() == 2
                 assert page.locator("#panel-queue").get_by_text("Answered decision", exact=True).count() == 0
                 assert page.locator("#panel-queue").get_by_text("Completed change", exact=True).count() == 0
@@ -214,9 +265,25 @@ def main() -> None:
                 else:
                     raise AssertionError("queue answer did not reach QUEUE-PC.md")
 
+                page.locator("#tab-jobs").click()
+                page.wait_for_selector("#panel-jobs:not([hidden])")
+                assert page.url.endswith("#jobs")
+                job_cards = page.locator("#panel-jobs .job-card")
+                assert job_cards.count() == 3
+                assert job_cards.nth(0).locator("h3").inner_text() == "Senior AI Platform Engineer - Example S"
+                assert job_cards.nth(1).locator("h3").inner_text() == "Higher salary - Example A"
+                assert job_cards.nth(2).locator("h3").inner_text() == "Lower salary - Example B"
+                job_cards.nth(1).locator("select").select_option("interested")
+                for _ in range(20):
+                    if "Status: interested" in (queue_dir / "JOBS.md").read_text(encoding="utf-8"):
+                        break
+                    time.sleep(0.05)
+                else:
+                    raise AssertionError("job status did not reach JOBS.md")
+
                 for color_scheme in ("light", "dark"):
                     page.emulate_media(color_scheme=color_scheme)
-                    for panel in ("queue", "history", "reading-list"):
+                    for panel in ("queue", "history", "reading-list", "jobs"):
                         page.locator(f"#tab-{panel}").click()
                         page.wait_for_selector(f"#panel-{panel}:not([hidden])")
                         for width in (1440, 834, 390):
