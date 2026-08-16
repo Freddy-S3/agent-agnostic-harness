@@ -47,6 +47,15 @@ Test-Path "$env:USERPROFILE\.claude\skills\ship\SKILL.md"
 
 Then ask it to run `/faruk` and `/pr` - if both are recognized, the install is live.
 
+## 5. Restore the portable Project layout
+
+Read [`docs/PROJECT-OPERATING-MODE.md`](docs/PROJECT-OPERATING-MODE.md).
+Create or verify the one `00 Control Center` chat, one host Project per business or durable
+domain, and `00 Main - Coordination` inside each Project.
+The host account's Projects and chat history are not created by `install.ps1`, so this is a
+manual account step that must be repeated when the account or host changes.
+Confirm the one-agent default and the three-agent maximum for exceptional parallel work.
+
 ## What this can't automate
 
 - **`~/.claude/.credentials.json`** - never copy this file between machines. Sign in fresh (step 2). This is a security boundary, not a convenience gap.

@@ -84,6 +84,11 @@ So every subagent prompt must open with `First read ~/Repo/agent-agnostic-harnes
 The same prompt must also carry the persistence rule below in full, because a subagent that reports a blocker only in its final text has not persisted it: the orchestrator reads that text, the dashboard never does.
 Treat each completed phase handoff as the context summary; do not carry unnecessary history forward.
 
+The portable project model is documented in `docs/PROJECT-OPERATING-MODE.md`.
+Use one `00 Control Center` chat for global routing, one host Project per business or durable domain, and one `00 Main - Coordination` chat plus one outcome chat per distinct result.
+The repository, queue, tracker, and PR remain the source of truth across ChatGPT, Claude Code, Codex, and other hosts.
+Default to one agent and one active writing agent per worktree; spawn only for independently bounded complex work or an explicit request, and cap justified parallel work at three agents.
+
 ## Self-Improvement
 
 Update the relevant native instruction or skill immediately when the user corrects style, architecture, or approach; when a task reveals missing reusable context; or when a skill is ambiguous.

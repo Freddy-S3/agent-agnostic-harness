@@ -18,6 +18,7 @@ This repository is the single source of truth. You write a skill once, in one fo
 | `git-hooks/` | Git hooks, host-independent. `commit-msg` strips agent co-author trailers. `install.ps1` points global `core.hooksPath` here. |
 | `memories/` | Durable user and repo context notes. |
 | `config/mcp-config.template.json` | Sanitized MCP server template, env-var driven. |
+| `docs/PROJECT-OPERATING-MODE.md` | Portable control-center, Project, chat, repository, and swarm conventions. |
 | `HARNESS.md` | How to actually use the harness day to day - start here after installing. |
 | `install.ps1` | Projects this repo into a host's layout. |
 | `bootstrap-new-machine.ps1` | One-time setup for a fresh PC: clones every repo and runs `install.ps1`. See `NEW-MACHINE-SETUP.md`. |
@@ -35,6 +36,9 @@ This repository is the single source of truth. You write a skill once, in one fo
 Then restart the host so it rediscovers instructions and skills.
 
 Moving to a new machine entirely, not just installing into a new host? See `NEW-MACHINE-SETUP.md` - `bootstrap-new-machine.ps1` clones every repo and runs the install above in one pass.
+
+After installing on a new machine or host, follow `docs/PROJECT-OPERATING-MODE.md` to
+recreate or verify the host Projects and their `00 Main - Coordination` chats.
 
 Useful flags:
 

@@ -33,6 +33,21 @@ Use `fork` at a gate to start a fresh chat from a saved handoff when the convers
 Use `pause` to save the task for a later session.
 Ticket-backed handoffs use `<ticket-id>-<slug>.md`; ticketless handoffs use `adhoc-<slug>.md` under `/memories/repo/tasks/`.
 
+## Project and chat operating model
+
+Use one lightweight `00 Control Center` chat for global routing and queue status.
+Use one host Project per business or durable domain, with `00 Main - Coordination` as its
+short project-level summary and one new chat for each distinct outcome.
+Keep the repository, queue, tracker, and pull request as the portable source of truth.
+The host Project is useful context, but its account-level chats are not synchronized with
+Claude Code, Codex, or another host by this repository.
+
+The current execution default is one agent and one active writing agent per worktree.
+Spawn only for independently bounded complex work or an explicit request, and cap justified
+parallel work at three agents until the policy is changed.
+The full setup, copy-paste Project instructions, and reinstall checkpoint live in
+[`docs/PROJECT-OPERATING-MODE.md`](docs/PROJECT-OPERATING-MODE.md).
+
 If you do not know which command fits, invoke `/freddy` and describe the task.
 It selects the smallest effective skill stack, completes the task, and shows the operational skill trace as it works.
 It loads and applies the selected execution owner's `SKILL.md`, including a model-disabled owner, without requiring a second slash command.

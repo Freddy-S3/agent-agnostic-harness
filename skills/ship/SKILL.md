@@ -151,7 +151,8 @@ The ad hoc ledger is created at startup like a tracker-backed one, not only when
 
 ### Phase 1-2: Plan (automatic → outputs Gate 1)
 
-Run PLAN skill: explore affected files, find the reference sibling, and decompose the work into dependency-ordered parallel waves and sequential sub-tasks.
+Run PLAN skill: explore affected files, find the reference sibling, and decompose the work into dependency-ordered sequential sub-tasks.
+Add a parallel wave only when independently bounded work materially benefits from it; independent work is not, by itself, a reason to spawn more agents.
 Surface any blockers as part of the Gate 1 output.
 
 ```
@@ -163,7 +164,7 @@ Ticket:     <Jira key> | none (ticketless)
 Reference:  <file being modeled after>
 Type:       feature | bugfix | refactor
 
-Parallel waves (each wave contains tasks with no dependencies or overlapping writes):
+Parallel waves (optional, only when the benefit justifies the extra context and merge cost):
   Wave 1:
     • <sub-task>
     • <sub-task>
@@ -188,16 +189,17 @@ Reply "proceed" to implement | adjust any item | "fork" to reset context (handof
 
 Load NEWFEATURE or DEBUGGING skill based on task type.
 Implement the plan as dependency-ordered waves:
-1. For each parallel wave, invoke every independent worker concurrently in one delegation batch.
-2. Pass each worker only its specific sub-task, the handoff artifact, and the reference file path.
-3. Wait for all workers in the wave to finish before starting the next wave.
-4. After the wave completes, output one status line per sub-task:
+1. Keep the default path sequential with one task owner and one active writing agent per worktree.
+2. For an approved parallel wave, launch only independently bounded work, cap the wave at three agents, and give each writer an isolated worktree.
+3. Pass each worker only its specific sub-task, the handoff artifact, and the reference file path.
+4. Wait for all workers in the wave to finish before starting the next wave.
+5. After the wave completes, output one status line per sub-task:
   `  ✓ <sub-task> → <file> (parallel wave <N>)`
-5. Run sequential sub-tasks in order after their dependencies are complete.
-6. For sequential work, output the existing status format:
+6. Run sequential sub-tasks in order after their dependencies are complete.
+7. For sequential work, output the existing status format:
   `  ✓ <sub-task> → <file>`
 
-Do not serialize independent workers for convenience.
+Do not create a parallel wave merely because tasks are independent.
 Do not run parallel workers that edit the same file or depend on each other's uncommitted changes.
 If a blocking decision arises mid-implementation that was not in Gate 1, surface it immediately as an inline question and wait for a one-line answer before continuing.
 
