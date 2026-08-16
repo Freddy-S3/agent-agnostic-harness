@@ -262,6 +262,65 @@ function Test-JunctionPointsTo {
     return $actual -ieq $Target.TrimEnd('\')
 }
 
+function Link-CodexSkills {
+    <#
+        Codex owns .codex/skills/.system, so linking the whole skills directory would
+        hide its built-in skills. Link each harness skill directory instead and leave
+        every other destination entry, including .system, untouched.
+    #>
+    param([string]$Source, [string]$Destination)
+
+    if (-not (Test-Path -LiteralPath $Source)) {
+        Write-Host "  (no skills/ in source - skipped)"
+        return
+    }
+
+    if (Test-IsJunction $Destination) {
+        $stale = Get-JunctionTarget $Destination
+        Write-Action 'relink ' "skills was -> $stale"
+        if (-not $DryRun) {
+            $system = Join-Path $Destination '.system'
+            $systemBackup = "$Destination.system-backup-$Stamp"
+            if (Test-Path -LiteralPath $system) {
+                Copy-Item -LiteralPath $system -Destination $systemBackup -Recurse -Force
+            }
+            [System.IO.Directory]::Delete($Destination, $false)
+            New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+            if (Test-Path -LiteralPath $systemBackup) {
+                Move-Item -LiteralPath $systemBackup -Destination (Join-Path $Destination '.system')
+            }
+        }
+    }
+    else {
+        New-Dir $Destination
+    }
+
+    foreach ($skill in Get-ChildItem -Directory -LiteralPath $Source) {
+        $skillDestination = Join-Path $Destination $skill.Name
+
+        if (Test-JunctionPointsTo $skillDestination $skill.FullName) {
+            Write-Host "  ($($skill.Name) already linked to this repo)"
+            continue
+        }
+
+        if (Test-IsJunction $skillDestination) {
+            $stale = Get-JunctionTarget $skillDestination
+            Write-Action 'relink ' "$($skill.Name) was -> $stale"
+            if (-not $DryRun) { [System.IO.Directory]::Delete($skillDestination, $false) }
+        }
+        elseif (Test-Path -LiteralPath $skillDestination) {
+            $backup = "$skillDestination.bak-$Stamp"
+            Write-Action 'backup ' (Split-Path -Leaf $backup)
+            if (-not $DryRun) { Move-Item -LiteralPath $skillDestination -Destination $backup -Force }
+        }
+
+        Write-Action 'link   ' "$($skill.Name) -> $($skill.FullName)"
+        if (-not $DryRun) {
+            New-Item -ItemType Junction -Path $skillDestination -Target $skill.FullName | Out-Null
+        }
+    }
+}
+
 function Copy-Tree {
     <# Mirrors a source subdirectory into the destination, file by file. #>
     param([string]$Name, [string]$DestName)
@@ -381,6 +440,11 @@ if ($Link) {
         $dst = Join-Path $DestRoot $name
         if (-not (Test-Path -LiteralPath $src)) { continue }
 
+        if ($Target -eq 'codex' -and $name -eq 'skills') {
+            Link-CodexSkills $src $dst
+            continue
+        }
+
         if (Test-JunctionPointsTo $dst $src) {
             Write-Host "  ($name already linked to this repo)"
             continue
@@ -413,6 +477,9 @@ if ($Link) {
         Write-Host "  note: a single file cannot be linked reliably on Windows." -ForegroundColor Yellow
         Write-Host "        CLAUDE.md was written as an @-import stub, not a copy." -ForegroundColor Yellow
         Write-Host "        Claude Code resolves the import at read time, so it stays live." -ForegroundColor Yellow
+    }
+    elseif ($Target -eq 'codex') {
+        Write-Host "  note: Codex-owned .system skills were preserved; harness skills are linked individually." -ForegroundColor Yellow
     }
 
     Write-Host ""
