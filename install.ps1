@@ -309,9 +309,15 @@ function Link-CodexSkills {
             if (-not $DryRun) { [System.IO.Directory]::Delete($skillDestination, $false) }
         }
         elseif (Test-Path -LiteralPath $skillDestination) {
-            $backup = "$skillDestination.bak-$Stamp"
-            Write-Action 'backup ' (Split-Path -Leaf $backup)
-            if (-not $DryRun) { Move-Item -LiteralPath $skillDestination -Destination $backup -Force }
+            # Keep backups outside .codex/skills so Codex does not discover a copied
+            # SKILL.md under a backup directory as another installed skill.
+            $backupRoot = "$Destination.bak-$Stamp"
+            $backup = Join-Path $backupRoot $skill.Name
+            Write-Action 'backup ' "$($skill.Name) -> $backupRoot"
+            if (-not $DryRun) {
+                New-Dir $backupRoot
+                Move-Item -LiteralPath $skillDestination -Destination $backup -Force
+            }
         }
 
         Write-Action 'link   ' "$($skill.Name) -> $($skill.FullName)"
