@@ -28,6 +28,7 @@ This repository is the single source of truth. You write a skill once, in one fo
 .\install.ps1 -Target copilot            # or claude, or codex
 .\install.ps1 -Target claude -Link       # the usual Claude Code install (live junctions)
 .\install.ps1 -Target claude -Link -Mcp  # also emit MCP configuration
+.\install.ps1 -Target codex -Link        # live-link harness skills, preserving Codex .system skills
 .\install.ps1 -Target codex -DryRun      # show every action, write nothing
 ```
 
@@ -38,7 +39,7 @@ Moving to a new machine entirely, not just installing into a new host? See `NEW-
 Useful flags:
 
 - `-DryRun` - report every action without writing. Run this first.
-- `-Link` - junction `skills/` and `memories/` into the destination instead of copying, so the installed harness stays a live view of this repo. Without it they are copied and drift. This is the intended mode for Claude Code.
+- `-Link` - keep the installed harness live instead of copying it. Claude and Copilot get directory junctions; Codex gets one junction per harness skill so its `.system` skills remain visible. Memories are linked as a directory. Without it, files are copied and can drift.
 - `-Mcp` - also emit MCP server config for the target host.
 - `-DestRoot <path>` - install somewhere other than the host's default directory.
 - `-IncludeMemories:$false` - skip `memories/` when the host has its own durable memory store.
@@ -58,7 +59,7 @@ Every step writes inside the host's harness directory except one: the installer 
 | `instructions/AGENTS.md` | `.copilot/instructions/copilot-instructions.md` | `.claude/CLAUDE.md` | `.codex/AGENTS.md` |
 | `instructions/*.instructions.md` | `.copilot/instructions/` (auto-applies) | copied as reference only | copied as reference only |
 | `agents/<name>.md` | `.copilot/agents/<name>.agent.md` | `.claude/agents/<name>.md` | `.codex/agents/<name>.md` |
-| `skills/` | `.copilot/skills/` | `.claude/skills/` | `.codex/skills/` |
+| `skills/` | `.copilot/skills/` | `.claude/skills/` | `.codex/skills/` (harness children linked; `.system` preserved) |
 | `hooks/` | `.copilot/hooks/` (auto-runs) | `.claude/hooks/` + register in `settings.json` | `.codex/hooks/` |
 | `memories/` | `.copilot/memories/` | `.claude/memories/` | `.codex/memories/` |
 | `config/mcp-config.template.json` | `mcp-config.json` | `mcp-servers.generated.json` | `mcp-servers.generated.toml` |
