@@ -182,6 +182,7 @@ function parseItem(block) {
     status,
     repo,
     decided: decided ? decided.trim() : null,
+    answered,
     blockedReason,
     asks,
     options,
@@ -270,7 +271,7 @@ async function snapshot() {
     const path = join(QUEUE_DIR, file);
     try {
       const [text, st] = await Promise.all([readFile(path, "utf8"), stat(path)]);
-      const items = splitBlocks(text).map(parseItem).filter((i) => i.status !== "done");
+      const items = splitBlocks(text).map(parseItem);
       groups.push({ gate, hint, file, items, mtime: st.mtimeMs, error: null });
     } catch (err) {
       groups.push({ gate, hint, file, items: [], mtime: 0, error: err.message });
@@ -470,6 +471,17 @@ h1{margin:0;font-size:1.9rem;letter-spacing:-.022em}
 .stamp{font-family:ui-monospace,Consolas,monospace;font-size:.74rem;color:var(--ink-3);
 display:flex;gap:1rem;flex-wrap:wrap;margin-top:.4rem}
 .live{color:var(--clear);font-weight:700}
+.tabs{display:flex;gap:.35rem;overflow-x:auto;border-bottom:1px solid var(--rule);padding-bottom:.35rem}
+.tab{display:inline-flex;align-items:center;gap:.45rem;white-space:nowrap;border:1px solid transparent;
+background:transparent;color:var(--ink-2);padding:.5rem .7rem;border-radius:3px 3px 0 0;font-weight:600}
+.tab:hover{border-color:var(--rule);color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--surface);border-color:var(--rule);border-bottom-color:var(--surface);
+color:var(--ink);margin-bottom:-.4rem}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tab .count{font-size:.66rem;padding:.08rem .35rem}
+.panel[hidden]{display:none}
+.panel-head{display:flex;align-items:baseline;gap:.7rem;flex-wrap:wrap}
+.panel-note{margin:.2rem 0 0;color:var(--ink-3);font-size:.86rem}
 h2.sec{font-family:ui-monospace,Consolas,monospace;font-size:.8rem;letter-spacing:.13em;
 text-transform:uppercase;margin:0 0 .1rem;border-bottom:1px solid var(--rule);padding-bottom:.45rem}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1.5rem;align-items:start}
@@ -514,6 +526,11 @@ border-radius:2px;background:var(--surface);color:var(--ink);resize:vertical;min
 border-radius:3px;padding:.85rem 1rem}
 .prs ul{margin:.4rem 0 0;padding-left:1rem;font-size:.86rem;color:var(--ink-2)}
 .prs a{color:inherit}
+.history{display:flex;flex-direction:column;gap:1rem;margin-top:1rem}
+.history-group{display:flex;flex-direction:column;gap:.8rem}
+.history-group .col-head{margin-bottom:0}
+.history-card{border-left-color:var(--clear);opacity:.8}
+.history-card:hover{opacity:1}
 code{font-family:ui-monospace,Consolas,monospace;font-size:.82em;background:var(--surface-2);
 padding:.05rem .28rem;border-radius:2px}
 details summary{cursor:pointer;font-family:ui-monospace,Consolas,monospace;font-size:.78rem;
@@ -577,26 +594,76 @@ cursor:pointer;font-size:.88rem;line-height:1.4}
     </div>
   </header>
 
-  <section>
-    <h2 class="sec">Blocked on you <span class="count hot" id="dcount">0</span></h2>
-    <div class="col" id="decisions"></div>
-  </section>
+  <nav class="tabs" id="tabs" aria-label="Dashboard sections" role="tablist">
+    <button class="tab" type="button" role="tab" id="tab-queue" aria-controls="panel-queue"
+      aria-selected="true" data-panel="queue">Queue <span class="count" id="t-queue">0</span></button>
+    <button class="tab" type="button" role="tab" id="tab-history" aria-controls="panel-history"
+      aria-selected="false" data-panel="history">History <span class="count" id="t-history">0</span></button>
+    <button class="tab" type="button" role="tab" id="tab-reading-list" aria-controls="panel-reading-list"
+      aria-selected="false" data-panel="reading-list">Reading list <span class="count" id="t-reading">0</span></button>
+  </nav>
 
-  <div class="cols" id="cols"></div>
+  <main>
+    <section class="panel" id="panel-queue" role="tabpanel" aria-labelledby="tab-queue">
+      <section>
+        <h2 class="sec">Blocked on you <span class="count hot" id="dcount">0</span></h2>
+        <div class="col" id="decisions"></div>
+      </section>
 
-  <section class="study" id="study"></section>
+      <div class="cols" id="cols"></div>
 
-  <div class="prs" id="prs"></div>
+      <div class="prs" id="prs"></div>
+    </section>
+
+    <section class="panel" id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden>
+      <div class="panel-head">
+        <h2 class="sec">Decision history</h2>
+        <span class="gate" id="history-summary"></span>
+      </div>
+      <p class="panel-note">Answered and completed items stay here for reference. Nothing is deleted.</p>
+      <div class="history" id="history"></div>
+    </section>
+
+    <section class="panel" id="panel-reading-list" role="tabpanel" aria-labelledby="tab-reading-list" hidden>
+      <div class="panel-head">
+        <h2 class="sec">Reading list</h2>
+        <span class="gate">STUDY.md</span>
+      </div>
+      <p class="panel-note">Your study checklist, kept separate from queue decisions.</p>
+      <section class="study" id="study"></section>
+    </section>
+  </main>
   <footer id="foot"></footer>
 </div>
 <div class="statusbar">
-  <span class="tally"><b id="t-dec">0</b>/<span id="t-tot">0</span> answered &middot;
+  <span class="tally"><b id="t-archived">0</b> archived &middot;
     <b id="t-open">0</b> waiting on you</span>
   <span class="spacer"></span>
   <span class="said" id="bar-note"></span>
 </div>
 <script>
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const panels = ['queue', 'history', 'reading-list'];
+
+function selectPanel(name, updateHash = true){
+  const active = panels.includes(name) ? name : 'queue';
+  for (const button of document.querySelectorAll('[data-panel]')){
+    const selected = button.dataset.panel === active;
+    button.setAttribute('aria-selected', selected ? 'true' : 'false');
+    button.tabIndex = selected ? 0 : -1;
+  }
+  for (const panel of document.querySelectorAll('.panel')){
+    panel.hidden = panel.id !== 'panel-' + active;
+  }
+  if (updateHash && location.hash !== '#' + active) history.replaceState(null, '', '#' + active);
+}
+
+for (const button of document.querySelectorAll('[data-panel]')){
+  button.addEventListener('click', () => selectPanel(button.dataset.panel));
+}
+selectPanel(location.hash.slice(1), false);
+window.addEventListener('hashchange', () => selectPanel(location.hash.slice(1), false));
 
 let paused = false;   // stop the 5s repaint from wiping what is being typed
 let mtimes = {};
@@ -650,7 +717,7 @@ function renderStudy(s){
   const host = document.getElementById('study');
   host.innerHTML = '';
   if (s.error){
-    host.innerHTML = '<div class="study-head"><strong>Study checklist</strong></div>'
+    host.innerHTML = '<div class="study-head"><strong>Reading list</strong></div>'
       + '<p class="empty">No ' + esc(s.file) + ' in the queue directory yet.</p>';
     return;
   }
@@ -659,7 +726,7 @@ function renderStudy(s){
   const head = document.createElement('div');
   head.className = 'study-head';
   const pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
-  head.innerHTML = '<strong>Study checklist</strong>'
+  head.innerHTML = '<strong>Reading list</strong>'
     + '<span class="meta">' + s.done + '/' + s.total + ' done &middot; ' + pct + '%</span>'
     + '<span class="bar"><i style="width:' + pct + '%"></i></span>';
   host.appendChild(head);
@@ -696,13 +763,14 @@ function renderStudy(s){
 // the emphasis differs.
 // Everything an item needs to be answered is on the card, always visible. Nothing that
 // you have to act on is ever behind a disclosure.
-function card(g, i){
+function card(g, i, history = false){
   const decide = i.needsDecision;
   const el = document.createElement('article');
-  el.className = 'card ' + (decide ? 'decide' : i.status === 'pending' ? 'pending' : '');
+  el.className = 'card ' + (history ? 'history-card ' : '')
+    + (decide ? 'decide' : i.status === 'pending' ? 'pending' : '');
   el.dataset.resolved = i.decided ? '1' : '0';
 
-  const chip = decide ? 'blocked on you' : i.decided ? 'answered' : i.status;
+  const chip = history && i.decided ? 'answered' : history ? 'completed' : decide ? 'blocked on you' : i.status;
   // Blocked reason first: it is the field the item convention governs, so it is the one
   // written to be read cold. asks[0] is a log line, and a log line is written for the
   // audit trail - when it won, any "DECISION NEEDED" note shadowed a well-written field
@@ -779,21 +847,29 @@ async function tick(){
   document.getElementById('read').textContent = 'read at ' + new Date(d.readAt).toLocaleTimeString();
   mtimes = Object.fromEntries(d.groups.map(g => [g.file, g.mtime]));
 
-  const decisions = d.groups.flatMap(g => g.items.filter(i => i.needsDecision).map(i => [g, i]));
+  const isHistory = i => i.answered || i.status === 'done';
+  const current = d.groups.map(g => ({
+    ...g,
+    items: g.items.filter(i => !isHistory(i)),
+  }));
+  const historyItems = d.groups.flatMap(g => g.items
+    .filter(isHistory)
+    .map(i => [g, i]));
+  const decisions = current.flatMap(g => g.items.filter(i => i.needsDecision).map(i => [g, i]));
   document.getElementById('dcount').textContent = decisions.length;
+  document.getElementById('t-queue').textContent = current.reduce((n, g) => n + g.items.length, 0);
+  document.getElementById('t-history').textContent = historyItems.length;
+  document.getElementById('t-archived').textContent = historyItems.length;
   const host = document.getElementById('decisions');
   host.innerHTML = '';
   if (!decisions.length) host.innerHTML = '<p class="empty">Nothing is flagged as waiting on you. Every open item below is still answerable.</p>';
   for (const [g, i] of decisions) host.appendChild(card(g, i));
 
-  const all = d.groups.flatMap(g => g.items);
-  document.getElementById('t-dec').textContent = all.filter(i => i.decided).length;
-  document.getElementById('t-tot').textContent = all.length;
   document.getElementById('t-open').textContent = decisions.length;
 
   const cols = document.getElementById('cols');
   cols.innerHTML = '';
-  for (const g of d.groups){
+  for (const g of current){
     const rest = g.items.filter(i => !i.needsDecision);
     const sec = document.createElement('section');
     sec.className = 'col';
@@ -818,7 +894,30 @@ async function tick(){
     cols.appendChild(sec);
   }
 
+  const historyHost = document.getElementById('history');
+  historyHost.innerHTML = '';
+  document.getElementById('history-summary').textContent = historyItems.length
+    + (historyItems.length === 1 ? ' item' : ' items') + ' kept for reference';
+  if (!historyItems.length){
+    historyHost.innerHTML = '<p class="empty">No answered or completed items yet.</p>';
+  }
+  for (const g of d.groups){
+    const items = g.items.filter(isHistory);
+    if (!items.length) continue;
+    const group = document.createElement('section');
+    group.className = 'history-group';
+    const head = document.createElement('div');
+    head.className = 'col-head';
+    head.innerHTML = '<h2>' + esc(g.gate) + '</h2><span class="count">' + items.length
+      + '</span><span class="gate">completed or answered</span>';
+    group.appendChild(head);
+    for (const i of items) group.appendChild(card(g, i, true));
+    historyHost.appendChild(group);
+  }
+
   renderStudy(d.study);
+  document.getElementById('t-reading').textContent = d.study.error
+    ? '0' : Math.max(0, d.study.total - d.study.done);
 
   document.getElementById('prs').innerHTML = '<strong>Open PRs</strong> <span class="meta">(gh, cached 60s)</span>'
     + (d.prs.length

@@ -8,6 +8,17 @@ node tools/queue-dashboard/server.mjs
 # http://127.0.0.1:4317
 ```
 
+The page is split into three tabs:
+
+- **Queue** shows only unanswered and unfinished work, including the PC and phone gates.
+- **History** keeps answered and completed items available without crowding the working queue.
+- **Reading list** contains the live `STUDY.md` checklist.
+
+Items are hidden from the Queue tab, not deleted.
+The Open PR list stays on the Queue tab, while live status remains visible everywhere.
+
+Run the browser regression check with `py tools/queue-dashboard/test_dashboard.py`.
+
 ## Run it from a pinned worktree, not the shared clone
 
 The dashboard is a long-running service; the clone it runs from is also a working tree
@@ -114,9 +125,9 @@ section, so a later run can read the day's decisions in one place.
 
 An answer is a recorded decision, not executed work. Nothing here runs anything.
 
-## Study checklist
+## Reading list tab
 
-`STUDY.md` in the queue directory is rendered as a live checklist under the queue cards.
+`STUDY.md` in the queue directory is rendered as a live checklist under the Reading list tab.
 It is a plain GitHub-flavoured Markdown task list: `## ` headings become tracks, and every
 `- [ ]` / `- [x]` line becomes a row with a per-track and an overall count. Prose that is
 not a track - a rationale note, a preamble - must sit under a `### ` or deeper heading, or
@@ -128,7 +139,7 @@ you**, because finishing a chapter is not a decision anyone is waiting on. Edit 
 by hand whenever you like; the page picks it up on the next 5s poll.
 
 It lives here because this is the page already open on the phone, which is where the
-studying actually happens. Delete the file and the section just says so.
+studying actually happens. Delete the file and the tab just says so.
 
 ## Safety of the write-back
 
