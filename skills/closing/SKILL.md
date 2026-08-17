@@ -135,8 +135,23 @@ When the session worked inside a repository that has `AGENTS.md`, finish the pro
 1. Summarize the outcome in four lines: result, verification, remaining risk, and next action.
 2. If `docs/PROJECT-CONTEXT.md` exists, update it only with stable facts or settled decisions; do not put temporary chat history there.
 3. Run `tools/chat-handoff.ps1 -Repository <repo> -Purpose "Resume coordination"` when the portable tool is available. This writes `docs/CHAT-HANDOFF.md` for the next Codex or Claude Code session.
-4. If a ChatGPT Project coordination chat is part of the workflow, present the four-line summary as a ready-to-paste update for its `00 Main - Coordination` chat. The local harness cannot inject text into ChatGPT's UI.
-5. Do not archive the outcome chat until the durable files and coordination update are complete.
+4. If Codex app thread tools are available, publish the same four-line summary to the matching `00 Main - Coordination` task:
+	- Call `codex_app__list_threads` and find an existing task whose exact title is `00 Main - Coordination` and whose repository path matches the owning repository.
+	- Prefer the current host and an active or idle task; if more than one exact match remains, choose the most recently updated one.
+	- If the matching task is the current task, include the summary in the closing response instead of sending a duplicate message.
+	- Otherwise call `codex_app__send_message_to_thread` with the task id and host id, using this four-line format:
+
+```text
+Result: <outcome and what finished>
+Verification: <what was checked>
+Remaining risk: <none, or the specific risk>
+Next action: <the next recommended action>
+```
+
+	- Confirm that the send succeeded before treating the coordination update as complete.
+	- Use an existing task only; when no exact match is available, do not create a new task automatically.
+5. If the app tools are unavailable, or no exact coordination task exists, present the four-line summary as ready-to-paste text in the closing response.
+6. Do not archive the outcome chat until the durable files and coordination update are complete.
 
 ## Output
 
