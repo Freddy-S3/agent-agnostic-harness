@@ -6,28 +6,26 @@ user-invocable: true
 
 # Faruk
 
-The casual counterpart to `/freddy`.
-Same harness, different posture: `/freddy` is the enterprise-grade router with gates and traces, `/faruk` runs personal mode and gets the job done while Faruk is busy.
+`/faruk` is the personal-mode adapter over the shared router contract in `ROUTER-CONTRACT.md`.
+`/freddy` loads that same contract and applies the delivery overlay.
+This makes shared routing changes carry over to both routers without making Faruk invoke Freddy as a second router.
 
-Assume Faruk is on his phone, between other things, and reading the reply once.
-Every question you ask costs him a context switch he did not budget for.
+Faruk bypasses delivery ceremony, not the selected owner's workflow, validation, persistence, or safety rules.
+It bypasses human approval gates in the workflow, not host-level tool permissions or security controls.
+Read `ROUTER-CONTRACT.md` first, then apply this personal overlay for the whole task.
 
-## Contract
+## Personal overlay
 
-1. Set the mode to personal for the whole task, regardless of directory.
-2. Read the request for its deliverable, then decide the approach yourself.
-	Do not present options, do not ask which approach is preferred, do not ask permission to read, build, test, or commit.
-3. Pick the smallest workflow that produces the deliverable.
-	Borrow from a named skill when it changes the work; skip the router formalities when it does not.
-4. Execute end to end.
-	When a decision is genuinely blocked, choose the option that is easiest to reverse, state the assumption in one line, and keep going.
+1. Set `mode: personal` and `director: /faruk` in the task ledger, regardless of directory.
+2. Select and load the execution owner from the shared contract, then apply that owner's `SKILL.md` directly.
+3. Run end to end without delivery approval gates, operational traces, or unnecessary progress pauses.
+4. When a decision is ambiguous, choose the easiest-to-reverse option, record the assumption, and continue.
 5. Verify with the cheapest check that would actually catch the problem.
-	Prefer running the thing over reasoning about it.
-6. Report the outcome in a short reply.
+6. Preserve the shared route across follow-ups and use `REALIGN` to recover from the ledger rather than re-routing.
 
 ## The one interruption rule
 
-Ask at most one question per task, and only when proceeding under any assumption would be unsafe or would waste the work entirely.
+Ask at most one question per task, and only when every reasonable assumption would be unsafe or would waste the work entirely.
 Otherwise assume, act, and flag the assumption in the report.
 
 Stop and confirm only for these:
@@ -37,34 +35,35 @@ Stop and confirm only for these:
 - Sending anything outward: publishing, posting, emailing, or paying.
 - Spending real money.
 
-Everything else is fair game, including creating branches, opening PRs, installing dependencies, refactoring, and rewriting files that are safely in git.
+Everything else is fair game, including creating branches, installing dependencies, refactoring, and opening pull requests.
+Creating a branch, pushing its commits, and opening a pull request are repository workflow actions, not public release or personal communication.
 
-## Defaults
+## Defaults and recoverability
 
-- Ship the direct version. Skip abstraction and hardening until a second caller or a real failure demands it.
+- Ship the direct version.
 - Prefer modifying existing code over adding new structure.
-- A broken build, a failing test, or visibly broken UI in the current scope is part of the job; fix it rather than reporting it.
-- Commit and push when the work is a coherent unit and the user asked for it to land. Use `/pr` for the PR itself.
+- Fix broken builds, failing tests, and visibly broken UI that are in scope.
+- When work creates or updates a non-default branch, commit and push coherent changes and open or update its pull request with `/pr`.
+- Never leave a branch with unpublished work and no pull request unless a stop condition forbids the outward action; record that block.
 - Never add an agent as a commit co-author.
 
-## Persist the decisions before you report (required)
+## Persist decisions before reporting
 
-Personal mode trades approval gates for speed, and the thing it hands back in exchange is a written record of what was decided without him. That record is worthless if it only exists in the reply.
+Personal mode trades approval gates for speed, so every assumption made instead of asking must survive the session.
 
-Before the final report - not after, and not only when it feels significant:
+Before the final report, write every open decision, blocker, and assumption into the queue file matching its gate (`QUEUE-PC.md` or `QUEUE-PHONE.md`, resolved per `skills/queue/SKILL.md`) as a `## ` entry with `Status: blocked`, a complete `Blocked reason:`, and an `Options:` list phrased as instructions Faruk could give.
+The blocked reason and every option must be readable cold on a phone, while dates and history belong in `Log:`.
+Write the same items to `status/TRACKER.md`, one line each: `- [ ] YYYY-MM-DD | /faruk | <repo-or-scope> | <one-line item>`.
+Read both writes back before reporting.
+If either write is refused, report the exact path and actual error instead of claiming it landed.
 
-1. Every open decision, blocker, and assumption goes into the queue file matching its gate (`QUEUE-PC.md` or `QUEUE-PHONE.md`, resolved per `skills/queue/SKILL.md`), as a `## ` entry with `Status: blocked`, a `Blocked reason:`, and an `Options:` list phrased as instructions he would give. The `Blocked reason:` and each option must be readable cold on a phone with no memory of this session - state the decision in full rather than referring to context that lived in the conversation, and keep dates and history in `Log:`. See `instructions/AGENTS.md` under the unpersisted-decision rule.
-2. The same items also go to `status/TRACKER.md`, one line each: `- [ ] YYYY-MM-DD | /faruk | <repo-or-scope> | <one-line item>`. Append, never overwrite.
-3. Read back what you wrote. If a write is refused, report the exact path and the real error in the final report rather than continuing as though it landed.
-
-The queue file is the one that must not be skipped: Faruk's dashboard parses those two files and nothing else, so a blocker recorded only in `TRACKER.md` or only in the reply is one he will not see. The `Assumed:` line in the report below summarises what was persisted; it does not replace persisting it.
-
-This applies in full when running as a subagent or a parallel task. Telling the orchestrator is not persisting - write the entry yourself, then say you did.
+The queue file is the primary record because Faruk's dashboard parses those files and nothing else.
+This requirement also applies to subagents and parallel tasks; telling an orchestrator is not persistence.
 
 ## Reporting
 
-Skip the skill trace; `/freddy` owns that.
-Close with a short report:
+Skip the operational trace; `/freddy` owns that delivery-only output.
+Close with:
 
 ```text
 Done: <what now exists or changed>
@@ -74,9 +73,8 @@ Next: <the one thing worth doing next, or "nothing pending">
 ```
 
 State failures plainly.
-When something was skipped or left broken, say so in the report rather than letting it pass as complete.
+When something was skipped or left broken, say so in the report.
 
 ## Escalation
 
-When the task turns out to be high-stakes, shared, ticket-backed, or genuinely irreversible, say so in one line and recommend `/freddy`.
-Do not silently apply enterprise ceremony inside `/faruk`, and do not silently strip it from work that needs it.
+When a task turns out to be high-stakes, shared, ticket-backed, or genuinely irreversible, say so and recommend `/freddy` rather than silently changing posture.

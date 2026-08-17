@@ -54,6 +54,10 @@ If you do not know which command fits, invoke `/freddy` and describe the task.
 It selects the smallest effective skill stack, completes the task, and shows the operational skill trace as it works.
 It loads and applies the selected execution owner's `SKILL.md`, including a model-disabled owner, without requiring a second slash command.
 
+For hands-off personal work, use `/faruk`.
+It uses the same shared routing contract, owner loading, task ledger, validation floor, and persistence rules as `/freddy`, but bypasses delivery approval gates and operational traces.
+Shared routing behavior belongs in `skills/faruk/ROUTER-CONTRACT.md`, so changes there carry over to both routers.
+
 ### Skill Trace
 
 `/freddy` makes harness behavior inspectable without exposing private reasoning.
@@ -79,7 +83,7 @@ It records observable decisions and checks, not hidden reasoning or no-op workfl
 
 ### Dispatcher Checks
 
-Validate `/freddy` against these scenarios whenever its routing contract changes:
+Validate both routers against these scenarios whenever the shared routing contract changes:
 
 | Request                                              | Expected owner and trace                                                                                                                                                                | Completion condition                                                                                                                                                 |
 | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -87,12 +91,14 @@ Validate `/freddy` against these scenarios whenever its routing contract changes
 | `Turn these settled decisions into a specification.` | `/to-spec`; the trace confirms that `/freddy` loaded the selected model-disabled owner's `SKILL.md` before applying it.                                                                 | The requested agent-ready specification is delivered.                                                                                                                |
 | `Grill this migration proposal.`                     | `/grilling`; `[interaction] /grilling round 1` waits for the required answers, `[apply]` records their use, then `[interaction] /grilling round 2` waits for its next required answers. | The design tree has no unresolved decision frontier.                                                                                                                 |
 | `Add coverage for an audio status service.`          | `/ship` with `/tdd` when a red-green loop changes the implementation; the trace records its plan, review, and reflection gates.                                                          | The model waits for the required `proceed`, `lgtm`, and `done` approvals before advancing.                              |
+| `Work on my personal site while I am busy.`         | `/faruk`; it loads the shared contract, selects an owner, records `mode: personal`, and proceeds without a delivery gate or operational trace.                                        | The work completes with the owner's validation and the personal report format.                                           |
 
 ## Skill Map
 
 | Situation                                                                | Command                      | What it does                                                                                                      |
 | ------------------------------------------------------------------------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | You want the harness to choose, explain, and execute the right workflow  | `/freddy`                    | Selects the smallest effective skill stack, completes the task, and reports a compact skill/evaluation trace.     |
+| You want the same routing with minimal interruption for personal work   | `/faruk`                     | Applies the shared router contract in personal mode, bypassing delivery gates while preserving owner workflows and validation. |
 | A substantial feature, fix, refactor, or configuration change            | `/ship`                      | Runs the six-phase delivery loop with planning, validation, review, and reflection.                               |
 | A task needs a design and file-level plan                                | `/plan`                      | Finds the owning code, a reference sibling, and a dependency-ordered plan.                                        |
 | A large, unclear effort spans several agent sessions                     | `/wayfinder`                 | Maps decision tickets, the current frontier, unresolved fog, and explicit scope boundaries.                       |
