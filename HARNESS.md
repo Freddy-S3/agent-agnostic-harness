@@ -4,6 +4,8 @@ This is a personal, user-level agent harness, installed into whichever host you 
 It gives the agent reusable workflows for planning, implementation, review, research, and reflection.
 The harness is separate from application code: it guides the agent but does not change runtime behavior by itself.
 
+Agent-agnostic operation is the default: repository files, queue, tracker, and pull requests remain the source of truth so work can move between Codex and Claude Code without losing context.
+
 ## Start Here
 
 Use `/ship <task>` for a substantial change.

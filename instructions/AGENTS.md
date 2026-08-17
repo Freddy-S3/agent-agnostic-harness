@@ -89,6 +89,8 @@ Use one `00 Control Center` chat for global routing, one host Project per busine
 The repository, queue, tracker, and PR remain the source of truth across ChatGPT, Claude Code, Codex, and other hosts.
 Default to one agent and one active writing agent per worktree; spawn only for independently bounded complex work or an explicit request, and cap justified parallel work at three agents.
 
+**Agent-agnostic operation is the default.** Keep durable instructions, decisions, workflows, and source-of-truth records in repository files or other portable harness artifacts, not only in a host-specific memory, Project, or chat. Codex, Claude Code, ChatGPT, and other hosts must be able to resume the same work from the repository, queue, tracker, and pull request. When a host-specific feature improves convenience, treat it as an optional view over the portable records rather than the only place the context exists.
+
 ## Self-Improvement
 
 Update the relevant native instruction or skill immediately when the user corrects style, architecture, or approach; when a task reveals missing reusable context; or when a skill is ambiguous.
