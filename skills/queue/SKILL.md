@@ -52,6 +52,8 @@ The tracker is the secondary record, not the primary one. `tools/queue-dashboard
 
 A `/queue` run may not end while holding an unpersisted decision, including one it discovered incidentally rather than as the worked item's own blocker. A defect noticed in a neighbouring repo, a question the brief did not anticipate, an assumption taken to keep moving - each gets a `## ` entry in the queue file matching its gate, with `Status: blocked`, a `Blocked reason:`, and an `Options:` list, before the report is written. Write it against whichever item it belongs to, or as a new one if it belongs to none.
 
+If Faruk settles an existing queue item during the run - including saying that its work is already done - reconcile that item before continuing: add the `DECIDED` and `ANSWERED` records, verify the work before setting `Status: done`, and create a new item for any remaining work. Decisions made in a separate conversation are not visible to this skill until a later run explicitly reconciles them; there is no transcript-to-queue watcher.
+
 Read back every entry written. Then check the run's own output against the dashboard's contract, because an entry can be well written and still invisible:
 
 - An item carrying a `DECIDED` line or a log line starting with `ANSWERED` is treated as settled and shown to nobody. When the decision is made but the work it authorises has not happened, the remaining work goes in a NEW item rather than as a log line under the answered one.

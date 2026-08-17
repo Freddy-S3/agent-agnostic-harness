@@ -32,6 +32,8 @@ See `queue/README.md` for the field.
 
 Then append the same items to `status/TRACKER.md` in the cross-skill format, so `/status-report` sees them too.
 
+After the open-decision sweep, reconcile any existing queue item settled in this conversation, including an item Faruk says is already complete. Record `DECIDED` and `ANSWERED`, verify before marking it `done`, and create a new queue item for unfinished follow-up work. Read the changed entry back. This is required because the queue dashboard reads files, not conversation history.
+
 **Why this outranks the rest of the skill.** Faruk's dashboard parses the two queue files and nothing else - not `TRACKER.md`, not the transcript, not your closing summary.
 A decision reported only in chat is a decision he never sees, and it looks identical to no decision at all.
 On 2026-08-14 he opened a dashboard showing zero blockers while seventeen real ones sat in that night's session reports.
