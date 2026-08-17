@@ -137,6 +137,19 @@ Classify the request before looking up Jira:
 
 ## Execution Sequence
 
+### Automatic coordination closeout
+
+Every substantial outcome routed through `/ship` includes `/closing` automatically after verification.
+
+The closeout runs in this order:
+
+1. Record verification evidence in the live task ledger.
+2. Run `/closing` to persist stable decisions, refresh the repository handoff, and prepare the coordination summary.
+3. Apply the summary to the owning `00 Main - Coordination` chat when the host supports that action; otherwise present it as ready-to-paste text.
+4. Archive the outcome chat only after the durable files and coordination update are complete.
+
+The local harness can write repository files but cannot inject text into ChatGPT's web or desktop chat UI. That UI update remains a human action when ChatGPT is the coordination host.
+
 ### Pre-flight: Handoff Check (automatic - no gate)
 
 Check `/memories/repo/tasks/` for a handoff artifact matching this task. For ticket-backed work, match `<ticket-id>-*.md`. For ticketless work, match `adhoc-<slug>.md`.
@@ -247,7 +260,7 @@ Do not auto-fix anything labeled [SUGGEST] — those need intent.
 
 ### Phase 6: Reflect (automatic → conditionally outputs Gate 3)
 
-Run CLOSING skill.
+Run CLOSING skill, including its project coordination handoff when the outcome worked inside a repository with `AGENTS.md`.
 Draft all proposed harness updates.
 
 If there are no proposed harness updates, treat Gate 3 as implicitly approved: delete any completed task handoff and finish the session without presenting Gate 3.
