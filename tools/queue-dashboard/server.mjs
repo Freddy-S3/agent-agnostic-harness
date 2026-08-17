@@ -45,6 +45,21 @@ const JOB_STATUSES = ["new", "interested", "applied", "pass"];
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+async function renameWithRetry(source, target) {
+  const attempts = process.platform === "win32" ? 6 : 1;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      await rename(source, target);
+      return;
+    } catch (err) {
+      if (!(["EACCES", "EBUSY", "EPERM"].includes(err.code)) || attempt === attempts - 1) {
+        throw err;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+    }
+  }
+}
+
 // ---------------------------------------------------------------- auth
 //
 // Every request needs the token, including loopback ones. That is deliberate: under
@@ -474,7 +489,7 @@ async function writeAnswer({ file, title, answer, mtime }) {
   await copyFile(path, path + ".bak");
   const tmp = `${path}.tmp-${process.pid}`;
   await writeFile(tmp, next, "utf8");
-  await rename(tmp, path);
+  await renameWithRetry(tmp, path);
 
   await appendTriage(title, answer);
   return true;
@@ -524,7 +539,7 @@ async function writeTick({ index, done, text: expected, mtime }) {
   await copyFile(path, path + ".bak");
   const tmp = `${path}.tmp-${process.pid}`;
   await writeFile(tmp, out.text, "utf8");
-  await rename(tmp, path);
+  await renameWithRetry(tmp, path);
   return true;
 }
 
@@ -575,7 +590,7 @@ async function writeJobStatus({ title, status, mtime }) {
   await copyFile(path, path + ".bak");
   const tmp = `${path}.tmp-${process.pid}`;
   await writeFile(tmp, next, "utf8");
-  await rename(tmp, path);
+  await renameWithRetry(tmp, path);
   return true;
 }
 
