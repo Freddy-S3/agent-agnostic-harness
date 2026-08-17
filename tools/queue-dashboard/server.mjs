@@ -849,7 +849,7 @@ border-radius:2px;background:var(--surface);color:var(--ink);min-width:8rem}
 </div>
 <script>
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const safeUrl = value => /^https?:\/\//i.test(String(value)) ? String(value) : '';
+const safeUrl = value => /^https?:\\/\\//i.test(String(value)) ? String(value) : '';
 
 const panels = ['queue', 'history', 'reading-list', 'jobs'];
 
