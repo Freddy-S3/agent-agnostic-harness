@@ -4,6 +4,11 @@
 - Run /SHIP automatically after any task that results in file changes in the workspace (features, bug fixes, refactors, tests, infrastructure, config, dependency updates, PR feedback, Jira tickets).
 - Do NOT run /SHIP for read-only tasks (research, answering questions, explaining code).
 
+## Name and Transcription
+- The user's name is Faruk, spelled F-A-R-U-K.
+- Normalize speech-to-text or contextual variants such as Freddy or Ferruc to Faruk when they refer to the user.
+- Do not address the user as Freddy; Freddy is the agent and delivery-mode name.
+
 ## Access-Controlled Systems
 - Reach any SSO-protected tracker or wiki exclusively through its MCP server. An embedded editor browser cannot complete an SSO redirect, so browser automation is only for public sources.
 
