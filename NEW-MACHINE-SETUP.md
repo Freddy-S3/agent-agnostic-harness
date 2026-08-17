@@ -28,10 +28,11 @@ Clone just `agent-agnostic-harness` first, then let it clone everything else (th
 
 ```powershell
 gh repo clone Freddy-S3/agent-agnostic-harness "$env:USERPROFILE\Repo\agent-agnostic-harness"
-& "$env:USERPROFILE\Repo\agent-agnostic-harness\bootstrap-new-machine.ps1"
+& "$env:USERPROFILE\Repo\agent-agnostic-harness\bootstrap-new-machine.ps1" -Target codex
 ```
 
-This clones every other repo under the `Freddy-S3` GitHub account into `C:\Users\Faruk\Repo` (skipping any already present) and runs `install.ps1 -Target claude -Mcp` to set up the skill/memory junctions and the `CLAUDE.md` stub.
+This clones every other repo under the `Freddy-S3` GitHub account into `C:\Users\Faruk\Repo` (skipping any already present) and runs the Codex installer to set up the harness skills and instructions.
+Use `-Target claude` for Claude Code or `-Target both` when both hosts are installed.
 
 Pass `-Only agent-agnostic-harness,Portfolio-Website,unattended-runs` if you only want the active workspaces and not the older practice/test repos also on the account.
 Pass `-DryRun` first if you want to see what it would do before it does it.

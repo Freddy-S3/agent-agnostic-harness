@@ -30,6 +30,9 @@
 .PARAMETER DryRun
     Report every action without writing or cloning anything.
 
+.PARAMETER Target
+    Host to install into: codex, claude, or both. Defaults to codex.
+
 .EXAMPLE
     .\bootstrap-new-machine.ps1
 
@@ -44,6 +47,8 @@ param(
     [string]$GitHubUser = 'Freddy-S3',
     [string]$RepoRoot = (Join-Path $env:USERPROFILE 'Repo'),
     [string[]]$Only,
+    [ValidateSet('codex', 'claude', 'both')]
+    [string]$Target = 'codex',
     [switch]$DryRun
 )
 
@@ -103,8 +108,15 @@ foreach ($repo in $repos) {
 
 $harnessInstall = Join-Path $RepoRoot 'agent-agnostic-harness\install.ps1'
 if (Test-Path $harnessInstall) {
-    Invoke-Step "Install harness (claude, with MCP config)" {
-        & $harnessInstall -Target claude -Mcp
+    $targets = if ($Target -eq 'both') { @('codex', 'claude') } else { @($Target) }
+    foreach ($hostTarget in $targets) {
+        Invoke-Step "Install harness ($hostTarget)" {
+            if ($hostTarget -eq 'claude') {
+                & $harnessInstall -Target claude -Mcp
+            } else {
+                & $harnessInstall -Target codex -Link
+            }
+        }
     }
 } else {
     Write-Warning "agent-agnostic-harness\install.ps1 not found under $RepoRoot - clone it manually and run install.ps1 -Target claude yourself."
@@ -112,7 +124,7 @@ if (Test-Path $harnessInstall) {
 
 Write-Host ""
 Write-Host "Done. Remaining manual steps (not automatable, see NEW-MACHINE-SETUP.md):"
-Write-Host "  - Sign in: run 'claude' and complete login (writes ~/.claude/.credentials.json)."
-Write-Host "  - Review ~/.claude/settings.json - it is local-only and NOT reproduced by this script."
+Write-Host "  - Sign in to the selected host(s) and complete their login flow."
+Write-Host "  - Review host settings - they are local-only and NOT reproduced by this script."
 Write-Host "  - Fill in any MCP env vars (JIRA_URL, JIRA_PERSONAL_TOKEN, etc.) if you use the Atlassian MCP server."
 Write-Host "  - Restart the host so it rediscovers skills, then confirm /faruk and /pr are listed."
