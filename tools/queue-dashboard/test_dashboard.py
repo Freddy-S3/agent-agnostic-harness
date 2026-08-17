@@ -273,6 +273,21 @@ def main() -> None:
                 assert job_cards.nth(0).locator("h3").inner_text() == "Senior AI Platform Engineer - Example S"
                 assert job_cards.nth(1).locator("h3").inner_text() == "Higher salary - Example A"
                 assert job_cards.nth(2).locator("h3").inner_text() == "Lower salary - Example B"
+                expected_job_links = [
+                    {
+                        "Open posting": "https://example.com/s",
+                        "Glassdoor": "https://www.glassdoor.ca/Reviews/example-s-Reviews-E1.htm",
+                    },
+                    {"Open posting": "https://example.com/high"},
+                    {"Open posting": "https://example.com/low"},
+                ]
+                for card, expected_links in zip(job_cards.all(), expected_job_links):
+                    links = card.get_by_role("link")
+                    assert links.count() == len(expected_links)
+                    for label, expected_url in expected_links.items():
+                        assert card.get_by_role("link", name=label).evaluate(
+                            "link => link.href"
+                        ) == expected_url
                 job_cards.nth(1).locator("select").select_option("interested")
                 for _ in range(20):
                     if "Status: interested" in (queue_dir / "JOBS.md").read_text(encoding="utf-8"):
