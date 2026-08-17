@@ -118,3 +118,5 @@ After installing the harness on a new machine or a new host:
 The first setup still requires manual creation of the host Projects and chats. The harness
 keeps this checkpoint visible and preserves the operating rules, but it cannot create
 account-level UI objects or transfer their chat history between hosts.
+
+For copy-paste chat templates and reset/archive rules, see `docs/CHAT-CONTINUITY.md`.
