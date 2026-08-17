@@ -143,6 +143,7 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 | Create or edit a Confluence page | `/wiki` |
 | Make decisions informed by Freddy's viewpoints | `/opinions` |
 | Produce a Mermaid architecture diagram | `/architecture-diagram` |
+| Explore or advance a business or project plan with focused questions and dashboard decisions | `/business-planning` |
 
 ## General Guidelines
 

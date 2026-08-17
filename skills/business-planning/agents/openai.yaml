@@ -1,0 +1,4 @@
+interface:
+  display_name: "Business Planning"
+  short_description: "Ask focused business-plan questions"
+  default_prompt: "Use business-planning to inspect the existing plan and ask the next question"
