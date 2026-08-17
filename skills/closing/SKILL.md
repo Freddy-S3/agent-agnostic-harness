@@ -126,6 +126,16 @@ For a `SKILL.md`, instruction, prompt, agent, `copilot-instructions.md` / `AGENT
 - Does any instruction file section exceed 20 lines? It's probably bloated - tighten it.
 - Are there "open questions" in memory older than 2 sessions? Either resolve them or delete them.
 
+## Project coordination handoff
+
+When the session worked inside a repository that has `AGENTS.md`, finish the project handoff as part of closing:
+
+1. Summarize the outcome in four lines: result, verification, remaining risk, and next action.
+2. If `docs/PROJECT-CONTEXT.md` exists, update it only with stable facts or settled decisions; do not put temporary chat history there.
+3. Run `tools/chat-handoff.ps1 -Repository <repo> -Purpose "Resume coordination"` when the portable tool is available. This writes `docs/CHAT-HANDOFF.md` for the next Codex or Claude Code session.
+4. If a ChatGPT Project coordination chat is part of the workflow, present the four-line summary as a ready-to-paste update for its `00 Main - Coordination` chat. The local harness cannot inject text into ChatGPT's UI.
+5. Do not archive the outcome chat until the durable files and coordination update are complete.
+
 ## Output
 
 After making updates, give a short summary (not a markdown file) listing:
