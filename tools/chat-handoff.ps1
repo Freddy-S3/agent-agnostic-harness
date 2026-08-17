@@ -13,6 +13,8 @@ $status = @(git -C $repoPath status --short)
 $recent = @(git -C $repoPath log -3 --oneline)
 $agentsPath = Join-Path $repoPath 'AGENTS.md'
 $agentsNote = if (Test-Path $agentsPath) { 'Read AGENTS.md before acting.' } else { 'No repository AGENTS.md exists yet.' }
+$contextPath = Join-Path $repoPath 'docs\PROJECT-CONTEXT.md'
+$contextNote = if (Test-Path $contextPath) { 'Read docs/PROJECT-CONTEXT.md for durable project context.' } else { 'No docs/PROJECT-CONTEXT.md exists yet; use docs/PROJECT-CONTEXT-TEMPLATE.md from the harness when creating one.' }
 
 $lines = [System.Collections.Generic.List[string]]::new()
 $lines.Add("Continue the $repoName project.")
@@ -21,6 +23,7 @@ $lines.Add("Purpose: $Purpose")
 $lines.Add("Repository: $repoPath")
 $lines.Add("Current branch: $branch")
 $lines.Add($agentsNote)
+$lines.Add($contextNote)
 $lines.Add('')
 $lines.Add('Operating rules:')
 $lines.Add('- Keep work agent-agnostic and use repository files, queue, tracker, and pull requests as the source of truth.')
@@ -36,7 +39,10 @@ $lines.Add('')
 $lines.Add('First action: read the repository guidance and report the current goals, blockers, and next recommended action.')
 
 $handoff = $lines -join [Environment]::NewLine
-$handoff | Set-Clipboard
+$handoffPath = Join-Path $repoPath 'docs\CHAT-HANDOFF.md'
+$handoffDir = Split-Path $handoffPath -Parent
+New-Item -ItemType Directory -Path $handoffDir -Force | Out-Null
+Set-Content -Path $handoffPath -Value $handoff -Encoding utf8
 $handoff
 Write-Host ''
-Write-Host 'Copied the handoff to the clipboard.'
+Write-Host "Wrote the durable handoff to $handoffPath"

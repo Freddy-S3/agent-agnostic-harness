@@ -3,6 +3,8 @@
 These templates are optional convenience context for host chats.
 The repository, queue, tracker, and pull requests remain the source of truth across Codex, Claude Code, ChatGPT, and other hosts.
 
+Use `AGENTS.md` for repository rules, `docs/PROJECT-CONTEXT.md` for stable project facts and setup, and `docs/CHAT-HANDOFF.md` for the latest generated continuation state.
+
 ## Global control-center chat
 
 Paste this once into `00 Control Center`:
@@ -68,6 +70,6 @@ When a coordination chat is reset, run this from the harness repository:
 .\tools\chat-handoff.ps1 -Repository C:\Users\Faruk\Repo\<repository-name> -Purpose "Continue project coordination"
 ```
 
-The script reads the repository name, branch, recent commits, working-tree status, and `AGENTS.md`, then copies a concise handoff to the clipboard.
-Paste that handoff into the replacement chat.
-The final paste cannot be automated safely because ChatGPT and other hosts do not expose a cross-host chat-input API to the local harness.
+The script reads the repository name, branch, recent commits, working-tree status, and `AGENTS.md`, then writes a concise handoff to the repository at `docs/CHAT-HANDOFF.md`.
+The next Codex or Claude Code chat can be told to read that file directly.
+ChatGPT Project chats cannot automatically read a local repository file, so a ChatGPT replacement chat still requires either uploading the file or pasting its contents.
