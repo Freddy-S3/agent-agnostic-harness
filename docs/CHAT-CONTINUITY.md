@@ -59,3 +59,15 @@ Then copy the result into the project's `00 Main - Coordination` chat if it chan
 - Start a replacement only when the index is stale, too long, or contaminated by unrelated work.
 - Archive outcome chats after their durable result is recorded.
 - Never rely on an archived or active chat as the only copy of a decision.
+
+## Automated handoff
+
+When a coordination chat is reset, run this from the harness repository:
+
+```powershell
+.\tools\chat-handoff.ps1 -Repository C:\Users\Faruk\Repo\<repository-name> -Purpose "Continue project coordination"
+```
+
+The script reads the repository name, branch, recent commits, working-tree status, and `AGENTS.md`, then copies a concise handoff to the clipboard.
+Paste that handoff into the replacement chat.
+The final paste cannot be automated safely because ChatGPT and other hosts do not expose a cross-host chat-input API to the local harness.
