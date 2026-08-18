@@ -32,6 +32,8 @@ See `queue/README.md` for the field.
 
 Then append the same items to `status/TRACKER.md` in the cross-skill format, so `/status-report` sees them too.
 
+After the open-decision sweep, reconcile any existing queue item settled in this conversation, including an item Faruk says is already complete. Record `DECIDED` and `ANSWERED`, verify before marking it `done`, and create a new queue item for unfinished follow-up work. Read the changed entry back. This is required because the queue dashboard reads files, not conversation history.
+
 **Why this outranks the rest of the skill.** Faruk's dashboard parses the two queue files and nothing else - not `TRACKER.md`, not the transcript, not your closing summary.
 A decision reported only in chat is a decision he never sees, and it looks identical to no decision at all.
 On 2026-08-14 he opened a dashboard showing zero blockers while seventeen real ones sat in that night's session reports.
@@ -125,6 +127,31 @@ For a `SKILL.md`, instruction, prompt, agent, `copilot-instructions.md` / `AGENT
 - Is any skill routinely not being invoked even though the task fits? The trigger condition is wrong - fix it.
 - Does any instruction file section exceed 20 lines? It's probably bloated - tighten it.
 - Are there "open questions" in memory older than 2 sessions? Either resolve them or delete them.
+
+## Project coordination handoff
+
+When the session worked inside a repository that has `AGENTS.md`, finish the project handoff as part of closing:
+
+1. Summarize the outcome in four lines: result, verification, remaining risk, and next action.
+2. If `docs/PROJECT-CONTEXT.md` exists, update it only with stable facts or settled decisions; do not put temporary chat history there.
+3. Run `tools/chat-handoff.ps1 -Repository <repo> -Purpose "Resume coordination"` when the portable tool is available. This writes `docs/CHAT-HANDOFF.md` for the next Codex or Claude Code session.
+4. If Codex app thread tools are available, publish the same four-line summary to the matching `00 Main - Coordination` task:
+	- Call `codex_app__list_threads` and find an existing task whose exact title is `00 Main - Coordination` and whose repository path matches the owning repository.
+	- Prefer the current host and an active or idle task; if more than one exact match remains, choose the most recently updated one.
+	- If the matching task is the current task, include the summary in the closing response instead of sending a duplicate message.
+	- Otherwise call `codex_app__send_message_to_thread` with the task id and host id, using this four-line format:
+
+```text
+Result: <outcome and what finished>
+Verification: <what was checked>
+Remaining risk: <none, or the specific risk>
+Next action: <the next recommended action>
+```
+
+	- Confirm that the send succeeded before treating the coordination update as complete.
+	- Use an existing task only; when no exact match is available, do not create a new task automatically.
+5. If the app tools are unavailable, or no exact coordination task exists, present the four-line summary as ready-to-paste text in the closing response.
+6. Do not archive the outcome chat until the durable files and coordination update are complete.
 
 ## Output
 

@@ -168,6 +168,9 @@ function parseItem(block) {
   const { title, body } = block;
   const status = (body.match(/^Status:\s*(.+)$/m)?.[1] || "unknown").trim();
   const repo = (body.match(/^Repo:\s*(.+)$/m)?.[1] || "").trim();
+  const dependsOn = [...body.matchAll(/^Depends on:\s*(.+)$/gm)]
+    .map((match) => match[1].trim())
+    .filter(Boolean);
 
   // A DECIDED block runs from its marker to the next top-level field.
   const decided = body.match(/^(DECIDED\b[^\n]*(?:\n(?![A-Z][a-z]+ ?[a-z]*:|\s*$)[^\n]*)*)/m)?.[1];
@@ -198,14 +201,85 @@ function parseItem(block) {
     title,
     status,
     repo,
+    dependsOn,
     decided: decided ? decided.trim() : null,
     answered,
     blockedReason,
     asks,
     options,
     needsDecision,
+    impact: { direct: 0, unblocks: 0 },
     log: log.slice(-3),
   };
+}
+
+function itemKey(entry) {
+  return `${entry.file}\u0000${entry.item.title}`;
+}
+
+function normalizedTitle(title) {
+  return String(title).trim().toLocaleLowerCase();
+}
+
+function compareEntries(a, b) {
+  return b.item.impact.unblocks - a.item.impact.unblocks
+    || b.item.impact.direct - a.item.impact.direct
+    || a.index - b.index;
+}
+
+// Queue files stay hand-authored and preserve their source order. The dashboard derives
+// a live order from declared dependencies so the same answer can surface the work it
+// enables without rewriting or racing the queue files.
+function applyImpactOrdering(groups) {
+  let index = 0;
+  const entries = groups.flatMap((group) => group.items.map((item) => ({
+    file: group.file,
+    item,
+    index: index++,
+  })));
+  const active = entries.filter(({ item }) => !item.answered && item.status !== "done");
+  const targets = new Map();
+  for (const entry of active) {
+    const title = normalizedTitle(entry.item.title);
+    const list = targets.get(title) || [];
+    list.push(entry);
+    targets.set(title, list);
+  }
+
+  const dependents = new Map(active.map((entry) => [itemKey(entry), []]));
+  for (const entry of active) {
+    for (const dependency of entry.item.dependsOn) {
+      const matches = targets.get(normalizedTitle(dependency)) || [];
+      if (matches.length !== 1 || matches[0] === entry) continue;
+      dependents.get(itemKey(matches[0])).push(entry);
+    }
+  }
+
+  function descendantsOf(entry) {
+    const descendants = new Set();
+    const pending = [...(dependents.get(itemKey(entry)) || [])];
+    while (pending.length) {
+      const child = pending.pop();
+      const key = itemKey(child);
+      if (descendants.has(key)) continue;
+      descendants.add(key);
+      pending.push(...(dependents.get(key) || []));
+    }
+    return descendants;
+  }
+
+  for (const entry of active) {
+    const direct = dependents.get(itemKey(entry)) || [];
+    entry.item.impact = { direct: direct.length, unblocks: descendantsOf(entry).size };
+  }
+
+  for (const group of groups) {
+    group.items = entries
+      .filter((entry) => entry.file === group.file)
+      .sort(compareEntries)
+      .map((entry) => entry.item);
+  }
+  return groups;
 }
 
 // A GFM task line, at any indent. The index is assigned in file order across the whole
@@ -394,6 +468,8 @@ async function snapshot() {
       groups.push({ gate, hint, file, items: [], mtime: 0, error: err.message });
     }
   }
+
+  applyImpactOrdering(groups);
 
   let triage = [];
   try {
@@ -667,6 +743,7 @@ border-radius:3px;padding:.85rem 1rem;display:flex;flex-direction:column;gap:.5r
 .card.decide{border-left-color:var(--blocked);border-left-width:4px}
 .card.pending{border-left-color:var(--waiting)}
 .card h3{margin:0;font-size:.97rem;line-height:1.3;letter-spacing:-.01em}
+.impact{font-size:.78rem;color:var(--clear);font-family:ui-monospace,Consolas,monospace}
 .chip{align-self:flex-start;font-family:ui-monospace,Consolas,monospace;font-size:.65rem;
 letter-spacing:.1em;text-transform:uppercase;padding:.15rem .45rem;border-radius:2px;
 background:var(--surface-2);color:var(--ink-2)}
@@ -804,6 +881,7 @@ border-radius:2px;background:var(--surface);color:var(--ink);min-width:8rem}
     <section class="panel" id="panel-queue" role="tabpanel" aria-labelledby="tab-queue">
       <section>
         <h2 class="sec">Blocked on you <span class="count hot" id="dcount">0</span></h2>
+        <p class="panel-note">Highest downstream impact first when items declare <code>Depends on:</code>.</p>
         <div class="col" id="decisions"></div>
       </section>
 
@@ -849,7 +927,7 @@ border-radius:2px;background:var(--surface);color:var(--ink);min-width:8rem}
 </div>
 <script>
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const safeUrl = value => /^https?:\/\//i.test(String(value)) ? String(value) : '';
+const safeUrl = value => /^https?:\\/\\//i.test(String(value)) ? String(value) : '';
 
 const panels = ['queue', 'history', 'reading-list', 'jobs'];
 
@@ -1077,10 +1155,13 @@ function card(g, i, history = false){
   // and put history on the card instead of the question. Still falls back to the log line
   // so an item with no Blocked reason renders its ask rather than going blank.
   const ask = i.blockedReason || i.asks[0] || '';
+  const impact = i.impact?.unblocks || 0;
+  const impactText = impact === 1 ? 'unblocks 1 open item' : 'unblocks ' + impact + ' open items';
 
   el.innerHTML = '<span class="chip ' + (decide ? 'decide' : i.status === 'pending' ? 'pending' : '') + '">'
       + esc(chip) + '</span>'
     + '<h3>' + esc(i.title) + '</h3>'
+    + (impact ? '<div class="impact">' + impactText + '</div>' : '')
     + (ask ? '<div class="ask">' + esc(ask) + '</div>' : '')
     + (i.decided ? '<div class="decided"><b>' + esc(i.decided) + '</b></div>' : '')
     + '<div class="meta">' + esc(g.file) + (i.repo ? ' &middot; ' + esc(i.repo) : '') + '</div>';
@@ -1155,7 +1236,10 @@ async function tick(){
   const historyItems = d.groups.flatMap(g => g.items
     .filter(isHistory)
     .map(i => [g, i]));
-  const decisions = current.flatMap(g => g.items.filter(i => i.needsDecision).map(i => [g, i]));
+  const sortImpact = (a, b) => b.impact.unblocks - a.impact.unblocks
+    || b.impact.direct - a.impact.direct;
+  const decisions = current.flatMap(g => g.items.filter(i => i.needsDecision).map(i => [g, i]))
+    .sort(([, a], [, b]) => sortImpact(a, b));
   document.getElementById('dcount').textContent = decisions.length;
   document.getElementById('t-queue').textContent = current.reduce((n, g) => n + g.items.length, 0);
   document.getElementById('t-history').textContent = historyItems.length;
@@ -1170,7 +1254,7 @@ async function tick(){
   const cols = document.getElementById('cols');
   cols.innerHTML = '';
   for (const g of current){
-    const rest = g.items.filter(i => !i.needsDecision);
+    const rest = g.items.filter(i => !i.needsDecision).sort(sortImpact);
     const sec = document.createElement('section');
     sec.className = 'col';
     const head = document.createElement('div');

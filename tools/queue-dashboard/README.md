@@ -111,6 +111,19 @@ counts as blocked when it has a `Blocked reason` field, or a log line saying
 answering it yet. Everything else is collapsed underneath. Open PRs come from `gh`,
 cached 60s because it is slow; the queue read itself is never cached.
 
+Open queue items are ordered by downstream impact within each gate, with the highest
+impact first.
+An item declares a dependency by adding `Depends on: <exact queue item title>` to the
+dependent item.
+The dashboard resolves those declarations across both queue files on every poll, counts
+both direct and transitive unfinished dependents, and shows the resulting `unblocks N
+open items` label on the source card.
+Answered and completed items do not inflate the count.
+Exact-title matches must be unique; unresolved or ambiguous references are ignored rather
+than guessed.
+Items with no declared downstream dependents retain their source order as the tie-breaker.
+The dashboard never rewrites queue-file order to apply this view.
+
 ## What answering does
 
 Four presets (Approved / Rejected / Defer / Ask me again) submit immediately; anything

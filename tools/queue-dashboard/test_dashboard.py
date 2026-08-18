@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SERVER = ROOT / "tools" / "queue-dashboard" / "server.mjs"
 TODAY = date.today().isoformat()
 
-PC_QUEUE = f"""## Open decision
+PC_QUEUE = f"""## Foundational decision
 Status: blocked
 Blocked reason: Choose the next step.
 Options:
@@ -25,6 +25,23 @@ Options:
 - Change it
 Log:
 - {TODAY}: waiting for an answer.
+
+## Directly unblocked work
+Status: pending
+Depends on: Foundational decision
+Log:
+- {TODAY}: waiting for the foundational decision.
+
+## Transitively unblocked work
+Status: pending
+Depends on: Directly unblocked work
+Log:
+- {TODAY}: waiting for directly unblocked work.
+
+## Independent work
+Status: pending
+Log:
+- {TODAY}: ready without a dependency.
 
 ## Answered decision
 Status: blocked
@@ -39,7 +56,13 @@ Log:
 - {TODAY}: completed.
 """
 
-PHONE_QUEUE = f"""## Open phone item
+PHONE_QUEUE = f"""## Cross-gate work
+Status: pending
+Depends on: Foundational decision
+Log:
+- {TODAY}: waiting for the foundational decision.
+
+## Open phone item
 Status: pending
 Log:
 - {TODAY}: waiting for the phone.
@@ -219,20 +242,46 @@ def main() -> None:
 
                 queue_count = page.locator("#t-queue").inner_text()
                 history_count = page.locator("#t-history").inner_text()
-                assert queue_count == "2", f"queue count: {queue_count}"
+                assert queue_count == "6", f"queue count: {queue_count}"
                 assert history_count == "2", f"history count: {history_count}"
                 assert page.locator("#t-jobs").inner_text() == "3"
-                assert page.locator("#panel-queue .card").count() == 2
+                assert page.locator("#panel-queue .card").count() == 6
+                assert page.locator("#decisions .card h3").all_inner_texts() == [
+                    "Foundational decision"
+                ]
+                assert page.locator("#decisions .impact").inner_text() == "unblocks 3 open items"
+                assert page.locator("#cols .col").first.locator(".card h3").all_inner_texts() == [
+                    "Directly unblocked work",
+                    "Transitively unblocked work",
+                    "Independent work",
+                ]
+                assert page.locator("#cols .col").nth(1).locator(".card h3").all_inner_texts() == [
+                    "Cross-gate work",
+                    "Open phone item",
+                ]
                 assert page.locator("#panel-queue").get_by_text("Answered decision", exact=True).count() == 0
                 assert page.locator("#panel-queue").get_by_text("Completed change", exact=True).count() == 0
                 assert page.locator("img").evaluate_all(
                     "images => images.every(image => image.complete && image.naturalWidth > 0)"
                 )
 
+                direct_card = page.locator("#cols .col").first.locator(".card").first
+                direct_card.locator("textarea").fill("start the dependent work")
+                direct_card.locator("button.go").click()
+                for _ in range(20):
+                    if "DECIDED" in (queue_dir / "QUEUE-PC.md").read_text(encoding="utf-8"):
+                        break
+                    time.sleep(0.05)
+                else:
+                    raise AssertionError("free-text queue answer did not reach QUEUE-PC.md")
+
                 page.locator("#tab-history").click()
                 page.wait_for_selector("#panel-history:not([hidden])")
+                page.wait_for_function(
+                    "document.querySelectorAll('#panel-history .history-card').length === 3"
+                )
                 assert page.url.endswith("#history")
-                assert page.locator("#panel-history .history-card").count() == 2
+                assert page.locator("#panel-history .history-card").count() == 3
                 assert page.locator("#panel-queue[hidden]").count() == 1
 
                 page.locator("#tab-reading-list").click()
@@ -273,6 +322,21 @@ def main() -> None:
                 assert job_cards.nth(0).locator("h3").inner_text() == "Senior AI Platform Engineer - Example S"
                 assert job_cards.nth(1).locator("h3").inner_text() == "Higher salary - Example A"
                 assert job_cards.nth(2).locator("h3").inner_text() == "Lower salary - Example B"
+                expected_job_links = [
+                    {
+                        "Open posting": "https://example.com/s",
+                        "Glassdoor": "https://www.glassdoor.ca/Reviews/example-s-Reviews-E1.htm",
+                    },
+                    {"Open posting": "https://example.com/high"},
+                    {"Open posting": "https://example.com/low"},
+                ]
+                for card, expected_links in zip(job_cards.all(), expected_job_links):
+                    links = card.get_by_role("link")
+                    assert links.count() == len(expected_links)
+                    for label, expected_url in expected_links.items():
+                        assert card.get_by_role("link", name=label).evaluate(
+                            "link => link.href"
+                        ) == expected_url
                 job_cards.nth(1).locator("select").select_option("interested")
                 for _ in range(20):
                     if "Status: interested" in (queue_dir / "JOBS.md").read_text(encoding="utf-8"):
