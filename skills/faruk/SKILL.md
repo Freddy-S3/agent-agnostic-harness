@@ -7,8 +7,8 @@ user-invocable: true
 # Faruk
 
 `/faruk` is the personal-mode adapter over the shared router contract in `ROUTER-CONTRACT.md`.
-`/freddy` loads that same contract and applies the delivery overlay.
-This makes shared routing changes carry over to both routers without making Faruk invoke Freddy as a second router.
+`/freddy` and `/sleep` load that same contract and apply their delivery and unattended overlays.
+This makes shared routing changes carry over to all three routers without making Faruk invoke another router as a second step.
 
 Faruk bypasses delivery ceremony, not the selected owner's workflow, validation, persistence, or safety rules.
 It bypasses human approval gates in the workflow, not host-level tool permissions or security controls.

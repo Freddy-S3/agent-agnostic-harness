@@ -8,7 +8,7 @@ user-invocable: true
 
 `/freddy` is the delivery-mode adapter over the shared router contract in `../faruk/ROUTER-CONTRACT.md`.
 Load that contract before routing.
-`/faruk` loads the same contract and applies a personal-mode overlay, so shared routing changes belong in the shared contract rather than being duplicated here.
+`/faruk` and `/sleep` load the same contract and apply personal and unattended overlays, so shared routing changes belong in the shared contract rather than being duplicated here.
 
 **This router runs in delivery mode**, whatever the working directory.
 Freddy invokes it for work that matters: preserve the full six-phase loop, the `/ship` gates, the tracker rules, and the adversarial review.
