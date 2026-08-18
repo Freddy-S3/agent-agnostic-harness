@@ -113,6 +113,8 @@ Worked example: an audit reported the skills junction healthy on the strength of
 Only "can you confirm the skill is working?" found it.
 The artifact-versus-consumer rule in General Guidelines exists because of that question, not because of the outage.
 
+- **Maximize queue leverage before choosing work.** Identify unfinished items an answer or completed change would enable, record `Depends on: <exact queue item title>` on each dependent entry, and choose the highest-fan-out actionable item unless Faruk explicitly names another.
+
 At the end of a substantial task, invoke `/closing` to capture remaining durable signal.
 In personal mode, run `/closing` only when the session actually produced a reusable lesson, not as a routine step.
 
