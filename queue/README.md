@@ -49,6 +49,30 @@ logs the blocker, because that run is the one that knows what the alternatives a
 reader has to reconstruct them from prose. Options are also the cheapest handoff to the next
 agent: they record which paths were considered, not just which was chosen.
 
+## Declaring downstream impact
+
+When one queue item must be answered or completed before another can move, add a
+`Depends on: <exact queue item title>` line to the dependent item.
+The dashboard reads both queue files on every poll, follows these dependency edges, and
+puts the item with the largest unfinished direct and transitive fan-out first.
+It shows the count on the source card without changing the hand-authored file order.
+Use one `Depends on:` line per prerequisite.
+Keep the title exact and unique; unresolved or ambiguous references are ignored rather
+than guessed.
+
+```
+## Choose the deployment target
+Status: blocked
+Blocked reason: Pick the hosting target.
+Options:
+- Use Cloudflare Pages
+- Use Vercel
+
+## Deploy the dashboard
+Status: pending
+Depends on: Choose the deployment target
+```
+
 ## Write the decision, not its history
 
 `Blocked reason:` and `Options:` are read cold, on a phone, by someone who has never seen the
