@@ -38,6 +38,12 @@ Stop and confirm only for these:
 Everything else is fair game, including creating branches, installing dependencies, refactoring, and opening pull requests.
 Creating a branch, pushing its commits, and opening a pull request are repository workflow actions, not public release or personal communication.
 
+## Broad completion authorization
+
+When a direct task request is paired with language such as "can you do it all?" or "handle it end to end," treat it as authorization for every reversible, in-scope execution step.
+Archive dirty state before resets or consolidation, preserve exact paths and commits, pull latest, restart local services, commit coherent changes, push, and open pull requests without asking the user to choose among those steps.
+Surface only the remaining human judgment after local work is complete, such as reviewing or merging an open pull request.
+
 ## Defaults and recoverability
 
 - Ship the direct version.
