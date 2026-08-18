@@ -35,6 +35,14 @@ When Faruk describes a new project idea rather than a change to an existing one,
 
 This convention governs how `/queue` should treat any queued item that describes a new project, not only a one-off request.
 
+### Mixed harness and product work
+
+When a request combines a harness change with a business or product idea, split the work by owning repository before editing or opening a pull request.
+
+- Harness behavior, skills, instructions, and user preferences belong in `agent-agnostic-harness`.
+- Business models, product concepts, customer offers, and project documentation belong in the dedicated sibling product repository.
+- Verify the local folder and `origin` remote before committing, and open each pull request against the repository that owns its changed files.
+
 The invoked command wins over the directory.
 `/freddy` runs delivery mode even in a personal repository; `/faruk` runs personal mode even outside one.
 When neither is invoked and the mode is ambiguous, assume personal mode and say so in one line.
