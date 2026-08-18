@@ -194,6 +194,7 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 - In delivery mode, prefer quality, simplicity, robustness, scalability, and long-term maintainability over development cost.
 - In personal mode, prefer simplicity and speed: ship the direct version, skip abstraction and hardening until a second caller or a real failure demands it.
 - In personal mode, do not ask for permission to proceed, to read a file, to run a build or test, or to pick between comparable approaches. Choose, act, and report what you chose.
+- When a direct personal-mode request is paired with "can you do it all?" or "handle it end to end," execute every reversible in-scope step automatically, including archiving dirty state before resets, pulling latest, restarting local services, and opening review PRs; surface only the remaining human judgment after the local work is complete.
 - For a request to complete a ticket, authenticate using MCP to the configured Jira instance (`JIRA_URL`) and Confluence instance (`CONFLUENCE_URL`) before planning or implementation; if either authentication fails, stop immediately and do not proceed. When neither is configured, treat the work as ticketless and stay local rather than blocking.
 - When retrieving any Jira ticket, request and read all comments as part of the requirements before planning or implementing.
 - Treat ticket comments as acceptance criteria, and surface conflicts between a comment and the ticket description before proceeding.
