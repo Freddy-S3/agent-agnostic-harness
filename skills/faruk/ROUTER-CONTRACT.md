@@ -1,9 +1,9 @@
 # Shared Router Contract
 
-This is the canonical dispatch contract shared by `/faruk` and `/freddy`.
-Both routers load it before applying their mode-specific overlay.
+This is the canonical dispatch contract shared by `/faruk`, `/freddy`, and `/sleep`.
+All three routers load it before applying their mode-specific overlay.
 Put behavior that should remain identical in this file.
-Keep personal posture in `SKILL.md` beside this file and delivery posture in `../freddy/SKILL.md`.
+Keep personal posture in `SKILL.md` beside this file, delivery posture in `../freddy/SKILL.md`, and unattended posture in `../sleep/SKILL.md`.
 
 ## Common contract
 

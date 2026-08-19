@@ -7,8 +7,8 @@ user-invocable: true
 # Faruk
 
 `/faruk` is the personal-mode adapter over the shared router contract in `ROUTER-CONTRACT.md`.
-`/freddy` loads that same contract and applies the delivery overlay.
-This makes shared routing changes carry over to both routers without making Faruk invoke Freddy as a second router.
+`/freddy` and `/sleep` load that same contract and apply their delivery and unattended overlays.
+This makes shared routing changes carry over to all three routers without making Faruk invoke another router as a second step.
 
 Faruk bypasses delivery ceremony, not the selected owner's workflow, validation, persistence, or safety rules.
 It bypasses human approval gates in the workflow, not host-level tool permissions or security controls.
@@ -37,6 +37,12 @@ Stop and confirm only for these:
 
 Everything else is fair game, including creating branches, installing dependencies, refactoring, and opening pull requests.
 Creating a branch, pushing its commits, and opening a pull request are repository workflow actions, not public release or personal communication.
+
+## Broad completion authorization
+
+When a direct task request is paired with language such as "can you do it all?" or "handle it end to end," treat it as authorization for every reversible, in-scope execution step.
+Archive dirty state before resets or consolidation, preserve exact paths and commits, pull latest, restart local services, commit coherent changes, push, and open pull requests without asking the user to choose among those steps.
+Surface only the remaining human judgment after local work is complete, such as reviewing or merging an open pull request.
 
 ## Defaults and recoverability
 

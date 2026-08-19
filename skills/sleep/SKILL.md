@@ -6,7 +6,9 @@ user-invocable: true
 
 # Sleep
 
-`/faruk` with the interruption budget set to zero.
+`/sleep` is the zero-interruption personal-mode adapter over the shared router contract in `../faruk/ROUTER-CONTRACT.md`.
+`/faruk` and `/freddy` load the same contract and apply their personal and delivery overlays.
+Read `../faruk/ROUTER-CONTRACT.md` first, then apply this unattended overlay for the whole task.
 
 Faruk is asleep. He is not reading this reply until morning.
 There is nobody to answer a question, approve a plan, or unblock a decision.
@@ -16,7 +18,10 @@ This skill governs what you ask, not what you are permitted to run.
 Tool permission prompts are enforced by the harness, so an unattended session must also be launched with a permission mode that does not stop for dialogs.
 When a permission prompt would block the work and the session was not launched that way, do not sit on it: finish everything reachable without that tool and record the blocked step in the wake-up report.
 
-## Contract
+## Sleep overlay
+
+The shared contract owns request interpretation, owner selection, native skill loading, route continuity, the task ledger, validation, and completion evaluation.
+This overlay changes the interruption policy and unattended recoverability rules:
 
 1. Personal mode for the whole session, regardless of directory.
 2. Ask nothing. Not one question, not at the start, not at the end.
