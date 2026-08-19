@@ -19,6 +19,8 @@ Items are hidden from the Queue tab, not deleted.
 The Open PR list stays on the Queue tab, while live status remains visible everywhere.
 
 Run the browser regression check with `py tools/queue-dashboard/test_dashboard.py`.
+Run the live phone-path check with `py tools/queue-dashboard/test_dashboard_phone.py`.
+It reads the local dashboard token and Tailscale address, then renders at 390px without writing queue data.
 
 ## Run it from a pinned worktree, not the shared clone
 
