@@ -1,8 +1,8 @@
-Continue the agent-agnostic-harness project.
+Continue the agent-agnostic-harness-phone-fix project.
 
-Purpose: Resume coordination for open harness PR reviews
-Repository: C:\Users\faruk\Repo\agent-agnostic-harness
-Current branch: codex/chore-chat-handoff-tree-cleanup
+Purpose: Resume dashboard coordination after phone access fix
+Repository: C:\Users\faruk\Repo\agent-agnostic-harness-phone-fix
+Current branch: fix/phone-dashboard
 No repository AGENTS.md exists yet.
 No docs/PROJECT-CONTEXT.md exists yet; use docs/PROJECT-CONTEXT-TEMPLATE.md from the harness when creating one.
 
@@ -12,9 +12,9 @@ Operating rules:
 - Keep this chat focused on coordination; create a separate outcome chat for implementation.
 
 Recent commits:
-- 3cc6772 Add harness coordination handoff
-- 54dfc78 Capture Faruk name handling and workflow accelerator model (#56)
-- fa83736 Add automation-first harness guidance (#55)
+- 1f22c69 Add a live phone dashboard regression check
+- 76a8db5 Keep the phone dashboard listener healthy
+- e74a0bc Add portable Codex bootstrap and align router contracts (#59)
 
 Working-tree status:
 - Clean
