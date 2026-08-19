@@ -28,6 +28,25 @@ function Test-Up([int]$p) {
   finally { $client.Dispose() }
 }
 
+function Get-TailnetAddress {
+  $exe = if ($env:TAILSCALE_EXE) { $env:TAILSCALE_EXE } else { 'C:/Program Files/Tailscale/tailscale.exe' }
+  try {
+    $ip = (& $exe ip -4 2>$null | Select-Object -First 1).Trim()
+    if ($ip -match '^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}$') {
+      return $ip
+    }
+  } catch {
+  }
+  return $null
+}
+
+function Test-UpAt([string]$address, [int]$p) {
+  $client = New-Object System.Net.Sockets.TcpClient
+  try { $client.Connect($address, $p); return $true }
+  catch { return $false }
+  finally { $client.Dispose() }
+}
+
 # Staleness has to be checked BEFORE the up-check, not after. The whole failure mode is
 # that the port answers and is serving old code, so any guard placed after the early exit
 # below would never run in the exact case it exists to catch. This has now happened twice:
@@ -98,23 +117,34 @@ function Stop-Dashboard([int]$p) {
 }
 
 $localRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$queueDir = if ($env:QUEUE_DIR) { $env:QUEUE_DIR } else { Join-Path $HOME '.claude-harness\queue' }
+$tailnetEnabled = Test-Path (Join-Path $queueDir '.dashboard-tailnet')
+$tailnetAddress = if ($tailnetEnabled) { Get-TailnetAddress } else { $null }
 
 if (Test-Up $port) {
   $repoRoot = Get-ServingRoot $port
   if (-not $repoRoot) { $repoRoot = $localRoot }
-  if ((Test-Stale $repoRoot) -ne $true) { exit 0 }
+  $tailnetMissing = $tailnetAddress -and -not (Test-UpAt $tailnetAddress $port)
+  if (-not $tailnetMissing -and (Test-Stale $repoRoot) -ne $true) { exit 0 }
 
-  # Warn by default rather than killing a server the user may be typing an answer into.
-  # Submitted answers are already on disk; unsent text in a box is not, and silently
-  # discarding it to fix a staleness problem the user has not seen yet is the wrong trade.
-  $msg = "dashboard on port $port is running from $repoRoot, which is BEHIND origin/main - " +
-         "it may be serving stale code. Fix: git -C `"$repoRoot`" pull --ff-only, then re-run " +
-         "this script with -Restart."
-  Write-Note $msg
-  Write-Warning $msg
+  if ($tailnetMissing) {
+    $msg = "dashboard on port $port is missing its Tailscale listener at $tailnetAddress - restarting it so phone clients can connect"
+    Write-Note $msg
+    Write-Warning $msg
+    if (-not (Stop-Dashboard $port)) { exit 0 }
+  } else {
+    # Warn by default rather than killing a server the user may be typing an answer into.
+    # Submitted answers are already on disk; unsent text in a box is not, and silently
+    # discarding it to fix a staleness problem the user has not seen yet is the wrong trade.
+    $msg = "dashboard on port $port is running from $repoRoot, which is BEHIND origin/main - " +
+           "it may be serving stale code. Fix: git -C `"$repoRoot`" pull --ff-only, then re-run " +
+           "this script with -Restart."
+    Write-Note $msg
+    Write-Warning $msg
 
-  if (-not $Restart) { exit 0 }
-  if (-not (Stop-Dashboard $port)) { exit 0 }
+    if (-not $Restart) { exit 0 }
+    if (-not (Stop-Dashboard $port)) { exit 0 }
+  }
 } elseif ((Test-Stale $localRoot) -eq $true) {
   # Nothing is running, so there is no typed text to lose and nothing to ask about.
   Write-Note "starting from $localRoot, which is behind origin/main - consider pulling"
@@ -144,7 +174,6 @@ $env:PORT = "$port"
 # Binding the tailnet address is opt-in and marked by a file rather than an env var, so
 # the autostart hook can enable it without env plumbing and the choice stays visible next
 # to the queue it exposes. Delete the file to go back to loopback-only.
-$queueDir = if ($env:QUEUE_DIR) { $env:QUEUE_DIR } else { Join-Path $HOME '.claude-harness\queue' }
 $env:QUEUE_TAILSCALE = if (Test-Path (Join-Path $queueDir '.dashboard-tailnet')) { '1' } else { '0' }
 
 try {
