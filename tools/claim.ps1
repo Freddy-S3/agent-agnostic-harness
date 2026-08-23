@@ -15,15 +15,22 @@
   concurrent edit but collides at merge time. It is claimed by name, independently of any
   tree.
 
-  Enforcement is at spawn time: a spawner runs 'acquire' and refuses to start a writing
-  agent when it returns EXIT_CONFLICT. An instruction to check is not a mechanism.
+  Enforcement happens at two points. A spawner runs 'acquire' and refuses to start a
+  writing agent when it returns EXIT_CONFLICT. Independently, the 'pre-commit' hook in
+  git-hooks/ runs 'verify' and refuses an agent commit in a tree this session does not
+  hold. An instruction to check is not a mechanism; the hook is the mechanism, because it
+  binds every host equally and does not rely on the agent choosing to obey.
 
   Sessions die unannounced on usage limits, so a claim expires. An expired claim does not
   deadlock the tree; it is reported as stale and may be taken over, and the takeover is
   recorded in the new claim so the successor knows to look for half-applied work.
 
 .PARAMETER Action
-  check | acquire | release | heartbeat | list
+  check | verify | acquire | release | heartbeat | list
+
+  'check' answers "is this tree free for me to take". 'verify' answers the different
+  question the hook needs: "does this session already hold this tree". They are not
+  inverses - check succeeds on a free tree, verify fails on one.
 
 .EXAMPLE
   .\claim.ps1 acquire -Tree C:\Users\Faruk\Repo\Portfolio-Website -Session sess-1
@@ -32,12 +39,13 @@
   .\claim.ps1 release -Tree C:\Users\Faruk\Repo\Portfolio-Website -Session sess-1
 
 .NOTES
-  Exit codes: 0 success, 3 conflict (claim held by a live peer), 4 usage error.
+  Exit codes: 0 success, 3 conflict (claim held by a live peer, or 'verify' found no
+  claim held by this session), 4 usage error.
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory, Position = 0)]
-    [ValidateSet('check', 'acquire', 'release', 'heartbeat', 'list')]
+    [ValidateSet('check', 'verify', 'acquire', 'release', 'heartbeat', 'list')]
     [string]$Action,
 
     [string]$Tree,
@@ -158,6 +166,24 @@ switch ($Action) {
         if ($stale) { Write-Output "stale: $($resolved.Key) held by $($existing.session) since $($existing.heartbeat)"; exit 0 }
         Write-Output "held: $($resolved.Key) by $($existing.session), heartbeat $($existing.heartbeat)"
         exit $EXIT_CONFLICT
+    }
+
+    'verify' {
+        # A commit is proof of life, so a claim this session already owns is refreshed
+        # rather than rejected for being stale. Staleness exists to let a peer take over a
+        # dead session's tree, not to lock the live session out of its own.
+        if (-not $existing) {
+            Write-Output "UNCLAIMED: $($resolved.Key) is not claimed by anyone."
+            exit $EXIT_CONFLICT
+        }
+        if ($existing.session -ne $Session) {
+            $state = if ($stale) { 'a stale claim from' } else { 'a live claim held by' }
+            Write-Output "NOTYOURS: $($resolved.Key) has $state $($existing.session), not $Session."
+            exit $EXIT_CONFLICT
+        }
+        Write-Claim $file $resolved $existing.takeover_of | Out-Null
+        Write-Output "verified: $($resolved.Key) held by $Session"
+        exit 0
     }
 
     'acquire' {
