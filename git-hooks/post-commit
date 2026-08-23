@@ -1,0 +1,11 @@
+#!/bin/sh
+# Keep Codex's copied rulebook current. core.hooksPath is global, so this fires
+# on any commit in any repository and re-syncs ~/.codex/AGENTS.md from the
+# harness checkout that installed these hooks. See tools/sync-codex-rulebook.sh
+# for why a copy is unavoidable and a link is not available.
+#
+# Never fail the git operation this is attached to: a rulebook that is one
+# commit stale is a smaller problem than a commit that will not complete.
+hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+sh "$hook_dir/../tools/sync-codex-rulebook.sh" || true
+exit 0

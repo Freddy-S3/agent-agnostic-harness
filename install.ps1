@@ -558,7 +558,11 @@ if (-not $SkipGitHooks) {
         if (-not $DryRun) {
             Push-Location $SourceRoot
             try {
-                & git update-index --chmod=+x git-hooks/commit-msg 2>$null | Out-Null
+                foreach ($hook in @('commit-msg', 'pre-commit', 'post-commit', 'post-merge', 'post-checkout')) {
+                    if (Test-Path -LiteralPath (Join-Path $gitHookDir $hook)) {
+                        & git update-index --chmod=+x "git-hooks/$hook" 2>$null | Out-Null
+                    }
+                }
             }
             catch { }
             finally { Pop-Location }
@@ -624,6 +628,25 @@ if ($Mcp) {
             Write-Host "  note: not merged into ~\.claude.json automatically - that file holds live" -ForegroundColor Yellow
             Write-Host "        session state. Register with: claude mcp add --scope user ..." -ForegroundColor Yellow
         }
+    }
+}
+
+# --- 5. codex rulebook drift ----------------------------------------------
+
+# Codex has no @-import, so ~/.codex/AGENTS.md is a real copy and rots. The git
+# hooks refresh it on every commit, but a machine installed for claude only, or
+# one whose hooks were skipped, has no other mechanism. Report and refresh here
+# too, whatever the target, so an install never leaves Codex on stale rules.
+$codexRulebook = Join-Path (Join-Path $env:USERPROFILE '.codex') 'AGENTS.md'
+if (Test-Path -LiteralPath (Split-Path -Parent $codexRulebook)) {
+    Write-Host "codex rulebook" -ForegroundColor Green
+    if ((Get-FileHashSafe $rootInstruction) -eq (Get-FileHashSafe $codexRulebook)) {
+        Write-Host "  (in sync with instructions\AGENTS.md)"
+        $script:Skipped++
+    }
+    else {
+        Write-Action 'refresh' '~\.codex\AGENTS.md'
+        if (-not $DryRun) { Copy-Item -LiteralPath $rootInstruction -Destination $codexRulebook -Force }
     }
 }
 

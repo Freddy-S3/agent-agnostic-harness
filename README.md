@@ -15,7 +15,7 @@ This repository is the single source of truth. You write a skill once, in one fo
 | `agents/` | Custom agent definitions, one per file. See `agents/README.md` for the format. |
 | `skills/` | Reusable workflows, one directory per skill with a `SKILL.md`. |
 | `hooks/` | Optional lifecycle hook scripts. |
-| `git-hooks/` | Git hooks, host-independent. `commit-msg` strips agent co-author trailers. `install.ps1` points global `core.hooksPath` here. |
+| `git-hooks/` | Git hooks, host-independent. `commit-msg` strips agent co-author trailers; `post-commit`, `post-merge` and `post-checkout` refresh Codex's copied rulebook. `install.ps1` points global `core.hooksPath` here. |
 | `memories/` | Durable user and repo context notes. |
 | `config/mcp-config.template.json` | Sanitized MCP server template, env-var driven. |
 | `docs/PROJECT-OPERATING-MODE.md` | Portable control-center, Project, chat, repository, and swarm conventions. |
