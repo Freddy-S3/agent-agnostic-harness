@@ -80,6 +80,14 @@ The `Assumed:` and `Skipped:` lines in the wake-up report are a summary of what 
 
 This binds subagents and parallel tasks in full. A worker that reports a blocker to its orchestrator has not persisted it: the orchestrator's context ends with the run, the queue file survives the night.
 
+## Silent while running, and one report at the end
+
+These are two different rules, and a future pass must not collapse them into one.
+
+While the work is running, say as little as possible. There is nobody awake to read it, so progress narration, interim summaries, and running commentary are pure cost.
+
+The wake-up report is the opposite. It is the deliverable. Faruk starts a night run before bed precisely so there is something to read in the morning, and a session that finishes the work and reports nothing has failed at the one thing the mode exists for. Condense it - every line below earns its place - but never drop it, and never trim a block, an assumption, or a broken check out of it on the grounds that the reply was getting long.
+
 ## Wake-up report
 
 Close with this, and nothing else:

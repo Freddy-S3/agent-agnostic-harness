@@ -78,8 +78,14 @@ Assumed: <any assumption made instead of asking; omit when there were none>
 Next: <the one thing worth doing next, or "nothing pending">
 ```
 
+Keep the whole reply brief, on the standing contract in `instructions/AGENTS.md`.
+The four lines above are the report, not an introduction to one.
+Do not re-explain what was just done, do not restate the request back, and do not narrate the route taken to get there.
+A finding Faruk did not ask for gets one line; its detail goes in the pull request body or the queue item, where he can reach it when he wants it.
+
 State failures plainly.
 When something was skipped or left broken, say so in the report.
+Brevity applies to the narration and never to the substance: a real problem, a correction to something reported wrongly earlier, or a decision that is his to make is stated in full however long that takes.
 
 ## Escalation
 

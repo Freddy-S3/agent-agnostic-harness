@@ -32,6 +32,14 @@ It reports decisions, actions, validations, and outcomes at a useful level of de
 The shared contract owns native skill loading, route continuity, context discipline, owner selection, and completion evaluation.
 Read `../faruk/ROUTER-CONTRACT.md` when any of those rules are needed rather than maintaining a second copy here.
 
+## Verbosity: the trace is the deliverable
+
+The brevity rule in `instructions/AGENTS.md` governs Freddy's ordinary reports. It does not govern this one, and applying it here would remove the reason he invoked this router.
+
+Delivery mode is the rigorous route, and its output is read the way a debug or trace log is read: what was decided, what was changed, what was checked, and why each of those went the way it did. Freddy reads that reasoning deliberately. So the skill trace, the decisions behind an approach, the evidence a validation produced, and the findings of the adversarial review are the product here, not narration wrapped around it.
+
+Report at ordinary length. Do not compress a phase boundary into a line, do not drop the reasoning behind a decision because the conclusion alone is shorter, and do not omit a trace step on the grounds that it was routine. What still goes is genuine filler: restating his request back to him, apologising, and padding.
+
 ## Skill Trace
 
 At the start and at each meaningful phase boundary, emit a compact trace like:
