@@ -1,0 +1,139 @@
+#!/bin/sh
+#
+# Enforces the AGENTS.md rule "Claim the tree before writing in it".
+#
+# claim.ps1 existed and AGENTS.md said to run it, and on 2026-08-23 the harness
+# repository was being written in by a live Codex session that held no claim at
+# all, while a seven-week-old claim on an unrelated worktree sat in the registry.
+# That is the same defect the harness already names elsewhere: "an instruction to
+# check git status first is not a mechanism". A claim that binds only the agents
+# who choose to obey it binds no one.
+#
+# A git hook is the right enforcement point because it is vendor-neutral. It runs
+# identically for Claude Code, Codex, and anything else that shells out to git,
+# and none of them can opt out by not reading an instruction file.
+#
+# Behaviour: REJECT, not rewrite. The commit-msg hook rewrites because a wrong
+# trailer can be corrected mechanically; a missing claim cannot be - taking the
+# claim on the agent's behalf would grant exactly the exclusivity the claim is
+# supposed to prove, and would happily grant it in a tree a live peer holds.
+#
+# THIS HOOK MUST NEVER BLOCK FREDDY. It fires only when the committing process is
+# recognisably an agent session (see agent_marker below) and only for trees under
+# the managed root. A plain terminal commit, and any commit outside ~/Repo, exits
+# 0 without printing anything. Every failure to look up its own tooling also
+# exits 0: a guard that cannot run must not become an outage.
+#
+# Escape hatches, in order of preference:
+#   HARNESS_CLAIM_BYPASS=1 git commit ...   documented, prints why it was allowed
+#   git commit --no-verify                  skips every hook, including commit-msg
+#
+# Installed by install.ps1, which points core.hooksPath at this directory.
+
+set -e
+
+# --- 0. Bounds ------------------------------------------------------------
+# Global core.hooksPath means this file runs in every repository on the machine,
+# including scratch clones and other people's checkouts. Only the managed root is
+# ours to police.
+tree=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+[ -n "$tree" ] || exit 0
+
+root=${HARNESS_TREE_ROOT:-$HOME/Repo}
+
+# One location has several spellings on Windows and they do not compare as
+# strings: `git rev-parse --show-toplevel` answers C:/Users/faruk/Repo/x while
+# $HOME is /c/Users/faruk. The first draft of this hook compared them raw, so the
+# bound never matched and the guard exited 0 for every commit it existed to
+# catch - it passed its own case A and silently passed case B too. Normalise
+# both: lowercase, forward slashes, drive letter as a leading /c/ segment.
+normalise() {
+	printf "%s" "$1" | tr "\\\\" "/" | sed -E "s#^(.):/#/\1/#" | tr "A-Z" "a-z"
+}
+ntree=$(normalise "$tree")
+nroot=$(normalise "$root")
+case "$ntree" in
+	"$nroot"|"$nroot"/*) ;;
+	*) exit 0 ;;
+esac
+
+# --- 1. Is this an agent? -------------------------------------------------
+# Freddy's own terminal sets none of these. Each marker was read out of the
+# running host rather than assumed: CLAUDECODE and AI_AGENT are exported into
+# every Claude Code shell; CODEX_SESSION_ID and CODEX_SANDBOX are Codex's own
+# variable names, taken from its binary. HARNESS_SESSION and HARNESS_AGENT are
+# the portable opt-in for any host that exports nothing recognisable.
+agent_marker=""
+for v in HARNESS_SESSION HARNESS_AGENT AI_AGENT CLAUDECODE CLAUDE_CODE_SESSION_ID \
+         CODEX_SESSION_ID CODEX_SANDBOX CURSOR_AGENT AIDER_CHAT; do
+	eval "val=\${$v:-}"
+	if [ -n "$val" ]; then agent_marker="$v"; break; fi
+done
+[ -n "$agent_marker" ] || exit 0
+
+# --- 2. Escape hatch ------------------------------------------------------
+if [ -n "${HARNESS_CLAIM_BYPASS:-}" ]; then
+	echo "pre-commit: HARNESS_CLAIM_BYPASS set - allowing an unverified agent commit in" >&2
+	echo "  $tree" >&2
+	exit 0
+fi
+
+# --- 3. Who is this session? ---------------------------------------------
+# HARNESS_SESSION is preferred because it is the identity the agent passed to
+# claim.ps1 acquire. The host session ids are a fallback so a session that
+# claimed under its host id still verifies.
+session=${HARNESS_SESSION:-${CLAUDE_CODE_SESSION_ID:-${CODEX_SESSION_ID:-}}}
+
+# --- 4. Locate the tooling -----------------------------------------------
+hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+claim="$hook_dir/../tools/claim.ps1"
+[ -f "$claim" ] || exit 0
+
+ps=""
+for c in pwsh powershell powershell.exe; do
+	if command -v "$c" >/dev/null 2>&1; then ps="$c"; break; fi
+done
+[ -n "$ps" ] || exit 0
+
+refuse() {
+	cat >&2 <<-MSG
+
+	pre-commit: REFUSED - no write claim on this working tree.
+
+	  tree:    $tree
+	  session: ${session:-<none: this session never identified itself>}
+	  detected as an agent because \$$agent_marker is set
+
+	$1
+
+	Two agents in one working tree overwrite each other silently; the claim is
+	what makes that impossible. Per AGENTS.md, "Claim the tree before writing in
+	it".
+
+	To proceed, either take the claim:
+
+	  HARNESS_SESSION=<your-session-id>
+	  pwsh -NoProfile -File "$claim" acquire -Tree "$tree" -Session "\$HARNESS_SESSION"
+
+	or, if exit code 3 says a live peer holds it, work in your own worktree:
+
+	  git worktree add ~/Repo/<name>-<purpose> -b <branch> origin/<default>
+
+	A stale claim (no heartbeat for 30 minutes) can be taken over with -Force
+	after reading the previous session's journal for an INTENT with no OUTCOME.
+
+	Deliberate one-off override:  HARNESS_CLAIM_BYPASS=1 git commit ...
+	MSG
+	exit 1
+}
+
+[ -n "$session" ] || refuse "This session exported no session id, so it cannot hold a claim."
+
+# --- 5. Verify -----------------------------------------------------------
+# 'verify' also refreshes the heartbeat: a commit is proof of life, so a long
+# session does not get locked out of its own tree by its own claim going stale.
+if out=$("$ps" -NoProfile -NonInteractive -File "$claim" verify -Tree "$tree" -Session "$session" 2>&1); then
+	exit 0
+fi
+
+refuse "claim.ps1 verify said: $(printf '%s' "$out" | tr -d '\r' | head -n 2)"

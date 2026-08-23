@@ -12,7 +12,7 @@
 
     One step reaches outside the host's harness directories: global core.hooksPath
     is pointed at git-hooks/ so the commit-msg hook can enforce the "no agent
-    co-author" rule. Suppress it with -SkipGitHooks. An existing core.hooksPath set
+    co-author" rule and the pre-commit hook can enforce the write-claim rule. Suppress it with -SkipGitHooks. An existing core.hooksPath set
     by something else is reported, never overwritten.
 
 .PARAMETER Target
@@ -40,7 +40,8 @@
     installed harness stays a live view of this repository.
 
 .PARAMETER SkipGitHooks
-    Do not touch global core.hooksPath. The commit-msg hook will not be active.
+    Do not touch global core.hooksPath. Neither the commit-msg hook nor the
+    pre-commit write-claim hook will be active.
 
 .EXAMPLE
     .\install.ps1 -Target copilot
@@ -508,10 +509,13 @@ if ($IncludeMemories) {
 
 # --- 3b. git hooks ---------------------------------------------------------
 
-# AGENTS.md forbids adding an agent as a commit co-author. Prose alone did not
-# stop it, so the installer points git at git-hooks/, where commit-msg strips
-# the trailer. This is the one step that writes outside $DestRoot: core.hooksPath
-# is global git config. Use -SkipGitHooks to leave git config alone.
+# AGENTS.md rules that prose alone did not enforce live in git-hooks/, and the
+# installer points git at that directory so they run on every commit: commit-msg
+# strips an agent co-author trailer, and pre-commit refuses an agent commit in a
+# working tree the committing session has not claimed. Pointing core.hooksPath at
+# the directory picks up both, and any hook added later. This is the one step that
+# writes outside $DestRoot: core.hooksPath is global git config. Use
+# -SkipGitHooks to leave git config alone.
 if (-not $SkipGitHooks) {
     Write-Host "git hooks" -ForegroundColor Green
 
