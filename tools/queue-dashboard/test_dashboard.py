@@ -19,7 +19,7 @@ TODAY = date.today().isoformat()
 
 PC_QUEUE = f"""## Foundational decision
 Status: blocked
-Blocked reason: Choose the next step.
+Blocked reason: Choose the next step for C:\\Users\\faruk\\Repo\\agent-agnostic-harness\\this-is-an-intentionally-long-unbroken-token-that-must-wrap-on-a-phone.
 Options:
 - Keep it
 - Change it
