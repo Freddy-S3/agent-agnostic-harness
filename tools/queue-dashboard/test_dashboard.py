@@ -274,6 +274,9 @@ def main() -> None:
                 assert history_count == "3", f"history count: {history_count}"
                 assert page.locator("#t-jobs").inner_text() == "4"
                 assert page.locator("#panel-queue .card").count() == 6
+                assert page.locator("#tabs").evaluate(
+                    "element => getComputedStyle(element).minWidth === '0px'"
+                )
                 assert page.locator("#decisions .card h3").all_inner_texts() == [
                     "Foundational decision"
                 ]

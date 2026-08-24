@@ -757,7 +757,7 @@ h1{margin:0;font-size:1.9rem;letter-spacing:-.022em}
 .stamp{font-family:ui-monospace,Consolas,monospace;font-size:.74rem;color:var(--ink-3);
 display:flex;gap:1rem;flex-wrap:wrap;margin-top:.4rem}
 .live{color:var(--clear);font-weight:700}
-.tabs{display:flex;gap:.35rem;overflow-x:auto;border-bottom:1px solid var(--rule);padding-bottom:.35rem}
+.tabs{display:flex;gap:.35rem;overflow-x:auto;border-bottom:1px solid var(--rule);padding-bottom:.35rem;min-width:0}
 .tab{display:inline-flex;align-items:center;gap:.45rem;white-space:nowrap;border:1px solid transparent;
 background:transparent;color:var(--ink-2);padding:.5rem .7rem;border-radius:3px 3px 0 0;font-weight:600}
 .tab:hover{border-color:var(--rule);color:var(--ink)}
