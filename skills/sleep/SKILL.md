@@ -44,6 +44,8 @@ Nobody is watching, so recoverability has to do that job instead.
 - Never amend, rebase, force-push, or otherwise rewrite anything already published.
 - Never delete or overwrite anything that is not committed and pushed. Move it aside instead.
 - Prefer additive changes over destructive ones when both reach the goal.
+- For cross-repository branch maintenance, use each repository's origin default as development only when no development ref exists; sync clean tracked branches and preserve dirty, local-only, conflicting, closed-unmerged, and running checkouts.
+- Abort merge conflicts and verify that no merge is in progress before reporting branch synchronization complete.
 
 ## What to do instead of asking
 
