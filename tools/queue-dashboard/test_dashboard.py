@@ -19,7 +19,7 @@ TODAY = date.today().isoformat()
 
 PC_QUEUE = f"""## Foundational decision
 Status: blocked
-Blocked reason: Choose the next step.
+Blocked reason: Choose the next step for C:\\Users\\faruk\\Repo\\agent-agnostic-harness\\this-is-an-intentionally-long-unbroken-token-that-must-wrap-on-a-phone.
 Options:
 - Keep it
 - Change it
@@ -111,6 +111,19 @@ Posted: 2026-08-15
 URL: https://example.com/s
 Glassdoor: https://www.glassdoor.ca/Reviews/example-s-Reviews-E1.htm
 Fit: Strong AI platform and AWS overlap.
+Status: new
+
+## Contract - secondary priority
+
+### Ticket-to-PR Automation Consultant - Example Contract
+Company: Example Contract
+Location: Remote Canada
+Salary: CAD 120 - 160/hour
+Culture: not verified
+Fit score: 90/100
+Posted: 2026-08-15
+URL: https://example.com/contract
+Fit: Direct fit for provider-neutral ticket-to-PR automation and AI harness delivery.
 Status: new
 """
 
@@ -244,7 +257,7 @@ def main() -> None:
                 history_count = page.locator("#t-history").inner_text()
                 assert queue_count == "6", f"queue count: {queue_count}"
                 assert history_count == "2", f"history count: {history_count}"
-                assert page.locator("#t-jobs").inner_text() == "3"
+                assert page.locator("#t-jobs").inner_text() == "4"
                 assert page.locator("#panel-queue .card").count() == 6
                 assert page.locator("#decisions .card h3").all_inner_texts() == [
                     "Foundational decision"
@@ -317,11 +330,13 @@ def main() -> None:
                 page.locator("#tab-jobs").click()
                 page.wait_for_selector("#panel-jobs:not([hidden])")
                 assert page.url.endswith("#jobs")
+                assert "Contract roles follow in a secondary lane" in page.locator("#panel-jobs .panel-note").inner_text()
                 job_cards = page.locator("#panel-jobs .job-card")
-                assert job_cards.count() == 3
+                assert job_cards.count() == 4
                 assert job_cards.nth(0).locator("h3").inner_text() == "Senior AI Platform Engineer - Example S"
                 assert job_cards.nth(1).locator("h3").inner_text() == "Higher salary - Example A"
                 assert job_cards.nth(2).locator("h3").inner_text() == "Lower salary - Example B"
+                assert job_cards.nth(3).locator("h3").inner_text() == "Ticket-to-PR Automation Consultant - Example Contract"
                 expected_job_links = [
                     {
                         "Open posting": "https://example.com/s",
@@ -329,6 +344,7 @@ def main() -> None:
                     },
                     {"Open posting": "https://example.com/high"},
                     {"Open posting": "https://example.com/low"},
+                    {"Open posting": "https://example.com/contract"},
                 ]
                 for card, expected_links in zip(job_cards.all(), expected_job_links):
                     links = card.get_by_role("link")

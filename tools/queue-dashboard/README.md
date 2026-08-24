@@ -163,6 +163,9 @@ studying actually happens. Delete the file and the tab just says so.
 Tier order is the recommendation priority.
 Within each tier, postings are sorted by salary ceiling, Glassdoor culture score, then estimated fit likelihood.
 
+Permanent full-time postings belong in the Tier S/A/B/C sections.
+Contract postings that fit the Agent Operations Console ticket-to-PR and AI harness positioning belong under a final `## Contract - secondary priority` section, which the dashboard renders after the permanent tiers.
+
 Each card links to the posting and, when available, the relevant Glassdoor page.
 The status selector writes `new`, `interested`, `applied`, or `pass` back to the matching job in `JOBS.md`.
 Changing a status does not submit an application; it only records the tracking state.
