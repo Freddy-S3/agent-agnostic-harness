@@ -10,7 +10,8 @@ This repository is the single source of truth. You write a skill once, in one fo
 
 | Path | What it holds |
 |---|---|
-| `instructions/AGENTS.md` | The always-loaded root instructions. Renamed per host at install time. |
+| `instructions/AGENTS.md` | The always-loaded root instructions, deliberately kept small. Renamed per host at install time. |
+| `instructions/rules/` | Conditional rules, loaded only when a trigger row in `AGENTS.md` names them. Codex has no import directive, so each file is opened by absolute path when its trigger fires. `tools/check-rule-triggers.ps1` verifies every file is triggered and every reference resolves. |
 | `instructions/*.instructions.md` | Optional path-scoped instructions (Copilot `applyTo` frontmatter). |
 | `agents/` | Custom agent definitions, one per file. See `agents/README.md` for the format. |
 | `skills/` | Reusable workflows, one directory per skill with a `SKILL.md`. |

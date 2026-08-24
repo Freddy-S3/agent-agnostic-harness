@@ -650,6 +650,22 @@ if (Test-Path -LiteralPath (Split-Path -Parent $codexRulebook)) {
     }
 }
 
+# --- 6. progressive-disclosure split ---------------------------------------
+
+# instructions/AGENTS.md is the always-loaded core; instructions/rules/ is
+# conditional detail reached only through a trigger row in the core. Codex has
+# no import directive, so an untriggered rule file is never opened and a
+# dangling reference is an instruction that cannot be followed. Neither is
+# visible from reading either file alone, and both survive an install that
+# otherwise reports success - which is the failure mode this check exists for.
+$ruleTriggerCheck = Join-Path $SourceRoot 'tools\check-rule-triggers.ps1'
+if (Test-Path -LiteralPath $ruleTriggerCheck) {
+    & $ruleTriggerCheck -RepoRoot $SourceRoot
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  instructions/rules is inconsistent with instructions\AGENTS.md - fix before relying on this install." -ForegroundColor Red
+    }
+}
+
 # --- summary ---------------------------------------------------------------
 
 Write-Host ""

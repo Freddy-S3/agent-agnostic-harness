@@ -1,0 +1,60 @@
+# Incident Record
+
+The full, unabridged text of every core rule that was compressed for the hot path.
+Read this before arguing an exception to a core rule, when a rule's incident basis is questioned, or when you need the detail behind a one-clause incident tag in `instructions/AGENTS.md`.
+Each entry is the rule exactly as it read before the 2026-08-23 progressive-disclosure split.
+
+## Claim enforcement at commit time
+
+- **The claim is enforced at commit time, not by your goodwill.** `git-hooks/pre-commit` refuses an agent commit in a tree the committing session does not hold, and `install.ps1` already points global `core.hooksPath` at it, so it is live in every repository on the machine. This rule spent months as prose while sessions wrote into unclaimed trees anyway - on 2026-08-23 the harness repo itself was being edited by a live Codex session holding no claim at all, which is the same defect as the `git status` advice one level up. Export `HARNESS_SESSION` as the identity you pass to `claim.ps1 acquire`, whatever host you are on: the hook recognises Claude Code and Codex by their own variables, but `HARNESS_SESSION` is the part that is guaranteed. The hook never fires for Freddy's own commits, never fires outside `~/Repo`, and fails open if it cannot find its tooling. A deliberate one-off override is `HARNESS_CLAIM_BYPASS=1 git commit ...`, which says on stderr that it waived the guard. See `docs/CLAIM-ENFORCEMENT.md` for the design, the detection table, and the eight cases it was tested against.
+
+## Concurrent sessions must not share one working tree
+
+- Concurrent sessions must not share one working tree. Before starting work in a repo another session may be in, create a worktree (`git worktree add ~/Repo/<repo>-<purpose> <branch>`) and work there. A checkout is global state: a `git checkout` in one session silently rewrites every file under every other session in that clone, and neither side is told. On 2026-08-11 one session moved `agent-agnostic-harness` through four branches while another was mid-task, which replaced a server file that had just gained an authentication check with the pre-auth version of itself, minutes before a network proxy was pointed at its port. It was caught only because the tree was re-read before publishing. Long-running services in particular should be launched from a pinned worktree, never from the tree people edit in.
+
+## Check the checked-out copy against the default branch
+
+- Before building on a file, check the checked-out copy against the default branch: `git diff --stat origin/<default> -- <path>`. Whatever branch a repo is sitting on was left there by an earlier session; it is not a statement about where new work belongs, and the file open in front of you may not be the current one. On 2026-08-11 `tools/queue-dashboard/server.mjs` was read in full on the branch that happened to be checked out, and was 360 lines behind `origin/main` - missing the entire auth layer, the tailnet bind, and the `Options:` handling. A feature built on it would have been written against a version that no longer existed and would have reverted the auth layer on merge. Branch from `origin/<default>`, not from wherever HEAD sits. Run `git fetch origin && git rev-list --left-right --count origin/<default>...HEAD` as the **first** command in any repo task, before reading a single source file - not before the first edit. Reading comes first in practice, so a rule that gates only writing is a rule that fires after the wasted work. On 2026-08-14 a spacing bug was investigated for several tool calls against a branch eight commits behind, missing the very commit that introduced the element being investigated; the measurements all came back clean because the page under test did not contain the bug, and Faruk had to point out the branch. This is the read-side counterpart to the worktree rule above: that one stops another session from changing your files, this one stops you from starting on the wrong ones.
+
+## A build or generator is a write
+
+- A build or generator is a write, and it writes into whatever tree it runs in. Before running one in a tree another session may be in, ask what it emits rather than only what it reads. On 2026-08-15 `tools/build-resume.ps1` was run in Portfolio-Website while a dispatch session held the same tree; it rewrote `Certificates/*.pdf`, `index.html` and `exports/`, baking that session's uncommitted font and text-layer work into PDFs that were then offered to Faruk as a corrected resume. The correct shape is a throwaway worktree off `origin/<default>` for verification, and a commit scoped to the sources with generated output left for whoever owns it. "It is only a compile" is the assumption to distrust.
+
+## A skill that snapshots state goes stale silently
+
+- A skill that snapshots state goes stale silently, because nothing regenerates it. `skills/job-search/SKILL.md` carried a "Current Resume State" table saying Google Drive Clone was the only project and an open item asking for an AI/agentic project to be added; the real `resume.data.json` had listed the agent-agnostic harness as project #1 for days, propagated to the site and every export. Advice was given from the table to do work already finished. When a skill describes something that lives elsewhere, name the live source, require reading it first, and treat the snapshot as a summary that loses to the source on any disagreement.
+
+## Read the original before designing the replacement
+
+- When rebuilding, replacing, or restoring something that already exists, read the original before designing the replacement. Working from a summary of it produces a plausible thing that is wrong in ways nobody can name, and the correction arrives as "this is worse" rather than as a list. On 2026-08-11 a dashboard was rebuilt from a recollection of an artifact and drifted three times - content collapsed behind disclosures, bespoke per-item choices replaced by a generic approve/reject, answered items hidden instead of faded. Fetching the artifact's actual markup surfaced all three in one pass, plus three more nobody had mentioned. This applies to a UI, a document, a config, or an API shape: the artifact is cheaper to read than the drift is to undo.
+
+## Verify a merge landed what it claimed
+
+- Verify a merge landed what it claimed. A squash merge reports success from the PR's recorded head, which is not necessarily the branch's current tip: on 2026-08-11 a ten-commit branch merged as one commit carrying only the first, and the result on the default branch was a server with its authentication removed. The `gh pr view --json commits` count had shown one commit for hours and was dismissed as a stale read. After merging anything whose later commits matter, diff the merged result for a string only the newest work contains.
+
+## Never mark a code change done on review alone
+
+- Never mark a code change `done` on review alone when it was meant to run. If the runtime/toolchain isn't available (e.g. Node.js missing), say the change is unbuilt and unverified in both the report and `status/TRACKER.md`, and name the actual blocking error rather than a guessed cause. A Node install got misdiagnosed as a UAC prompt hang three separate times before someone checked the actual installer log and found a wedged `msiexec`; log what the error message says, not what it looks like.
+
+## Never activate a commented-out resume line
+
+Moved out of the harness on 2026-08-23. This rule and its incident now live with the files they
+govern, in `~/Repo/Portfolio-Website/docs/rules/resume-content.md`, alongside the resume drafting
+gate and the positioning preference. The harness core keeps a trigger row pointing there, so any
+session touching resume content in any repository still reaches it.
+
+## Every repository points at these rules from its own root
+
+- **Every repository points at these rules from its own root.** The rules live in the harness repository, and a session working in `Portfolio-Website` or `hoshi-candle-co` reads that repository's root `AGENTS.md` instead. Until 2026-08-23 not one of those files mentioned claims, queue compare-and-swap, or the ledger, so the rules were absent from precisely the repositories where sessions collide. Each repository now carries a **Harness rules - read this first** pointer and a `CLAUDE.md` of `@AGENTS.md`. It is a pointer because Codex has no include directive - verified against its binary, not assumed - and because a copy in ten repositories is the stale-snapshot failure ten times over, each copy looking authoritative while it drifts. `tools/check-entrypoints.ps1` audits the workspace for it; `docs/REPO-ENTRYPOINTS.md` carries the block, the per-host precedence table, and what could not be confirmed.
+
+## Claim the tree before writing in it
+
+- **Claim the tree before writing in it.** The unit of conflict is a working tree, not a repository: two agents in different worktrees of one repo cannot collide, and two in one tree did. Before the first write, run `tools/claim.ps1 acquire -Tree <path> -Session <id>`; exit 3 means someone holds it, so create your own worktree and claim that instead. Release on completion, and heartbeat as you go. Claim a shared generated cascade separately by name (`-Cascade <name>`) - generated output does not corrupt on concurrent edit, it collides at merge, which cost three rebases in one night. `tools/claim.ps1 list` shows what is held. An instruction to check `git status` first is not a mechanism: every agent that day was told to, and none could tell whose changes it was looking at, because a working tree does not record who wrote into it.
+
+## Never add an agent as a commit co-author
+
+- Never add an agent as a commit co-author. Enforced by `git-hooks/commit-msg`, which strips the trailer and prints what it removed; `install.ps1` points global `core.hooksPath` at that directory. The hook rewrites rather than rejects, so it cannot be worked around by habit, but it only runs where the harness is installed - do not rely on it in place of not writing the trailer.
+
+## A session may not end while holding an unpersisted decision
+
+- **A session may not end while holding an unpersisted decision.** Anything waiting on Faruk - a blocker, an open question, an assumption taken instead of asking, a defect only he can authorise fixing - is written into the queue files before the final report, as a `## ` entry with `Status: blocked`, a `Blocked reason:` line, and an `Options:` list. Reporting it in chat does not count and never did. Faruk's dashboard (`tools/queue-dashboard`) parses `QUEUE-PC.md` and `QUEUE-PHONE.md` and nothing else, so a decision that lives only in a reply is a decision he cannot see, and on 2026-08-14 he had a dashboard reading zero blockers against seventeen real ones for exactly this reason. The rule binds subagents and parallel tasks hardest, because that is where it failed: reporting conversationally to an orchestrator feels like handing the finding over, and it is not.
