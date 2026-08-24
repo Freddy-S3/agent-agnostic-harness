@@ -277,6 +277,9 @@ def main() -> None:
                 assert page.locator("#tabs").evaluate(
                     "element => getComputedStyle(element).minWidth === '0px'"
                 )
+                assert page.locator(".statusbar").evaluate(
+                    "element => element.getBoundingClientRect().right <= document.documentElement.clientWidth"
+                )
                 assert page.locator("#decisions .card h3").all_inner_texts() == [
                     "Foundational decision"
                 ]

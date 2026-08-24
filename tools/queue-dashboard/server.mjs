@@ -845,7 +845,7 @@ border-radius:2px;background:var(--surface-2);color:var(--ink-2);user-select:non
 .opt input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--ground);font-weight:600}
 .opt span:hover{border-color:var(--accent)}
 .opt input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
-.statusbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);
+.statusbar{position:fixed;left:0;right:var(--scrollbar-gap,0px);bottom:0;z-index:20;background:var(--surface);
 border-top:1px solid var(--rule);padding:.7rem 1.25rem;display:flex;align-items:center;
 gap:1rem;flex-wrap:wrap}
 .tally{font-family:ui-monospace,Consolas,monospace;font-size:.8rem;color:var(--ink-2);
@@ -1253,6 +1253,12 @@ function card(g, i, history = false){
   return el;
 }
 
+function fitStatusbar(){
+  const gap = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+  document.documentElement.style.setProperty('--scrollbar-gap', gap + 'px');
+}
+window.addEventListener('resize', fitStatusbar);
+
 async function tick(){
   if (paused) return;
   let d;
@@ -1357,6 +1363,7 @@ async function tick(){
     + 'Answers write a DECIDED line into the item and a row into TRIAGE-' + new Date().toISOString().slice(0,10) + '.md. '
     + 'Answers from other channels use ' + d.answerLedger + '. '
     + (d.triage.length ? 'Triage records: ' + d.triage.join(', ') : '');
+  fitStatusbar();
 }
 tick(); setInterval(tick, 5000);
 </script></body></html>`;
