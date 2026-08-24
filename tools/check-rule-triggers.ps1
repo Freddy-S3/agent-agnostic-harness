@@ -54,7 +54,23 @@ foreach ($name in $referenced) {
     }
 }
 
-# 3. The hot path has not regrown.
+# 3. Cross-repo trigger targets resolve.
+#    Some rules are owned by the repository they apply to rather than by the harness - the
+#    resume content rules live in Portfolio-Website, because they are worthless context in
+#    every other project. The core still names them, so the path still has to resolve, and a
+#    sibling repo can be renamed or moved without anything here noticing.
+$crossRepo = [regex]::Matches($coreText, '`~/Repo/(?!agent-agnostic-harness/)([A-Za-z0-9._/-]+\.md)`') |
+             ForEach-Object { $_.Groups[1].Value } |
+             Sort-Object -Unique
+
+foreach ($rel in $crossRepo) {
+    $abs = Join-Path (Split-Path -Parent $RepoRoot) ($rel -replace '/', '\')
+    if (-not (Test-Path -LiteralPath $abs)) {
+        $failures.Add("dangling cross-repo: AGENTS.md points at ~/Repo/$rel, which does not exist - the rule it triggers is unreachable")
+    }
+}
+
+# 4. The hot path has not regrown.
 $coreBytes = (Get-Item -LiteralPath $core).Length
 if ($coreBytes -gt $MaxCoreBytes) {
     $failures.Add("oversize: AGENTS.md is $coreBytes bytes, over the $MaxCoreBytes ceiling - move conditional detail into instructions/rules/ rather than raising this")
@@ -62,7 +78,7 @@ if ($coreBytes -gt $MaxCoreBytes) {
 
 Write-Host "rule triggers" -ForegroundColor Green
 Write-Host ("  core: {0:N0} bytes (ceiling {1:N0})" -f $coreBytes, $MaxCoreBytes)
-Write-Host ("  rule files: {0}; triggered references: {1}" -f $ruleFiles.Count, $referenced.Count)
+Write-Host ("  rule files: {0}; triggered references: {1}; cross-repo targets: {2}" -f $ruleFiles.Count, $referenced.Count, $crossRepo.Count)
 
 if ($failures.Count -gt 0) {
     foreach ($msg in $failures) { Write-Host "  $msg" -ForegroundColor Red }

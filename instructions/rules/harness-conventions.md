@@ -13,7 +13,7 @@ Always edit it there, never the `~/.claude` projection.
 | Artifact | Update when |
 |---|---|
 | `skills/<name>/SKILL.md` | The change is a workflow. Create the directory for a new skill. |
-| `instructions/AGENTS.md` | The change adds a skill to the Native Skills table, or adds or alters a rule that applies to essentially every task. This file is the always-loaded core, so a rule earns its place here only by being unconditional; anything conditional belongs in `instructions/rules/` with a trigger row here. |
+| `instructions/AGENTS.md` | The change adds or alters a rule that applies to essentially every task. This file is the always-loaded core, so a rule earns its place here only by being unconditional; anything conditional belongs in `instructions/rules/` with a trigger row here. Adding a skill does not require an edit here - both hosts inject the installed catalog themselves, and the duplicate table that used to live here was removed on 2026-08-23 for that reason. |
 | `instructions/rules/<topic>.md` | The change adds or alters a rule that applies only under a nameable condition. Give it a trigger row in the core table phrased as an action the agent is about to take, keep the rule's incident evidence in the same file, and run `tools/check-rule-triggers.ps1`. A rule file with no trigger is never opened, on Codex especially, which has no import directive. |
 | `instructions/WIDGETS.md` | The change adds, removes, or renames a clickable card button in any skill. The action vocabulary there is the contract; a button whose sentence is not in that table is a dead control. |
 | `HARNESS.md` | The change affects day-to-day use: the selection table, the gates, or a worked example. |

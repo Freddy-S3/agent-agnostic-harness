@@ -14,6 +14,7 @@ at the moment its trigger fires. Paths are absolute so they resolve from any hos
 
 | Read this file | Before you |
 | --- | --- |
+| `~/Repo/Portfolio-Website/docs/rules/resume-content.md` | **Read, edit, generate, or publish any resume content, in any repository.** Fires on `resume.data.json`, anything under `resume/`, `renditions/`, `exports/` or `Certificates/`, any resume build or export script, and any job-application profile or answer text that restates his experience. Read it before the first edit, not after drafting. |
 | `~/Repo/agent-agnostic-harness/instructions/rules/queue-and-persistence.md` | Write or update any queue item, blocked decision, or `status/TRACKER.md` entry |
 | `~/Repo/agent-agnostic-harness/instructions/rules/web-ui.md` | Report any HTML, CSS, or client-side JS change as done, or ship any page |
 | `~/Repo/agent-agnostic-harness/instructions/rules/renames.md` | Rename any repo, directory, package, module, or URL |
@@ -59,6 +60,8 @@ When personal-mode work turns out to be high-stakes or genuinely irreversible, s
 ## Ledger, Routing, and Portability
 
 Task state is written ahead of risk, not after success. Before a risky operation, the ledger records what is about to be attempted, the half-finished state it could leave, and a runnable command a successor uses to tell which happened. A session killed on a usage limit never reaches its end-of-run capture, so anything written only at the end is written only when it was not needed.
+
+The installed skill catalog is supplied by the host, so this file does not restate it. Claude Code injects the skill list with names and descriptions, and Codex injects the same as "the skills available in this session (name + description + source locator)" - both verified 2026-08-23 against a live session and against Codex's own session logs. A duplicate table here would cost context in every session to repeat what is already present, and would silently go stale as skills are added. Route from the host's catalog; `skills/faruk/ROUTER-CONTRACT.md` holds the selection table by task shape.
 
 A selected route is sticky. Once a router has chosen an owner for a task, follow-up questions, clarifications, status requests, and scope adjustments inherit that route instead of re-deriving it, and the choice is recorded in the task ledger `/ship` owns rather than in a second record. The canonical shared router contract is `skills/faruk/ROUTER-CONTRACT.md`; both `/faruk` and `/freddy` load it, while their `SKILL.md` files contain only posture-specific overlays. See `skills/freddy/SKILL.md` for the delivery overlay and `skills/faruk/SKILL.md` for the personal overlay.
 
@@ -111,11 +114,6 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 - Before promoting dirty worktree changes into a branch or pull request, compare every changed path with `origin/<default>` and carry only the delta absent upstream; preserve duplicate local work separately instead of publishing it.
 - **Every repository points at these rules from its own root.** Each repository carries a **Harness rules - read this first** pointer and a `CLAUDE.md` of `@AGENTS.md`. It is a pointer because Codex has no include directive - verified against its binary, not assumed - and because a copy in ten repositories is the stale-snapshot failure ten times over, each copy looking authoritative while it drifts. `tools/check-entrypoints.ps1` audits the workspace for it; `docs/REPO-ENTRYPOINTS.md` carries the block and the per-host precedence table.
 
-## Truthfulness and Freddy's Resume
-
-- Never uncomment, activate, or promote a commented-out line in Freddy's resume files without his explicit, per-bullet permission. Commented content is NOT disabled truth - treat it as unverified. His commented bullets are example or placeholder text he was drafting against, and several appear verbatim under three different employers, which is what a reuse palette looks like, not a record of results. On 2026-08-11 a session read them as real-but-disabled and activated two metric claims; they reached a built PDF, two renditions, the live site, and all three job-board exports before anyone caught it, on a resume headed to Google. The same session deleted ~30 other commented bullets as "dead comments" - also not ours to judge. Deactivating is safe; activating and deleting are not.
-- **Resume content drafting gate.** Before changing any resume content - including a summary, skill, bullet, project, title, section order, or certification - prepare at least two distinct copy drafts as review artifacts. Show the current wording alongside each draft and highlight material differences. Keep the authoritative source and generated cascade unchanged while Faruk decides; edit the source and regenerate only after he selects or approves a draft. This gate applies even when the proposed wording is a small or obviously reversible improvement.
-
 ## Communication Register
 
 - Match the language to the audience, and know which one you are writing for. This is a framing rule, not a hiding rule: the finding is identical either way, and accuracy is never traded for comfort.
@@ -130,33 +128,3 @@ In personal mode, run `/closing` only when the session actually produced a reusa
   - Specifically: do not re-explain what was just done, do not summarize work he already approved, and do not produce a table unless he asked for data.
   - The reason, so this is not over-applied: brevity is compression of the narration, never of the substance. A real problem, a correction to something previously reported wrong, or a decision that is his to make must still be stated in full. Dropping one of those to hit a line count is a worse failure than any amount of verbosity.
 
-## Native Skills
-
-| Task | Skill command |
-|---|---|
-| Select, explain, and execute the right harness workflow, enterprise-grade | `/freddy` |
-| Get personal-project work done hands-off, minimal interruption | `/faruk` |
-| Run unattended overnight with zero questions | `/sleep` |
-| Queue larger ideas and work through them continuously across usage-limit resets | `/queue` |
-| Rapid-fire status check: open decisions and a brief done/next across active harness work | `/status-report` |
-| Review real queue/tracker/PR history and apply evidence-cited refinements to the harness's own skills | `/learn` |
-| Complete plan through reflect cycle | `/ship` |
-| Plan and decompose | `/plan` |
-| Map a large, uncertain multi-session effort | `/wayfinder` |
-| Turn settled context into an agent-ready specification | `/to-spec` |
-| Break a plan into vertical-slice tracker tickets | `/to-tickets` |
-| Evaluate and prepare an issue or external PR | `/triage` |
-| Implement a new feature | `/newfeature` |
-| Debug unexpected behavior | `/debugging` |
-| Review code | `/codereview` |
-| Verify a web UI by actually rendering it | `/browsertest` |
-| Sweep a whole web surface for dead controls, collisions and dead links before shipping | `/polish` |
-| Open or update a GitHub pull request | `/pr` |
-| Capture session knowledge | `/closing` |
-| Build a throwaway design prototype | `/prototype` |
-| Gather missing stakeholder knowledge asynchronously | `/to-questionnaire` |
-| Write as Freddy | `/voice` |
-| Create or edit a Confluence page | `/wiki` |
-| Make decisions informed by Freddy's viewpoints | `/opinions` |
-| Produce a Mermaid architecture diagram | `/architecture-diagram` |
-| Explore or advance a business or project plan with focused questions and dashboard decisions | `/business-planning` |

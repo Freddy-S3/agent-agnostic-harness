@@ -38,7 +38,10 @@ Each entry is the rule exactly as it read before the 2026-08-23 progressive-disc
 
 ## Never activate a commented-out resume line
 
-- Never uncomment, activate, or promote a commented-out line in Freddy's resume files without his explicit, per-bullet permission. Commented content is NOT disabled truth - treat it as unverified. His commented bullets are example/placeholder text he was drafting against, and several appear verbatim under three different employers, which is what a reuse palette looks like, not a record of results. On 2026-08-11 a session read them as real-but-disabled and activated two metric claims (75% repetitive-task reduction, 75% downtime reduction); they reached a built PDF, two renditions, the live site, and all three job-board exports before anyone caught it, on a resume headed to Google. The same session deleted ~30 other commented bullets as "dead comments" - also not ours to judge. Deactivating is safe; activating and deleting are not.
+Moved out of the harness on 2026-08-23. This rule and its incident now live with the files they
+govern, in `~/Repo/Portfolio-Website/docs/rules/resume-content.md`, alongside the resume drafting
+gate and the positioning preference. The harness core keeps a trigger row pointing there, so any
+session touching resume content in any repository still reaches it.
 
 ## Every repository points at these rules from its own root
 
