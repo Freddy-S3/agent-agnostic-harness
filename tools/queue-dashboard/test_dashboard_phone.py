@@ -26,9 +26,14 @@ def dashboard_url() -> str:
 
 def assert_no_overflow(page) -> None:
     overflow = page.evaluate(
-        "document.documentElement.scrollWidth - document.documentElement.clientWidth"
+        "document.documentElement.scrollWidth - Math.max(document.documentElement.clientWidth, window.innerWidth)"
     )
     assert overflow <= 1, f"horizontal overflow: {overflow}px"
+
+    statusbar_overflow = page.locator(".statusbar").evaluate(
+        "element => element.getBoundingClientRect().right - document.documentElement.clientWidth"
+    )
+    assert statusbar_overflow <= 1, f"status bar overflow: {statusbar_overflow}px"
 
 
 def main() -> None:
