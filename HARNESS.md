@@ -166,6 +166,7 @@ It selects the workflow, explains the relevant skill stack, and adds the coverag
 - Debug logs use safe metadata only: no credentials, authorization headers, cookies, tokens, passwords, API keys, or personal data.
 - A self-hosted Jira uses the Jira Data Center MCP route; Confluence and Atlassian Cloud use the Atlassian MCP route.
 - Work in an area covered by a scoped instructions file reads that file's path map and component-ownership rules before broad exploration.
+- The rulebook is split for progressive disclosure. `instructions/AGENTS.md` is the always-loaded core and carries only what applies to essentially every task; conditional detail lives in `instructions/rules/` and is opened by absolute path when a trigger row in the core fires. Nothing loads it for you on Codex, which has no import directive, so treat the trigger table as an instruction to read rather than an index to skim. `tools/check-rule-triggers.ps1` fails the install if a rule file has no trigger, a reference dangles, or the core regrows past its ceiling.
 
 ## Tools
 
