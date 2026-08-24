@@ -66,7 +66,21 @@ Log:
 Status: pending
 Log:
 - {TODAY}: waiting for the phone.
+
+## Answered outside the dashboard
+Status: blocked
+Blocked reason: Faruk answered this in another conversation.
+Options:
+- Keep the recorded decision
+Log:
+- {TODAY}: waiting for reconciliation.
 """
+
+ANSWER_LEDGER = (
+    '{"file":"QUEUE-PHONE.md","title":"Answered outside the dashboard",'
+    '"answer":"Keep the recorded decision","source":"direct conversation",'
+    f'"recorded":"{TODAY}"}}\n'
+)
 
 STUDY = """## Reading
 - [ ] Read the first chapter
@@ -181,6 +195,7 @@ def main() -> None:
         queue_dir = Path(raw_dir)
         (queue_dir / "QUEUE-PC.md").write_text(PC_QUEUE, encoding="utf-8")
         (queue_dir / "QUEUE-PHONE.md").write_text(PHONE_QUEUE, encoding="utf-8")
+        (queue_dir / "ANSWERS.jsonl").write_bytes(ANSWER_LEDGER.encode("utf-8-sig"))
         (queue_dir / "STUDY.md").write_text(STUDY, encoding="utf-8")
         (queue_dir / "JOBS.md").write_text(JOBS, encoding="utf-8")
 
@@ -256,7 +271,7 @@ def main() -> None:
                 queue_count = page.locator("#t-queue").inner_text()
                 history_count = page.locator("#t-history").inner_text()
                 assert queue_count == "6", f"queue count: {queue_count}"
-                assert history_count == "2", f"history count: {history_count}"
+                assert history_count == "3", f"history count: {history_count}"
                 assert page.locator("#t-jobs").inner_text() == "4"
                 assert page.locator("#panel-queue .card").count() == 6
                 assert page.locator("#decisions .card h3").all_inner_texts() == [
@@ -273,6 +288,7 @@ def main() -> None:
                     "Open phone item",
                 ]
                 assert page.locator("#panel-queue").get_by_text("Answered decision", exact=True).count() == 0
+                assert page.locator("#panel-queue").get_by_text("Answered outside the dashboard", exact=True).count() == 0
                 assert page.locator("#panel-queue").get_by_text("Completed change", exact=True).count() == 0
                 assert page.locator("img").evaluate_all(
                     "images => images.every(image => image.complete && image.naturalWidth > 0)"
@@ -291,10 +307,11 @@ def main() -> None:
                 page.locator("#tab-history").click()
                 page.wait_for_selector("#panel-history:not([hidden])")
                 page.wait_for_function(
-                    "document.querySelectorAll('#panel-history .history-card').length === 3"
+                    "document.querySelectorAll('#panel-history .history-card').length === 4"
                 )
                 assert page.url.endswith("#history")
-                assert page.locator("#panel-history .history-card").count() == 3
+                assert page.locator("#panel-history .history-card").count() == 4
+                assert page.locator("#panel-history").get_by_text("Answered outside the dashboard", exact=True).count() == 1
                 assert page.locator("#panel-queue[hidden]").count() == 1
 
                 page.locator("#tab-reading-list").click()

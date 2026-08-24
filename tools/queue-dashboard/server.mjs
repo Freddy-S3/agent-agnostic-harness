@@ -13,7 +13,9 @@
 //   - the write is temp-file-plus-rename, so a crash cannot leave a half file
 //   - the client sends the mtime it read; a newer mtime on disk rejects the write,
 //     so a concurrent session or dispatch run cannot be clobbered
-// Each answer is also appended to TRIAGE-<date>.md as a flat record of the session.
+// Each dashboard answer is also appended to TRIAGE-<date>.md as a flat record of the
+// session. Answers made elsewhere can be recorded in ANSWERS.jsonl and are reconciled
+// by exact queue filename plus title.
 
 import { createServer } from "node:http";
 import { readFile, writeFile, copyFile, appendFile, rename, stat, readdir } from "node:fs/promises";
@@ -34,6 +36,7 @@ const FILES = [
   { file: "QUEUE-PC.md", gate: "At the PC", hint: "shell, git, builds" },
   { file: "QUEUE-PHONE.md", gate: "On your phone", hint: "browser, GitHub app" },
 ];
+const ANSWERS_FILE = "ANSWERS.jsonl";
 
 // The study checklist is read-and-write like the queues, but it is not a queue: nothing in
 // it is blocked on a decision and ticking a box is not an answer, so it never reaches the
@@ -164,7 +167,33 @@ function logEntries(body) {
   return entries;
 }
 
-function parseItem(block) {
+function answerKey(file, title) {
+  return `${file}\u0000${title}`;
+}
+
+async function readAnswerLedger() {
+  try {
+    const text = (await readFile(join(QUEUE_DIR, ANSWERS_FILE), "utf8")).replace(/^\uFEFF/, "");
+    const answers = new Map();
+    for (const [index, line] of text.split(/\r?\n/).entries()) {
+      if (!line.trim()) continue;
+      try {
+        const record = JSON.parse(line);
+        if (!String(record.file).trim() || !String(record.title).trim() || typeof record.answer !== "string" || !record.answer.trim()) continue;
+        answers.set(answerKey(record.file, record.title), record);
+      } catch {
+        // Ignore a partially written or hand-edited line; queue rendering must survive it.
+        console.warn(`Ignoring invalid ${ANSWERS_FILE} record on line ${index + 1}`);
+      }
+    }
+    return answers;
+  } catch (err) {
+    if (err.code !== "ENOENT") console.warn(`Cannot read ${ANSWERS_FILE}: ${err.message}`);
+    return new Map();
+  }
+}
+
+function parseItem(block, file, answerLedger) {
   const { title, body } = block;
   const status = (body.match(/^Status:\s*(.+)$/m)?.[1] || "unknown").trim();
   const repo = (body.match(/^Repo:\s*(.+)$/m)?.[1] || "").trim();
@@ -190,10 +219,17 @@ function parseItem(block) {
     : [];
 
   const log = logEntries(body);
+  const external = answerLedger.get(answerKey(file, title));
+  const externalDecision = external && external.state !== "withdrawn" && external.state !== "open"
+    ? external
+    : null;
   // The live blockers are written as log lines, not as a field. Miss these and the
   // dashboard shows cards but none of the actual decisions.
   const asks = log.filter((l) => /DECISION NEEDED|BLOCKED ON (YOU|FARUK)|NEEDS? (YOUR )?(DECISION|ANSWER)/i.test(l));
-  const answered = Boolean(decided) || log.some((l) => /^ANSWERED\b/i.test(l));
+  const answered = Boolean(decided) || log.some((l) => /^ANSWERED\b/i.test(l)) || Boolean(externalDecision);
+  const effectiveDecision = decided || (externalDecision
+    ? `DECIDED ${externalDecision.recorded || "unknown date"} by Faruk, via ${externalDecision.source || "another channel"}: ${externalDecision.answer.replace(/\s+/g, " ").trim()}`
+    : null);
 
   const needsDecision = !answered && status !== "done" && (asks.length > 0 || Boolean(blockedReason));
 
@@ -202,7 +238,8 @@ function parseItem(block) {
     status,
     repo,
     dependsOn,
-    decided: decided ? decided.trim() : null,
+    decided: effectiveDecision ? effectiveDecision.trim() : null,
+    decisionSource: externalDecision ? externalDecision.source || "external record" : decided ? "queue item" : null,
     answered,
     blockedReason,
     asks,
@@ -459,12 +496,13 @@ async function openPrs() {
 }
 
 async function snapshot() {
+  const answerLedger = await readAnswerLedger();
   const groups = [];
   for (const { file, gate, hint } of FILES) {
     const path = join(QUEUE_DIR, file);
     try {
       const [text, st] = await Promise.all([readFile(path, "utf8"), stat(path)]);
-      const items = splitBlocks(text).map(parseItem);
+      const items = splitBlocks(text).map((block) => parseItem(block, file, answerLedger));
       groups.push({ gate, hint, file, items, mtime: st.mtimeMs, error: null });
     } catch (err) {
       groups.push({ gate, hint, file, items: [], mtime: 0, error: err.message });
@@ -486,6 +524,7 @@ async function snapshot() {
     jobs: await jobsSnapshot(),
     prs: await openPrs(),
     triage,
+    answerLedger: ANSWERS_FILE,
     readAt: Date.now(),
     queueDir: QUEUE_DIR,
   };
@@ -1316,6 +1355,7 @@ async function tick(){
   document.getElementById('foot').textContent =
     'Re-reads the queue files every 5s; polling pauses while you are typing an answer. '
     + 'Answers write a DECIDED line into the item and a row into TRIAGE-' + new Date().toISOString().slice(0,10) + '.md. '
+    + 'Answers from other channels use ' + d.answerLedger + '. '
     + (d.triage.length ? 'Triage records: ' + d.triage.join(', ') : '');
 }
 tick(); setInterval(tick, 5000);

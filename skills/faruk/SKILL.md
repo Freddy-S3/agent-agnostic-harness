@@ -63,7 +63,10 @@ Write the same items to `status/TRACKER.md`, one line each: `- [ ] YYYY-MM-DD | 
 Read both writes back before reporting.
 If either write is refused, report the exact path and actual error instead of claiming it landed.
 
-The queue file is the primary record because Faruk's dashboard parses those files and nothing else.
+The queue file is the primary record because Faruk's dashboard parses those files first.
+If a direct answer cannot be written into the queue item in the same turn, append the exact
+queue filename, item title, full answer, source, date, and `state: answered` as one JSON object
+to `ANSWERS.jsonl` in the resolved queue directory so the dashboard can reconcile it.
 This requirement also applies to subagents and parallel tasks; telling an orchestrator is not persistence.
 
 ## Reporting

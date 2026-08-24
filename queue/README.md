@@ -49,6 +49,23 @@ logs the blocker, because that run is the one that knows what the alternatives a
 reader has to reconstruct them from prose. Options are also the cheapest handoff to the next
 agent: they record which paths were considered, not just which was chosen.
 
+## Recording an answer from another channel
+
+When Faruk settles an existing queue item in a direct conversation or on another agent host,
+update the queue entry with `DECIDED` and `ANSWERED` in the same turn whenever possible.
+If that file is unavailable, append one JSON object to `ANSWERS.jsonl` in this directory so
+the dashboard can remove the stale blocker:
+
+```json
+{"file":"QUEUE-PHONE.md","title":"Exact queue item title","answer":"The full decision","source":"direct conversation","recorded":"2026-08-24","state":"answered"}
+```
+
+The exact queue filename and exact `## ` title are required.
+The newest record for that key wins; `state` values `open` and `withdrawn` reopen it.
+Use `tools/queue-cas.ps1 fingerprint` and `append` for the write because this file is shared
+mutable state.
+This is an explicit handoff, not an inference from `status/TRACKER.md` or chat prose.
+
 ## Declaring downstream impact
 
 When one queue item must be answered or completed before another can move, add a
