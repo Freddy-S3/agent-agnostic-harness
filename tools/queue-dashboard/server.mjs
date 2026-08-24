@@ -339,7 +339,7 @@ function salaryValue(value) {
 
 function parseJobs(text) {
   const sections = [];
-  const sectionRe = /^## (Tier .+)$/gm;
+  const sectionRe = /^## (Tier .+|Contract - secondary priority)$/gm;
   const sectionHeads = [];
   let match;
   while ((match = sectionRe.exec(text))) {
@@ -398,7 +398,9 @@ function parseJobs(text) {
   sections.sort((a, b) => {
     const aTier = a.title.match(/^Tier ([SABC])\b/i)?.[1]?.toUpperCase();
     const bTier = b.title.match(/^Tier ([SABC])\b/i)?.[1]?.toUpperCase();
-    return (tierOrder[aTier] ?? 99) - (tierOrder[bTier] ?? 99)
+    const aOrder = /^Contract - secondary priority$/i.test(a.title) ? 4 : (tierOrder[aTier] ?? 99);
+    const bOrder = /^Contract - secondary priority$/i.test(b.title) ? 4 : (tierOrder[bTier] ?? 99);
+    return aOrder - bOrder
       || a.title.localeCompare(b.title);
   });
 
@@ -913,7 +915,7 @@ border-radius:2px;background:var(--surface);color:var(--ink);min-width:8rem}
         <h2 class="sec">Recommended jobs</h2>
         <span class="gate" id="jobs-summary"></span>
       </div>
-      <p class="panel-note">Tiers first. Within each tier: salary, Glassdoor culture, then estimated application likelihood.</p>
+      <p class="panel-note">Permanent tiers first. Contract roles follow in a secondary lane. Within each group: salary, Glassdoor culture, then estimated application likelihood.</p>
       <div class="jobs" id="jobs"></div>
     </section>
   </main>
