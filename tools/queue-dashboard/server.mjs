@@ -374,6 +374,13 @@ function salaryValue(value) {
   return values.length ? Math.max(...values) : 0;
 }
 
+const LIVENESS_STATES = ["live", "dead", "unreachable"];
+
+function normalizeLiveness(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return LIVENESS_STATES.find((state) => raw.startsWith(state)) || "unchecked";
+}
+
 function parseJobs(text) {
   const sections = [];
   const sectionRe = /^## (Tier .+|Contract - secondary priority)$/gm;
@@ -417,12 +424,24 @@ function parseJobs(text) {
         url: fieldValue(jobBody, "URL"),
         glassdoorUrl: fieldValue(jobBody, "Glassdoor"),
         status,
+        // Written by tools/job-liveness/check.mjs. A posting that has gone is kept and
+        // marked rather than deleted: which role disappeared, and when, is the fact worth
+        // seeing. "unreachable" means our check failed and says nothing about the posting,
+        // so it must never be shown the way a confirmed takedown is.
+        liveness: normalizeLiveness(fieldValue(jobBody, "Liveness")),
+        livenessDetail: fieldValue(jobBody, "Liveness detail"),
+        livenessChecked: fieldValue(jobBody, "Liveness checked"),
+        goneSince: fieldValue(jobBody, "Liveness gone since"),
+        snapshot: fieldValue(jobBody, "Snapshot"),
       };
     });
 
     // Tier remains the primary recommendation. Within a tier, the requested order is
-    // salary, Glassdoor culture, then estimated likelihood of success.
+    // salary, Glassdoor culture, then estimated likelihood of success - but a posting
+    // confirmed gone sinks below the ones you can still apply to. The top card in a tier
+    // being a dead link is the thing that sent us looking for these safeguards.
     jobs.sort((a, b) =>
+      (a.liveness === "dead" ? 1 : 0) - (b.liveness === "dead" ? 1 : 0) ||
       b.salaryValue - a.salaryValue ||
       b.cultureScore - a.cultureScore ||
       b.fitScore - a.fitScore ||
@@ -441,9 +460,13 @@ function parseJobs(text) {
       || a.title.localeCompare(b.title);
   });
 
+  const all = sections.flatMap((section) => section.jobs);
   return {
     sections,
-    total: sections.reduce((sum, section) => sum + section.jobs.length, 0),
+    total: all.length,
+    dead: all.filter((job) => job.liveness === "dead").length,
+    unreachable: all.filter((job) => job.liveness === "unreachable").length,
+    unchecked: all.filter((job) => job.liveness === "unchecked").length,
   };
 }
 
@@ -880,6 +903,15 @@ border-radius:3px;padding:.85rem 1rem;display:flex;flex-direction:column;gap:.55
 .job-card.tier-a{border-left-color:var(--accent)}
 .job-card.tier-b{border-left-color:var(--waiting)}
 .job-card.tier-c{border-left-color:var(--ink-3);opacity:.7}
+/* A gone posting stays on the board, faded and struck through rather than removed, so the
+   fact that a role disappeared is visible instead of silently vanishing from the list. */
+.job-card.liveness-dead{opacity:.62;border-left-color:var(--ink-3)}
+.job-card.liveness-dead h3{text-decoration:line-through;text-decoration-thickness:1px}
+.job-liveness{font-size:.78rem;line-height:1.4;border-radius:2px;padding:.4rem .55rem;
+  background:var(--surface-2);color:var(--ink-2)}
+.job-liveness.gone{background:var(--surface-2);color:var(--ink-2);border-left:2px solid var(--waiting)}
+.job-liveness.unknown{border-left:2px solid var(--ink-3)}
+.job-liveness.ok{background:none;padding:0;color:var(--ink-3);font-size:.74rem}
 .job-card h3{margin:0;font-size:.98rem;line-height:1.3;letter-spacing:-.01em}
 .job-company{font-weight:600;color:var(--ink-2)}
 .job-meta{display:flex;gap:.7rem;flex-wrap:wrap}
@@ -1110,6 +1142,29 @@ async function saveJobStatus(job, status, select, note){
   }
 }
 
+// The banner distinguishes the two failure states in words, not just colour. "gone" is a
+// fact the site told us; "could not check" is our own failure and carries no claim about
+// the posting, so it must never read as though the role disappeared.
+function livenessBanner(job){
+  if (job.liveness === 'dead'){
+    const when = job.goneSince ? ' - first seen gone ' + esc(job.goneSince) : '';
+    const kept = job.snapshot ? 'Saved copy: ' + esc(job.snapshot) : 'No saved copy was captured before it went.';
+    const why = job.livenessDetail ? esc(job.livenessDetail).replace(/\.?$/, '. ') : '';
+    return '<div class="job-liveness gone"><strong>Posting is gone' + when + '.</strong> '
+      + why + kept + '</div>';
+  }
+  if (job.liveness === 'unreachable'){
+    return '<div class="job-liveness unknown"><strong>Could not check this posting.</strong> '
+      + esc(job.livenessDetail || '') + ' It may well still be open.</div>';
+  }
+  // A never-checked posting gets no banner. The summary line already counts them, and a
+  // grey box above every fresh card would push the title down to say nothing.
+  if (job.liveness === 'unchecked') return '';
+  return job.livenessChecked
+    ? '<div class="job-liveness ok">Live as of ' + esc(job.livenessChecked.slice(0, 10)) + '</div>'
+    : '';
+}
+
 function renderJobs(s){
   const host = document.getElementById('jobs');
   host.innerHTML = '';
@@ -1119,8 +1174,13 @@ function renderJobs(s){
     return;
   }
   jobsMtime = s.mtime;
+  const health = [];
+  if (s.dead) health.push(s.dead + ' gone');
+  if (s.unreachable) health.push(s.unreachable + ' could not be checked');
+  if (s.unchecked) health.push(s.unchecked + ' never checked');
   document.getElementById('jobs-summary').textContent = s.total
-    + (s.total === 1 ? ' posting' : ' postings') + ' - sorted by salary, culture, fit';
+    + (s.total === 1 ? ' posting' : ' postings') + ' - sorted by salary, culture, fit'
+    + (health.length ? ' - ' + health.join(', ') : '');
   if (!s.total){
     host.innerHTML = '<p class="empty">No recommended jobs yet.</p>';
     return;
@@ -1139,13 +1199,14 @@ function renderJobs(s){
         : /^Tier A\b/i.test(section.title) ? 'tier-a'
         : /^Tier B\b/i.test(section.title) ? 'tier-b' : 'tier-c';
       const card = document.createElement('article');
-      card.className = 'job-card ' + tierClass;
+      card.className = 'job-card ' + tierClass + ' liveness-' + job.liveness;
       const cultureScore = job.cultureScore ? job.cultureScore.toFixed(1) + '/5' : 'not scored';
       const fitScore = job.fitScore ? Math.round(job.fitScore) + '/100' : 'not scored';
       const salary = job.salary || 'not posted';
       const applyUrl = safeUrl(job.url);
       const glassdoorUrl = safeUrl(job.glassdoorUrl);
       card.innerHTML = '<span class="chip">' + esc(job.status) + '</span>'
+        + livenessBanner(job)
         + '<h3>' + esc(job.title) + '</h3>'
         + '<div class="job-company">' + esc(job.company || 'Company not listed') + '</div>'
         + '<div class="job-meta"><span class="meta">' + esc(job.location || 'Location not listed') + '</span>'
@@ -1162,6 +1223,12 @@ function renderJobs(s){
         + '<label class="meta">Status <select class="job-status"></select></label>'
         + '<span class="said job-note"></span>'
         + '</div>';
+      // A pulled posting keeps its "Open posting" link, because seeing the takedown page
+      // yourself is sometimes the point, but the card says up front what you will find.
+      if (job.liveness === 'dead'){
+        const open = card.querySelector('.job-actions a');
+        if (open) open.textContent = 'Open posting (gone)';
+      }
       const select = card.querySelector('.job-status');
       for (const status of ['new', 'interested', 'applied', 'pass']){
         const option = document.createElement('option');

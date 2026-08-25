@@ -101,6 +101,11 @@ Posted: 2026-08-15
 URL: https://example.com/high
 Fit: Higher compensation, weaker fit.
 Status: new
+Liveness: dead
+Liveness checked: 2026-08-25T03:57:56.595Z
+Liveness detail: posting absent from the ashby job board feed
+Liveness gone since: 2026-08-25
+Snapshot: higher-salary-example-a-abc123.md
 
 ### Lower salary - Example B
 Company: Example B
@@ -112,6 +117,9 @@ Posted: 2026-08-15
 URL: https://example.com/low
 Fit: Lower compensation, stronger fit.
 Status: new
+Liveness: unreachable
+Liveness checked: 2026-08-25T03:58:10.000Z
+Liveness detail: navigation failed: net::ERR_CONNECTION_RESET (failed twice)
 
 ## Tier S - apply this week
 
@@ -357,18 +365,46 @@ def main() -> None:
                 job_cards = page.locator("#panel-jobs .job-card")
                 assert job_cards.count() == 4
                 assert job_cards.nth(0).locator("h3").inner_text() == "Senior AI Platform Engineer - Example S"
-                assert job_cards.nth(1).locator("h3").inner_text() == "Higher salary - Example A"
-                assert job_cards.nth(2).locator("h3").inner_text() == "Lower salary - Example B"
+                # The dead posting sinks below the live one inside its tier, even though it pays more.
+                assert job_cards.nth(1).locator("h3").inner_text() == "Lower salary - Example B"
+                assert job_cards.nth(2).locator("h3").inner_text() == "Higher salary - Example A"
                 assert job_cards.nth(3).locator("h3").inner_text() == "Ticket-to-PR Automation Consultant - Example Contract"
                 expected_job_links = [
                     {
                         "Open posting": "https://example.com/s",
                         "Glassdoor": "https://www.glassdoor.ca/Reviews/example-s-Reviews-E1.htm",
                     },
-                    {"Open posting": "https://example.com/high"},
                     {"Open posting": "https://example.com/low"},
+                    {"Open posting (gone)": "https://example.com/high"},
                     {"Open posting": "https://example.com/contract"},
                 ]
+                # Liveness must be legible in words, not only in colour, and the two
+                # failure states must never read alike: "gone" is what the site told us,
+                # "could not check" is our own failure and claims nothing about the role.
+                dead_card = job_cards.nth(2)
+                assert "liveness-dead" in dead_card.get_attribute("class")
+                dead_text = dead_card.locator(".job-liveness").inner_text()
+                assert "Posting is gone" in dead_text
+                assert "2026-08-25" in dead_text
+                assert "higher-salary-example-a-abc123.md" in dead_text
+
+                unknown_card = job_cards.nth(1)
+                assert "liveness-dead" not in unknown_card.get_attribute("class")
+                unknown_text = unknown_card.locator(".job-liveness").inner_text()
+                assert "Could not check this posting" in unknown_text
+                assert "may well still be open" in unknown_text
+                assert "gone" not in unknown_text.lower()
+
+                # Kept as a screenshot too: the assertions catch a missing banner, only a
+                # picture catches one that renders badly.
+                dead_card.scroll_into_view_if_needed()
+                dead_card.screenshot(path=str(screenshot_dir / "jobs-dead-card.png"))
+                unknown_card.screenshot(path=str(screenshot_dir / "jobs-unknown-card.png"))
+
+                summary = page.locator("#jobs-summary").inner_text()
+                assert "1 gone" in summary
+                assert "1 could not be checked" in summary
+
                 for card, expected_links in zip(job_cards.all(), expected_job_links):
                     links = card.get_by_role("link")
                     assert links.count() == len(expected_links)
