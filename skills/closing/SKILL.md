@@ -134,7 +134,9 @@ When the session worked inside a repository that has `AGENTS.md`, finish the pro
 
 1. Summarize the outcome in four lines: result, verification, remaining risk, and next action.
 2. If `docs/PROJECT-CONTEXT.md` exists, update it only with stable facts or settled decisions; do not put temporary chat history there.
-3. Run `tools/chat-handoff.ps1 -Repository <repo> -Purpose "Resume coordination"` when the portable tool is available. This writes `docs/CHAT-HANDOFF.md` for the next Codex or Claude Code session.
+3. Run `tools/chat-handoff.ps1 -Repository <repo> -Purpose "Resume coordination"` when the portable tool is available.
+   This writes `docs/CHAT-HANDOFF.md` for the next Codex or Claude Code session.
+   Run it from the claimed worktree and pass that worktree path as `<repo>`; the tool writes directly to the supplied path, so passing the canonical shared checkout from an isolated run collides with another session's tree.
 4. If Codex app thread tools are available, publish the same four-line summary to the matching `00 Main - Coordination` task:
 	- Call `codex_app__list_threads` and find an existing task whose exact title is `00 Main - Coordination` and whose repository path matches the owning repository.
 	- Prefer the current host and an active or idle task; if more than one exact match remains, choose the most recently updated one.
