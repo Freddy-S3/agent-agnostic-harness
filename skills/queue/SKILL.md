@@ -48,13 +48,15 @@ Adding an item is appending a new `## ` entry with `Status: pending` to whicheve
 
 For every item worked, in addition to the item's own `Log:` line, append one line to `status/TRACKER.md` (gitignored, not committed) for each assumption, skip, or block — same content, cross-skill format: `- [ ] YYYY-MM-DD | /queue | <repo-or-scope> | <one-line item>`. This is what `/status-report` reads to give Faruk a same-day rundown across every skill's unattended runs.
 
-The tracker is the secondary record, not the primary one. `tools/queue-dashboard` parses `QUEUE-PC.md` and `QUEUE-PHONE.md` and reads no other file, so contract step 7's queue write is what actually reaches Faruk and a tracker line never substitutes for it. Write both; if only one is possible, write the queue file and say in the report that the tracker write was refused, naming the path and the real error.
+The tracker is the secondary record, not the primary one. `tools/queue-dashboard` parses `QUEUE-PC.md`, `QUEUE-PHONE.md`, and the explicit `ANSWERS.jsonl` handoff; a tracker line never substitutes for either queue persistence path. Write both; if only one is possible, write the queue file and say in the report that the tracker write was refused, naming the path and the real error.
 
 ## Ending a run (required)
 
 A `/queue` run may not end while holding an unpersisted decision, including one it discovered incidentally rather than as the worked item's own blocker. A defect noticed in a neighbouring repo, a question the brief did not anticipate, an assumption taken to keep moving - each gets a `## ` entry in the queue file matching its gate, with `Status: blocked`, a `Blocked reason:`, and an `Options:` list, before the report is written. Write it against whichever item it belongs to, or as a new one if it belongs to none.
 
-If Faruk settles an existing queue item during the run - including saying that its work is already done - reconcile that item before continuing: add the `DECIDED` and `ANSWERED` records, verify the work before setting `Status: done`, and create a new item for any remaining work. Decisions made in a separate conversation are not visible to this skill until a later run explicitly reconciles them; there is no transcript-to-queue watcher.
+If Faruk settles an existing queue item during the run - including saying that its work is already done - reconcile that item before continuing: add the `DECIDED` and `ANSWERED` records, verify the work before setting `Status: done`, and create a new item for any remaining work.
+If the answer came from another conversation or host and the queue file cannot be updated in this turn, append one JSON object to `ANSWERS.jsonl` in the resolved queue directory: `{"file":"QUEUE-PHONE.md","title":"Exact ## title","answer":"Full decision","source":"direct conversation","recorded":"YYYY-MM-DD","state":"answered"}`.
+Use the exact queue filename and title; the dashboard uses the newest record for that key until the queue entry is reconciled.
 
 Read back every entry written. Then check the run's own output against the dashboard's contract, because an entry can be well written and still invisible:
 

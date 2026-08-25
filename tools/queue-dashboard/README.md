@@ -107,11 +107,14 @@ answers straight back, so there is no capture step and nothing to re-transcribe.
 
 ## What it shows
 
-**Blocked on you** comes first and holds only items that are genuinely waiting: an item
-counts as blocked when it has a `Blocked reason` field, or a log line saying
-`DECISION NEEDED` / `BLOCKED ON YOU` / `NEEDS YOUR DECISION`, **and** no `DECIDED` line
-answering it yet. Everything else is collapsed underneath. Open PRs come from `gh`,
-cached 60s because it is slow; the queue read itself is never cached.
+**Blocked on you** comes first and holds only unanswered items that the queue format marks
+as waiting for a decision.
+An item counts as blocked when it has a `Blocked reason` field, or a log line saying
+`DECISION NEEDED` / `BLOCKED ON YOU` / `NEEDS YOUR DECISION`, **and** no local or
+cross-channel answer is recorded for it yet.
+Everything else is collapsed underneath.
+Open PRs come from `gh`, cached 60s because it is slow; the queue and answer-ledger reads
+are never cached.
 
 Open queue items are ordered by downstream impact within each gate, with the highest
 impact first.
@@ -140,6 +143,25 @@ and one row into `TRIAGE-<date>.md`, under an `## Answers from the live dashboar
 section, so a later run can read the day's decisions in one place.
 
 An answer is a recorded decision, not executed work. Nothing here runs anything.
+
+## Answers from another channel
+
+The dashboard cannot read chat transcripts, so a direct-conversation answer needs one
+small durable record before the conversation closes: append one JSON object to
+`ANSWERS.jsonl` in the queue directory.
+
+```json
+{"file":"QUEUE-PHONE.md","title":"Exact queue item title","answer":"The decision in full","source":"direct conversation","recorded":"2026-08-24","state":"answered"}
+```
+
+The key is the exact queue filename plus exact `## ` title.
+The newest record for that key wins, and `"state":"withdrawn"` or `"state":"open"`
+reopens it.
+The dashboard uses this ledger only when the queue item does not already contain its own
+`DECIDED` or `ANSWERED` record, and shows the settled item in History.
+It ignores malformed lines rather than taking the whole dashboard down.
+This is the handoff for answers made in a direct conversation, a background run, or another
+agent host; it is not an invitation to infer an answer from ordinary tracker prose.
 
 ## Reading list tab
 
