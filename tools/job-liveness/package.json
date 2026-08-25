@@ -1,0 +1,14 @@
+{
+  "name": "job-liveness",
+  "private": true,
+  "type": "module",
+  "description": "Checks whether tracked job postings are still live and snapshots their content on capture.",
+  "scripts": {
+    "check": "node check.mjs",
+    "check:force": "node check.mjs --force",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "playwright": "^1.62.1"
+  }
+}
