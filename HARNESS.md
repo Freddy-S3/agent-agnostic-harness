@@ -174,6 +174,10 @@ It selects the workflow, explains the relevant skill stack, and adds the coverag
   Answers are written back into the item as a `DECIDED` line and recorded in `TRIAGE-<date>.md`, so a decision never needs hand-carrying into the queue afterwards.
   It reads disk on every request rather than publishing a snapshot; see that directory's README for the write-back guards.
   It reads `QUEUE-PC.md` and `QUEUE-PHONE.md` and no other file - not `status/TRACKER.md`, not session transcripts. That is why `/closing`, `/faruk`, `/sleep`, and `/queue` all require writing open decisions into a queue file before a session ends: an empty dashboard means nothing was written, not that nothing is waiting.
+- `tools/converge.ps1` - the bounded convergence step for a `/queue` item that carries a `Done when:` command.
+  It runs the predicate, writes `Iterations:` to the queue file before the next attempt rather than after a success, and on the cap sets the item `blocked` with the check's actual failing output and a one-click `Options:` list.
+  Exit codes are the contract: 0 converged or no predicate, 6 re-enter the brief with a fresh context window, 7 capped, 4 the `Done when:` is prose rather than a command, 5 a peer wrote the queue file mid-step.
+  `tools/tests/converge.tests.ps1` drives every one of those states by construction, including a predicate that never passes and a predicate that is prose pretending to be a check.
 - Clickable skill cards - `instructions/WIDGETS.md` defines how `/status-report` and `/queue` render their reports as cards inside the Claude desktop app, with buttons for approve/reject and run/skip/requeue.
 
   These two overlap deliberately and should not be merged.
