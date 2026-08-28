@@ -40,7 +40,10 @@ function New-Home {
 }
 
 function Invoke-Check($hostHome, $extra) {
-    $a = @('-NoProfile', '-File', $checker, '-RepoRoot', $repoRoot, '-HostHome', $hostHome)
+    # A real Cowork cache on the developer's machine would leak into every case, so every
+    # test points the check at an empty one unless it is exercising class E itself.
+    $a = @('-NoProfile', '-File', $checker, '-RepoRoot', $repoRoot, '-HostHome', $hostHome,
+           '-CoworkRoot', (Join-Path $hostHome 'cowork'))
     if ($extra) { $a += $extra }
     $o = New-TemporaryFile
     $e = New-TemporaryFile
@@ -101,7 +104,7 @@ Assert ($r.Code -eq 0) 'the ~/.claude-harness data directory is not flagged as a
 # The weaker question - does the link resolve - is the one that reports success during an
 # outage. Constructed with a worktree deliberately left one commit behind.
 $stale = Join-Path $root 'stale-checkout'
-& git -C $repoRoot worktree add --detach $stale 'HEAD~1' | Out-Null
+& git -C $repoRoot worktree add --detach $stale 'origin/main~1' | Out-Null
 if (Test-Path $stale) {
     $h3 = New-Home
     Copy-Item -LiteralPath $template -Destination (Join-Path $h3 '.claude\scheduled-tasks\queue-runner\SKILL.md')
@@ -116,10 +119,39 @@ else {
     Write-Host 'SKIP  stale-checkout case: could not create a worktree' -ForegroundColor Yellow
 }
 
-# --- 5. the off-machine cache is never claimed clean ---------------------------------
-$r = Invoke-Check $h2
-Assert ($r.Output -match 'not reachable from this machine') 'the account-side cache is reported rather than passed'
-Assert ($r.Output -notmatch 'every reachable consumer is current[\s\S]*Cowork') 'the pass line does not cover the unreachable cache'
+# --- 5. the Cowork cache: stale in the account, faithfully re-materialised -----------
+# The cache DOES refresh - from the claude.ai account, not from this repo - so a skill
+# that went stale in the account comes back stale on every refresh. Constructed with a
+# manifest whose description and body both lag the repository.
+$h4 = New-Home
+Copy-Item -LiteralPath $template -Destination (Join-Path $h4 '.claude\scheduled-tasks\queue-runner\SKILL.md')
+$ws = Join-Path $h4 'cowork\workspace-1\session-1'
+New-Item -ItemType Directory -Force -Path (Join-Path $ws 'skills\queue') | Out-Null
+Set-Content -LiteralPath (Join-Path $ws 'skills\queue\SKILL.md') -Encoding utf8 -Value @'
+---
+name: queue
+description: Work through the idea backlog in queue/QUEUE.md continuously.
+---
+`queue/QUEUE.md` in the claude-harness repo is the backlog.
+'@
+$manifest = @{
+    lastUpdated = 1
+    skills = @(
+        @{ skillId = 'skill_1'; name = 'queue'; description = 'Work through the idea backlog in queue/QUEUE.md continuously.'; creatorType = 'user'; updatedAt = '2026-08-09T15:44:49Z'; enabled = $true },
+        @{ skillId = 'skill_2'; name = 'pdf'; description = 'not ours'; creatorType = 'anthropic'; updatedAt = '2026-08-09T15:44:49Z'; enabled = $true }
+    )
+}
+Set-Content -LiteralPath (Join-Path $ws 'manifest.json') -Encoding utf8 -Value ($manifest | ConvertTo-Json -Depth 5)
+$r = Invoke-Check $h4
+Assert ($r.Code -eq 1) 'a stale Cowork cache fails the check'
+Assert ($r.Output -match 'description no longer matches') 'the drifted routing description is reported'
+Assert ($r.Output -match 'materialised SKILL.md body differs') 'the drifted body is reported'
+Assert ($r.Output -match 're-upload this skill to the claude.ai account') 'the fix names the account, not the local cache'
+Assert ($r.Output -notmatch '(?m)^\s+pdf:') 'Anthropic-authored cached skills are not compared'
+
+# One defect is reported once, however many lines carry it.
+$queueLines = @($r.Output -split "`n" | Where-Object { $_ -match 'pre-split single queue file' })
+Assert ($queueLines.Count -eq 1) 'a stale name repeated through a file is reported once'
 
 Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 

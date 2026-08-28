@@ -27,8 +27,13 @@
     C. Cached checkouts of this repo inside sibling repos (*/.harness-cache/*).
     D. A stale-name sweep across everything above, for the pre-rename repository name and
        the pre-split single queue file.
-    E. Off-machine copies - the Cowork / claude.ai account-side skill cache. Reported,
-       never claimed clean, because this script cannot read it.
+    E. The Cowork skill cache, materialised per workspace under
+       %APPDATA%\Claude\local-agent-mode-sessions\skills-plugin\. This one DOES refresh
+       - but it refreshes from the claude.ai account, not from this repository, so a
+       user-authored skill goes stale in the account and the refresh faithfully
+       re-materialises the stale copy. Checked and reported; deliberately not fixed,
+       because a local rewrite is overwritten on the next materialisation and the repair
+       is an account-side re-upload.
 
 .PARAMETER Fix
   Rewrite what can be safely regenerated (class A). Everything else is reported with the
@@ -46,7 +51,8 @@
 param(
     [switch]$Fix,
     [string]$RepoRoot,
-    [string]$HostHome
+    [string]$HostHome,
+    [string]$CoworkRoot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,6 +65,9 @@ $script:Problems = @()
 $script:Notes = @()
 
 function Add-Problem($where, $what, $fix) {
+    # One defect, one line. A stale name that appears on six lines of a file is still one
+    # thing to fix, and a report that repeats it buries the other findings.
+    foreach ($p in $script:Problems) { if ($p.Where -eq $where -and $p.What -eq $what) { return } }
     $script:Problems += [pscustomobject]@{ Where = $where; What = $what; Fix = $fix }
 }
 
@@ -76,7 +85,8 @@ $staleTokens = @(
 # data the dashboard reads). Excluded so this check does not relitigate a settled call.
 $staleAllowed = '~?[\\/]?\.claude-harness[\\/]'
 
-function Test-StaleNames($path, $label) {
+function Test-StaleNames($path, $label, $fix) {
+    if (-not $fix) { $fix = 'regenerate this copy from the repository' }
     $text = Get-Content -Raw -LiteralPath $path -ErrorAction SilentlyContinue
     if (-not $text) { return $false }
     $found = $false
@@ -84,7 +94,7 @@ function Test-StaleNames($path, $label) {
         if ($line -match $staleAllowed) { continue }
         foreach ($t in $staleTokens) {
             if ($line -match $t.Pattern) {
-                Add-Problem $label "names $($t.Means)" 'regenerate this copy from the repository'
+                Add-Problem $label "names $($t.Means)" $fix
                 $found = $true
             }
         }
@@ -234,9 +244,82 @@ Write-Host "  swept $($sweepTargets.Count) files; $dirty carry a pre-rename name
 
 # --- E. off-machine copies ---------------------------------------------------------
 
-Write-Section 'E. off-machine copies'
-$script:Notes += 'The Cowork / claude.ai account-side skill cache is NOT checked here and is not claimed clean. It holds its own copies of faruk, queue, sleep and status-report, it is not on this filesystem, and nothing in this repository writes to it. It refreshes only when the skills are re-uploaded to the account. Verify it by reading the skill descriptions a Cowork session actually reports and comparing them with skills/<name>/SKILL.md.'
-Write-Host '  not reachable from this machine - reported, not passed'
+Write-Section 'E. Cowork skill cache'
+
+function Get-FrontmatterDescription($path) {
+    # Parsed line by line rather than with one big regex: the frontmatter block is
+    # trivially delimited, and a regex over the whole file is the kind of thing that
+    # silently returns nothing and makes the check pass by accident.
+    $text = Get-Content -Raw -LiteralPath $path -ErrorAction SilentlyContinue
+    if (-not $text) { return $null }
+    $lines = $text -split "`r?`n"
+    if ($lines.Count -eq 0) { return $null }
+    if ($lines[0].TrimStart([char]0xFEFF).Trim() -ne '---') { return $null }
+    for ($i = 1; $i -lt $lines.Count; $i++) {
+        if ($lines[$i].Trim() -eq '---') { break }
+        if ($lines[$i] -match '^\s*description:\s*(.+?)\s*$') {
+            return $Matches[1].Trim('"').Trim("'")
+        }
+    }
+    return $null
+}
+
+$pluginRoot = Join-Path $env:APPDATA 'Claude\local-agent-mode-sessions\skills-plugin'
+if ($CoworkRoot) { $pluginRoot = $CoworkRoot }
+
+if (-not $pluginRoot -or -not (Test-Path -LiteralPath $pluginRoot)) {
+    Write-Host '  (no Cowork skill cache on this machine)'
+}
+else {
+    $manifests = @(Get-ChildItem -Recurse -File -LiteralPath $pluginRoot -Filter 'manifest.json' -ErrorAction SilentlyContinue)
+    if ($manifests.Count -eq 0) { Write-Host '  (Cowork cache present but holds no manifest)' }
+    foreach ($m in $manifests) {
+        $workspace = Split-Path -Leaf (Split-Path -Parent $m.FullName)
+        $manifest = $null
+        try { $manifest = Get-Content -Raw -LiteralPath $m.FullName | ConvertFrom-Json } catch { }
+        if (-not $manifest) {
+            Add-Problem "Cowork cache $workspace" 'manifest.json is unreadable' 'let Cowork re-materialise the cache'
+            continue
+        }
+        foreach ($entry in @($manifest.skills)) {
+            # Anthropic-authored skills are not ours and are not compared.
+            if ($entry.creatorType -ne 'user') { continue }
+            $repoSkill = Join-Path (Join-Path $RepoRoot 'skills') (Join-Path $entry.name 'SKILL.md')
+            if (-not (Test-Path -LiteralPath $repoSkill)) {
+                Write-Host "  $($entry.name): uploaded to the account but absent from this repo"
+                continue
+            }
+            $label = "Cowork cache $workspace / $($entry.name)"
+            $accountFix = 're-upload this skill to the claude.ai account - rewriting the local cache is overwritten on the next materialisation'
+            $drifted = $false
+
+            # The manifest description is what the model routes on, so a stale one sends a
+            # Cowork session to the wrong skill before any file is read.
+            $repoDesc = Get-FrontmatterDescription $repoSkill
+            if ($repoDesc -and $entry.description -ne $repoDesc) {
+                Add-Problem $label "the account's copy was last updated $($entry.updatedAt) and its description no longer matches skills/$($entry.name)/SKILL.md" $accountFix
+                $drifted = $true
+            }
+
+            # The body matters too, and a matching description does not imply one. Compare
+            # the materialised file, and sweep it for the pre-rename names separately, so a
+            # copy that drifted without changing its summary line is still caught.
+            $cached = Join-Path (Join-Path (Split-Path -Parent $m.FullName) 'skills') (Join-Path $entry.name 'SKILL.md')
+            if (Test-Path -LiteralPath $cached) {
+                $a = ((Get-Content -Raw -LiteralPath $cached) -replace "`r`n", "`n").TrimEnd()
+                $b = ((Get-Content -Raw -LiteralPath $repoSkill) -replace "`r`n", "`n").TrimEnd()
+                if ($a -ne $b) {
+                    Add-Problem $label "the materialised SKILL.md body differs from skills/$($entry.name)/SKILL.md" $accountFix
+                    $drifted = $true
+                }
+                if (Test-StaleNames $cached $label $accountFix) { $drifted = $true }
+            }
+
+            if (-not $drifted) { Write-Host "  $($entry.name): matches this repo" }
+        }
+    }
+    $script:Notes += 'The Cowork cache refreshes from the claude.ai account, not from this repository. A user-authored skill that has gone stale in the account is re-materialised stale on every refresh, so a mismatch here is repaired by re-uploading the skill, never by editing the cache.'
+}
 
 # --- report ------------------------------------------------------------------------
 

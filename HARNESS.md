@@ -180,7 +180,7 @@ It selects the workflow, explains the relevant skill stack, and adds the coverag
   `tools/tests/converge.tests.ps1` drives every one of those states by construction, including a predicate that never passes and a predicate that is prose pretending to be a check.
 - `tools/check-skill-caches.ps1` - enumerates every cached, copied, or linked view of the skills and instructions and fails loudly on drift.
   Junctions read live and self-heal; copies do not, and a junction into a worktree left on a merged branch resolves perfectly while serving code that no longer exists - both survive an install that reports success.
-  Classes A-D are checked on this machine and `-Fix` regenerates what this repo generates; class E, the account-side Cowork skill cache, is reported as unreachable rather than passed, because a check that quietly ignores a consumer is the failure it exists to prevent.
+  Classes A-D are checked on this machine and `-Fix` regenerates what this repo generates. Class E is the Cowork cache under `%APPDATA%\Claude\local-agent-mode-sessions\skills-plugin\`, which does refresh - but from the claude.ai account rather than from this repository, so a skill that went stale in the account is faithfully re-materialised stale. It is checked and reported, never auto-fixed, because a local rewrite is overwritten on the next materialisation.
   `install.ps1` runs it with `-Fix` at the end of every install.
 - Clickable skill cards - `instructions/WIDGETS.md` defines how `/status-report` and `/queue` render their reports as cards inside the Claude desktop app, with buttons for approve/reject and run/skip/requeue.
 
