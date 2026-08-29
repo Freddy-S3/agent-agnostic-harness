@@ -18,6 +18,7 @@ This repository is the single source of truth. You write a skill once, in one fo
 | `hooks/` | Optional lifecycle hook scripts. |
 | `git-hooks/` | Git hooks, host-independent. `commit-msg` strips agent co-author trailers; `post-commit`, `post-merge` and `post-checkout` refresh Codex's copied rulebook. `install.ps1` points global `core.hooksPath` here. |
 | `memories/` | Durable user and repo context notes. |
+| `templates/scheduled-tasks/` | Prompts for host scheduled tasks. These are copied into the host once when a task is created and refreshed by nothing, so they are generated from here rather than hand-written. `tools/check-skill-caches.ps1 -Fix` regenerates them. |
 | `config/mcp-config.template.json` | Sanitized MCP server template, env-var driven. |
 | `docs/PROJECT-OPERATING-MODE.md` | Portable control-center, Project, chat, repository, and swarm conventions. |
 | `HARNESS.md` | How to actually use the harness day to day - start here after installing. |

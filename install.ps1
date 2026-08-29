@@ -666,6 +666,23 @@ if (Test-Path -LiteralPath $ruleTriggerCheck) {
     }
 }
 
+# --- 7. cached and copied views of the skills ------------------------------
+# Junctions read live and self-heal; copies do not. A scheduled-task prompt is
+# taken once when the task is created and refreshed by nothing, and a junction
+# into a worktree left on a merged branch resolves perfectly while serving code
+# that no longer exists. Both survive an install that reports success, which is
+# what happened to the 2026-08-12 rename. -Fix regenerates what is generated
+# from this repo; the rest is reported with the command that repairs it.
+$skillCacheCheck = Join-Path $SourceRoot 'tools\check-skill-caches.ps1'
+if (Test-Path -LiteralPath $skillCacheCheck) {
+    Write-Host "skill caches" -ForegroundColor Green
+    if ($DryRun) { & $skillCacheCheck -RepoRoot $SourceRoot }
+    else { & $skillCacheCheck -RepoRoot $SourceRoot -Fix }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  a cached or linked view of the skills has drifted - see above before relying on this install." -ForegroundColor Red
+    }
+}
+
 # --- summary ---------------------------------------------------------------
 
 Write-Host ""
