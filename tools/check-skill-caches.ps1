@@ -168,7 +168,7 @@ function Test-CheckoutCurrent($path, $label) {
     }
     $branch = (& git -C $path rev-parse --abbrev-ref HEAD 2>$null)
     if ([int]$behind -gt 0) {
-        Add-Problem $label "resolves into $path, which is $behind commits behind origin/$default (on '$branch')" `
+        Add-Problem $label "resolves into $path, which is $behind commit$(if ([int]$behind -ne 1) { 's' }) behind origin/$default (on '$branch')" `
             "run install.ps1 from ~/Repo/agent-agnostic-harness on origin/$default, or bring that checkout forward"
     }
     else {
@@ -229,7 +229,10 @@ if ($cacheHits -eq 0) { Write-Host '  (no sibling repo caches a checkout of the 
 Write-Section 'D. stale-name sweep'
 $sweepTargets = @()
 if (Test-Path -LiteralPath $taskRoot) {
-    $sweepTargets += (Get-ChildItem -Recurse -File -LiteralPath $taskRoot -Filter '*.md' -ErrorAction SilentlyContinue).FullName
+    # @() around the enumeration: a directory with no matches yields nothing, and
+    # .FullName on that appends a bare $null which only fails several lines later, in
+    # Test-StaleNames, as a parameter binding error nobody would trace back to here.
+    $sweepTargets += @(Get-ChildItem -Recurse -File -LiteralPath $taskRoot -Filter '*.md' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
 }
 $codexRulebook = Join-Path $HostHome '.codex\AGENTS.md'
 if (Test-Path -LiteralPath $codexRulebook) { $sweepTargets += $codexRulebook }
@@ -238,6 +241,7 @@ if (Test-Path -LiteralPath $claudeStub) { $sweepTargets += $claudeStub }
 
 $dirty = 0
 foreach ($f in $sweepTargets) {
+    if (-not $f) { continue }
     if (Test-StaleNames $f ("stale name in " + ($f -replace [regex]::Escape($HostHome), '~'))) { $dirty++ }
 }
 Write-Host "  swept $($sweepTargets.Count) files; $dirty carry a pre-rename name"

@@ -111,7 +111,7 @@ if (Test-Path $stale) {
     & cmd /c mklink /J "$(Join-Path $h3 '.claude\skills')" "$(Join-Path $stale 'skills')" | Out-Null
     $r = Invoke-Check $h3
     Assert ($r.Code -eq 1) 'a link into a behind-origin checkout fails the check'
-    Assert ($r.Output -match 'commits behind origin/main') 'the failure says how far behind the checkout is'
+    Assert ($r.Output -match '1 commit behind origin/main') 'the failure says how far behind the checkout is, singular for one'
     Remove-Item -LiteralPath (Join-Path $h3 '.claude\skills') -Force -Recurse -ErrorAction SilentlyContinue
     & git -C $repoRoot worktree remove --force $stale | Out-Null
 }
