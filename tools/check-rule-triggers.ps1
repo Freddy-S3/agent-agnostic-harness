@@ -59,13 +59,32 @@ foreach ($name in $referenced) {
 #    resume content rules live in Portfolio-Website, because they are worthless context in
 #    every other project. The core still names them, so the path still has to resolve, and a
 #    sibling repo can be renamed or moved without anything here noticing.
-$crossRepo = [regex]::Matches($coreText, '`~/Repo/(?!agent-agnostic-harness/)([A-Za-z0-9._/-]+\.md)`') |
+# @() so a single match is still a collection - Sort-Object -Unique returns a bare string
+# for one item, and .Count on that throws under Set-StrictMode, which is how install.ps1
+# runs this. The check reported cleanly on its own and crashed the installer.
+$crossRepo = @([regex]::Matches($coreText, '`~/Repo/(?!agent-agnostic-harness/)([A-Za-z0-9._/-]+\.md)`') |
              ForEach-Object { $_.Groups[1].Value } |
-             Sort-Object -Unique
+             Sort-Object -Unique)
 
 foreach ($rel in $crossRepo) {
     $abs = Join-Path (Split-Path -Parent $RepoRoot) ($rel -replace '/', '\')
-    if (-not (Test-Path -LiteralPath $abs)) {
+    if (Test-Path -LiteralPath $abs) { continue }
+
+    # A missing file and a stale checkout look identical on disk and need opposite fixes.
+    # Ask the sibling repo whether the path exists upstream before blaming the rule.
+    $siblingRoot = Join-Path (Split-Path -Parent $RepoRoot) (($rel -split '/')[0])
+    $upstreamHas = $false
+    if (Test-Path -LiteralPath (Join-Path $siblingRoot '.git')) {
+        $inRepo = ($rel -split '/', 2)[1]
+        $head = (& git -C $siblingRoot symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>$null)
+        if (-not $head) { $head = 'origin/HEAD' }
+        & git -C $siblingRoot cat-file -e "${head}:${inRepo}" 2>$null
+        if ($LASTEXITCODE -eq 0) { $upstreamHas = $true }
+    }
+
+    if ($upstreamHas) {
+        $failures.Add("stale checkout: AGENTS.md points at ~/Repo/$rel, which exists upstream but not in the working tree at $siblingRoot - that checkout is behind its default branch, so bring it forward rather than rewriting the rule")
+    } else {
         $failures.Add("dangling cross-repo: AGENTS.md points at ~/Repo/$rel, which does not exist - the rule it triggers is unreachable")
     }
 }
