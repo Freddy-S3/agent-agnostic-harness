@@ -12,6 +12,14 @@ The page is split into four tabs:
 
 - **Queue** shows only unanswered and unfinished work, including the PC and phone gates.
 - **History** keeps answered and completed items available without crowding the working queue.
+  It is ordered newest first on the date an item left the queue - its answer date, falling
+  back to its newest dated log line - and anything older than `ARCHIVE_RECENT_DAYS` (7)
+  collapses behind a disclosure rather than being dropped.
+  Answers no agent has acted on yet lead the panel under **Answered, not picked up yet**,
+  flagged so they can still be changed. An answer counts as picked up when the item has a
+  `Log:` line dated on or after the answer that is not the answer's own echo; status is
+  deliberately not used, because the queue holds `Status: done` items whose answer was
+  never acted on and `Status: blocked` items whose answer was.
 - **Reading list** contains the live `STUDY.md` checklist.
 - **Jobs** contains the live `JOBS.md` recommendation board.
 

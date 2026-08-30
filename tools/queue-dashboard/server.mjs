@@ -38,6 +38,12 @@ const FILES = [
 ];
 const ANSWERS_FILE = "ANSWERS.jsonl";
 
+// How much of the archive stays expanded. Freddy reads this on a phone and asked for
+// "the last week or so" at a glance; everything older stays reachable behind a disclosure
+// rather than being dropped. Named because the boundary is a policy, not an arithmetic
+// detail, and because a magic 7 in three places drifts into three different weeks.
+const ARCHIVE_RECENT_DAYS = 7;
+
 // The study checklist is read-and-write like the queues, but it is not a queue: nothing in
 // it is blocked on a decision and ticking a box is not an answer, so it never reaches the
 // decision cards or TRIAGE. It lives here because this is the page already open on the
@@ -193,6 +199,60 @@ async function readAnswerLedger() {
   }
 }
 
+const DATE_RE = /(\d{4}-\d{2}-\d{2})/;
+
+function logLineDate(line) {
+  // Log lines are written "- YYYY-MM-DD: what happened". Only a leading date is the
+  // entry's own date; a date quoted mid-sentence refers to something else.
+  return /^\d{4}-\d{2}-\d{2}\s*:/.test(line) ? line.slice(0, 10) : null;
+}
+
+// A log line that records Faruk answering, or an agent asking him to. Neither is evidence
+// that anything was done with the answer, so neither can count as the answer being picked
+// up. The dashboard writes the first shape itself, on the same date as the DECIDED line,
+// so without this exclusion every answer would look processed the instant it was given.
+const ANSWER_ECHO_RE =
+  /\b(ANSWERED|DECIDED|SCOPED|RESCOPED|DECISION NEEDED|BLOCKED ON (?:YOU|FARUK)|NEEDS? (?:YOUR )?(?:DECISION|ANSWER))\b/i;
+
+// The date Faruk's standing answer was recorded, whichever channel recorded it.
+function answerDate(decidedLine, log, externalDecision) {
+  const candidates = [];
+  const fromDecided = decidedLine && decidedLine.match(/^DECIDED\s+(\d{4}-\d{2}-\d{2})/)?.[1];
+  if (fromDecided) candidates.push(fromDecided);
+  for (const line of log) {
+    const at = logLineDate(line);
+    if (at && /^\d{4}-\d{2}-\d{2}\s*:\s*ANSWERED\b/i.test(line)) candidates.push(at);
+  }
+  const recorded = externalDecision && String(externalDecision.recorded || "").match(DATE_RE)?.[1];
+  if (recorded) candidates.push(recorded);
+  // Latest wins: changing your mind replaces the DECIDED line and leaves the old one in
+  // the log, so the freshest answer is the one still open to revision.
+  return candidates.sort().pop() || null;
+}
+
+// "Has an agent acted on this answer yet?"
+//
+// The signal is a log line dated on or after the answer that is not the answer's own
+// echo. Every agent session that touches an item writes into Log: - that is the harness
+// convention the queue is built on - so the log is the one place activity reliably shows
+// up, and its dates are directly comparable with the answer's.
+//
+// Rejected: Status. It is hand-maintained and lags reality in both directions - the live
+// queue has "Status: blocked" items carrying a DECIDED line, and "Status: done" items
+// whose answer was never acted on. Conflating "an answer exists" with "the item is
+// finished" is the exact confusion this flag is meant to resolve.
+//
+// Rejected: a linked PR or commit. Most items never get one, it needs the network, and
+// where it does exist an agent has written it into the log anyway - so it is a strictly
+// weaker version of the check above.
+function answerPickedUp(log, answeredAt) {
+  if (!answeredAt) return false;
+  return log.some((line) => {
+    const at = logLineDate(line);
+    return at && at >= answeredAt && !ANSWER_ECHO_RE.test(line);
+  });
+}
+
 function parseItem(block, file, answerLedger) {
   const { title, body } = block;
   const status = (body.match(/^Status:\s*(.+)$/m)?.[1] || "unknown").trim();
@@ -233,6 +293,20 @@ function parseItem(block, file, answerLedger) {
 
   const needsDecision = !answered && status !== "done" && (asks.length > 0 || Boolean(blockedReason));
 
+  const added = body.match(/^Added:\s*(\d{4}-\d{2}-\d{2})/m)?.[1] || null;
+  const answeredAt = answerDate(decided, log, externalDecision);
+  const pickedUp = answerPickedUp(log, answeredAt);
+  // Answered and nothing has happened since, so Faruk can still change his mind. This is
+  // deliberately independent of status: an item can be "done" with its answer never acted
+  // on, and can still be "blocked" with the answer already picked up.
+  const awaitingPickup = Boolean(answeredAt) && !pickedUp;
+
+  // Recency for an archived item is when it left the queue, not when it was raised, so
+  // the answer date leads. The newest dated log line covers items that completed without
+  // ever being answered, and Added: covers an item with no dated log at all.
+  const lastLogAt = log.map(logLineDate).filter(Boolean).sort().pop() || null;
+  const archivedAt = answeredAt || lastLogAt || added;
+
   return {
     title,
     status,
@@ -241,6 +315,10 @@ function parseItem(block, file, answerLedger) {
     decided: effectiveDecision ? effectiveDecision.trim() : null,
     decisionSource: externalDecision ? externalDecision.source || "external record" : decided ? "queue item" : null,
     answered,
+    added,
+    answeredAt,
+    archivedAt,
+    awaitingPickup,
     blockedReason,
     asks,
     options,
@@ -548,6 +626,7 @@ async function snapshot() {
     prs: await openPrs(),
     triage,
     answerLedger: ANSWERS_FILE,
+    archiveRecentDays: ARCHIVE_RECENT_DAYS,
     readAt: Date.now(),
     queueDir: QUEUE_DIR,
   };
@@ -841,6 +920,28 @@ border-radius:3px;padding:.85rem 1rem}
 .history-group .col-head{margin-bottom:0}
 .history-card{border-left-color:var(--clear);opacity:.8}
 .history-card:hover{opacity:1}
+
+/* Answered, and no agent has acted on it yet - the one archive state that is still live.
+   It reads at full strength rather than as history, because the whole point is that this
+   is the window in which Freddy can still change his mind. */
+.history-card.unpicked{border-left-color:var(--waiting);opacity:1;
+  background:linear-gradient(to right,color-mix(in srgb,var(--waiting) 18%,var(--surface)),var(--surface) 55%)}
+.chip.unpicked{background:var(--waiting);color:var(--ground)}
+.revisable{font-size:.8rem;color:var(--waiting);margin-top:.35rem;font-weight:600}
+/* The answer on an unpicked card is the thing being reconsidered, so it is not clamped. */
+.history-card.unpicked .decided{-webkit-line-clamp:none;overflow:visible;display:block}
+
+.arch-sec{display:flex;flex-direction:column;gap:.8rem}
+.arch-head{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap;
+  border-bottom:1px solid var(--rule);padding-bottom:.4rem}
+.arch-head h2{margin:0;font-size:1rem;letter-spacing:-.01em}
+.arch-head .note{font-size:.8rem;color:var(--ink-3)}
+.older>summary{cursor:pointer;padding:.6rem .75rem;border:1px solid var(--rule);
+  border-radius:4px;background:var(--surface-2);color:var(--ink-2);font-size:.88rem}
+.older>summary:hover{color:var(--ink)}
+.older[open]>summary{margin-bottom:.9rem}
+.when{font-family:ui-monospace,Consolas,monospace;font-size:.72rem;color:var(--ink-3);
+  margin-top:.3rem}
 code{font-family:ui-monospace,Consolas,monospace;font-size:.82em;background:var(--surface-2);
 padding:.05rem .28rem;border-radius:2px}
 details summary{cursor:pointer;font-family:ui-monospace,Consolas,monospace;font-size:.78rem;
@@ -968,7 +1069,9 @@ border-radius:2px;background:var(--surface);color:var(--ink);min-width:8rem}
         <h2 class="sec">Decision history</h2>
         <span class="gate" id="history-summary"></span>
       </div>
-      <p class="panel-note">Answered and completed items stay here for reference. Nothing is deleted.</p>
+      <p class="panel-note">Answered and completed items stay here for reference, newest first.
+        Nothing is deleted - anything older than the last week collapses behind a disclosure.
+        Answers no agent has acted on yet are flagged, and can still be changed.</p>
       <div class="history" id="history"></div>
     </section>
 
@@ -1252,11 +1355,14 @@ function renderJobs(s){
 function card(g, i, history = false){
   const decide = i.needsDecision;
   const el = document.createElement('article');
-  el.className = 'card ' + (history ? 'history-card ' : '')
+  const unpicked = history && i.awaitingPickup;
+  el.className = 'card ' + (history ? 'history-card ' : '') + (unpicked ? 'unpicked ' : '')
     + (decide ? 'decide' : i.status === 'pending' ? 'pending' : '');
   el.dataset.resolved = i.decided ? '1' : '0';
+  el.dataset.unpicked = unpicked ? '1' : '0';
 
-  const chip = history && i.decided ? 'answered' : history ? 'completed' : decide ? 'blocked on you' : i.status;
+  const chip = unpicked ? 'not picked up yet'
+    : history && i.decided ? 'answered' : history ? 'completed' : decide ? 'blocked on you' : i.status;
   // Blocked reason first: it is the field the item convention governs, so it is the one
   // written to be read cold. asks[0] is a log line, and a log line is written for the
   // audit trail - when it won, any "DECISION NEEDED" note shadowed a well-written field
@@ -1266,12 +1372,15 @@ function card(g, i, history = false){
   const impact = i.impact?.unblocks || 0;
   const impactText = impact === 1 ? 'unblocks 1 open item' : 'unblocks ' + impact + ' open items';
 
-  el.innerHTML = '<span class="chip ' + (decide ? 'decide' : i.status === 'pending' ? 'pending' : '') + '">'
+  el.innerHTML = '<span class="chip ' + (unpicked ? 'unpicked' : decide ? 'decide' : i.status === 'pending' ? 'pending' : '') + '">'
       + esc(chip) + '</span>'
     + '<h3>' + esc(i.title) + '</h3>'
     + (impact ? '<div class="impact">' + impactText + '</div>' : '')
     + (ask ? '<div class="ask">' + esc(ask) + '</div>' : '')
     + (i.decided ? '<div class="decided"><b>' + esc(i.decided) + '</b></div>' : '')
+    + (unpicked ? '<div class="revisable">Answered ' + esc(i.answeredAt)
+        + ' - no agent has acted on it yet, so you can still change your mind.</div>' : '')
+    + (history && !unpicked && i.archivedAt ? '<div class="when">' + esc(i.archivedAt) + '</div>' : '')
     + '<div class="meta">' + esc(g.file) + (i.repo ? ' &middot; ' + esc(i.repo) : '') + '</div>';
 
   const box = document.createElement('div');
@@ -1280,7 +1389,9 @@ function card(g, i, history = false){
   note.className = 'said';
 
   const ta = document.createElement('textarea');
-  ta.placeholder = i.decided
+  ta.placeholder = unpicked
+    ? 'Change your mind - nothing has acted on this answer yet, so replacing it is clean'
+    : i.decided
     ? 'Change the decision - replaces the DECIDED line, keeps the old one in the log'
     : 'Your answer - written into this item as a DECIDED line';
   ta.addEventListener('focus', () => { paused = true; });
@@ -1394,23 +1505,64 @@ async function tick(){
 
   const historyHost = document.getElementById('history');
   historyHost.innerHTML = '';
+
+  // Newest first, on the date the item left the queue. Grouping by source file was the
+  // old order and carried no recency at all - it was the hand-authored order of the queue
+  // files, which append, so the archive opened on the oldest thing in it. The file is
+  // still on every card, so nothing is lost by ordering across files instead of within.
+  const byRecent = (a, b) => String(b[1].archivedAt || '').localeCompare(String(a[1].archivedAt || ''));
+  const sorted = historyItems.slice().sort(byRecent);
+
+  const unpicked = sorted.filter(([, i]) => i.awaitingPickup);
+  const settled = sorted.filter(([, i]) => !i.awaitingPickup);
+  const cutoff = new Date(Date.now() - d.archiveRecentDays * 86400000).toISOString().slice(0, 10);
+  const recent = settled.filter(([, i]) => (i.archivedAt || '') >= cutoff);
+  const older = settled.filter(([, i]) => (i.archivedAt || '') < cutoff);
+
   document.getElementById('history-summary').textContent = historyItems.length
-    + (historyItems.length === 1 ? ' item' : ' items') + ' kept for reference';
+    + (historyItems.length === 1 ? ' item' : ' items') + ' kept for reference'
+    + (unpicked.length ? ' - ' + unpicked.length + ' still changeable' : '');
+
   if (!historyItems.length){
     historyHost.innerHTML = '<p class="empty">No answered or completed items yet.</p>';
   }
-  for (const g of d.groups){
-    const items = g.items.filter(isHistory);
-    if (!items.length) continue;
-    const group = document.createElement('section');
-    group.className = 'history-group';
+
+  function section(title, note, rows){
+    const sec = document.createElement('section');
+    sec.className = 'arch-sec';
     const head = document.createElement('div');
-    head.className = 'col-head';
-    head.innerHTML = '<h2>' + esc(g.gate) + '</h2><span class="count">' + items.length
-      + '</span><span class="gate">completed or answered</span>';
-    group.appendChild(head);
-    for (const i of items) group.appendChild(card(g, i, true));
-    historyHost.appendChild(group);
+    head.className = 'arch-head';
+    head.innerHTML = '<h2>' + esc(title) + '</h2><span class="count">' + rows.length
+      + '</span><span class="note">' + esc(note) + '</span>';
+    sec.appendChild(head);
+    for (const [g, i] of rows) sec.appendChild(card(g, i, true));
+    return sec;
+  }
+
+  // Answered but not acted on leads the archive regardless of age: it is the only part of
+  // this panel that is still a live decision rather than a record.
+  if (unpicked.length){
+    historyHost.appendChild(section(
+      'Answered, not picked up yet',
+      'no agent has acted on these - change your mind here',
+      unpicked));
+  }
+  if (recent.length){
+    historyHost.appendChild(section(
+      'Last ' + d.archiveRecentDays + ' days',
+      'newest first',
+      recent));
+  }
+  // Kept, not hidden: everything older is one click away rather than dropped.
+  if (older.length){
+    const box = document.createElement('details');
+    box.className = 'older';
+    const sum = document.createElement('summary');
+    sum.textContent = 'Show ' + older.length + ' older '
+      + (older.length === 1 ? 'item' : 'items') + ' (before ' + cutoff + ')';
+    box.appendChild(sum);
+    box.appendChild(section('Older', 'newest first', older));
+    historyHost.appendChild(box);
   }
 
   renderStudy(d.study);
