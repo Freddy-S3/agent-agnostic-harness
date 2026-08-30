@@ -21,6 +21,9 @@
   # ... read the file, decide what to append ...
   .\queue-cas.ps1 append -Path $q -Expect $fp -Content $entry
 
+  # For an append larger than a command line can carry, stage it in a file first:
+  .\queue-cas.ps1 append -Path $q -Expect $fp -ContentPath $stagedEntryFile
+
 .NOTES
   Exit codes: 0 success, 5 fingerprint mismatch (re-read and re-decide), 4 usage error.
 #>
@@ -34,7 +37,8 @@ param(
     [string]$Path,
 
     [string]$Expect,
-    [string]$Content
+    [string]$Content,
+    [string]$ContentPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,11 +58,25 @@ if ($Action -eq 'fingerprint') {
 }
 
 if (-not $Expect) {
-    Write-Error 'append requires -Expect <fingerprint taken when you read the file>.'
+    [Console]::Error.WriteLine('append requires -Expect <fingerprint taken when you read the file>.')
     exit $EXIT_USAGE
 }
+# Windows caps a command line at roughly 32 KB, so a large append has to arrive as a file
+# rather than as an argument. A caller that passes -Content a 20 KB block gets a spawn
+# failure with an empty error message, which reads as a broken tool rather than a limit.
+if ($ContentPath) {
+    if ($Content) {
+        [Console]::Error.WriteLine('append takes -Content or -ContentPath, not both.')
+        exit $EXIT_USAGE
+    }
+    if (-not (Test-Path $ContentPath)) {
+        [Console]::Error.WriteLine("append -ContentPath not found: $ContentPath")
+        exit $EXIT_USAGE
+    }
+    $Content = [System.IO.File]::ReadAllText($ContentPath)
+}
 if ($null -eq $Content -or $Content -eq '') {
-    Write-Error 'append requires -Content.'
+    [Console]::Error.WriteLine('append requires -Content or -ContentPath.')
     exit $EXIT_USAGE
 }
 
