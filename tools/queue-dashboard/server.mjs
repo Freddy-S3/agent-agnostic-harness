@@ -442,6 +442,40 @@ function numericValue(value) {
   return match ? Number(match[0]) : 0;
 }
 
+// A Glassdoor rating is a number out of 5, so only a plausible rating counts. Anything
+// else - the "not verified" placeholder every discovered posting carries, a stray year,
+// a blank - is *absent*, not zero. The distinction is the whole point: an unrated
+// employer must rank as unknown, never as bad. Returns null when there is no rating.
+export function cultureRating(value) {
+  const raw = String(value || "").trim();
+  if (!raw || /^(not verified|not scored|not rated|unknown|n\/a|tbd|-)$/i.test(raw)) return null;
+  const match = raw.match(/\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const score = Number(match[0]);
+  return score > 0 && score <= 5 ? score : null;
+}
+
+// Glassdoor publishes no free ratings API, and scraping it is against their terms and
+// actively blocked. So we never fetch a rating: we hand Freddy a search link for the
+// employer and let him look in one click. An explicit "Glassdoor:" field in JOBS.md
+// always wins, so a company whose page he has already found keeps its direct link.
+// Ranking must not read "no rating" as "bad rating". Two postings are only ordered by
+// culture when both carry a real rating; if either is unrated the comparison is a tie and
+// the next key (fit) decides. Sorting the raw number instead would drop every unrated
+// employer below every rated one the moment Freddy rated his first company.
+export function compareCulture(a, b) {
+  const left = a.cultureScore;
+  const right = b.cultureScore;
+  if (left == null || right == null) return 0;
+  return right - left;
+}
+
+export function glassdoorSearchUrl(company) {
+  const name = String(company || "").trim();
+  if (!name) return "";
+  return "https://www.glassdoor.com/Search/results.htm?keyword=" + encodeURIComponent(name);
+}
+
 function salaryValue(value) {
   const values = String(value)
     .match(/\d[\d,]*(?:\.\d+)?\s*[kK]?/g)
@@ -495,12 +529,12 @@ function parseJobs(text) {
         salary,
         salaryValue: salaryValue(salary),
         culture,
-        cultureScore: numericValue(culture),
+        cultureScore: cultureRating(culture),
         fit,
         fitScore: numericValue(fieldValue(jobBody, "Fit score")) || numericValue(fit),
         posted: fieldValue(jobBody, "Posted"),
         url: fieldValue(jobBody, "URL"),
-        glassdoorUrl: fieldValue(jobBody, "Glassdoor"),
+        glassdoorUrl: fieldValue(jobBody, "Glassdoor") || glassdoorSearchUrl(fieldValue(jobBody, "Company")),
         status,
         // Written by tools/job-liveness/check.mjs. A posting that has gone is kept and
         // marked rather than deleted: which role disappeared, and when, is the fact worth
@@ -521,7 +555,7 @@ function parseJobs(text) {
     jobs.sort((a, b) =>
       (a.liveness === "dead" ? 1 : 0) - (b.liveness === "dead" ? 1 : 0) ||
       b.salaryValue - a.salaryValue ||
-      b.cultureScore - a.cultureScore ||
+      compareCulture(a, b) ||
       b.fitScore - a.fitScore ||
       a.title.localeCompare(b.title)
     );
@@ -1303,7 +1337,7 @@ function renderJobs(s){
         : /^Tier B\b/i.test(section.title) ? 'tier-b' : 'tier-c';
       const card = document.createElement('article');
       card.className = 'job-card ' + tierClass + ' liveness-' + job.liveness;
-      const cultureScore = job.cultureScore ? job.cultureScore.toFixed(1) + '/5' : 'not scored';
+      const cultureScore = job.cultureScore ? job.cultureScore.toFixed(1) + '/5' : 'not rated';
       const fitScore = job.fitScore ? Math.round(job.fitScore) + '/100' : 'not scored';
       const salary = job.salary || 'not posted';
       const applyUrl = safeUrl(job.url);

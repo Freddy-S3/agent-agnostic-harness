@@ -369,15 +369,32 @@ def main() -> None:
                 assert job_cards.nth(1).locator("h3").inner_text() == "Lower salary - Example B"
                 assert job_cards.nth(2).locator("h3").inner_text() == "Higher salary - Example A"
                 assert job_cards.nth(3).locator("h3").inner_text() == "Ticket-to-PR Automation Consultant - Example Contract"
+                # Every card carries a Glassdoor link. An explicit "Glassdoor:" field wins;
+                # otherwise the card falls back to a search for the employer, because there
+                # is no free ratings API and scraping Glassdoor is not an option.
+                search = "https://www.glassdoor.com/Search/results.htm?keyword="
                 expected_job_links = [
                     {
                         "Open posting": "https://example.com/s",
                         "Glassdoor": "https://www.glassdoor.ca/Reviews/example-s-Reviews-E1.htm",
                     },
-                    {"Open posting": "https://example.com/low"},
-                    {"Open posting (gone)": "https://example.com/high"},
-                    {"Open posting": "https://example.com/contract"},
+                    {
+                        "Open posting": "https://example.com/low",
+                        "Glassdoor": search + "Example%20B",
+                    },
+                    {
+                        "Open posting (gone)": "https://example.com/high",
+                        "Glassdoor": search + "Example%20A",
+                    },
+                    {
+                        "Open posting": "https://example.com/contract",
+                        "Glassdoor": search + "Example%20Contract",
+                    },
                 ]
+                # An unrated employer reads as "not rated", never as a zero score.
+                contract_metrics = job_cards.nth(3).locator(".job-metrics").inner_text()
+                assert "not rated" in contract_metrics
+                assert "0.0/5" not in contract_metrics
                 # Liveness must be legible in words, not only in colour, and the two
                 # failure states must never read alike: "gone" is what the site told us,
                 # "could not check" is our own failure and claims nothing about the role.
