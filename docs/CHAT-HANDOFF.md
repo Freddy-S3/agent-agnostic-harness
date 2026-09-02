@@ -1,15 +1,15 @@
 Continue the agent-agnostic-harness project.
 
 Purpose: Resume coordination
-Repository: C:\Users\faruk\Repo\agent-agnostic-harness
-Current branch: codex/closing-dashboard-handoff
+Repository: agent-agnostic-harness
+Current branch: codex/investigation-reports
 Read AGENTS.md before acting.
 No docs/PROJECT-CONTEXT.md exists yet; use docs/PROJECT-CONTEXT-TEMPLATE.md from the harness when creating one.
 
-Result: PR #73 merged the exact-key ANSWERS.jsonl reconciliation, and the Confluence blocker now stays out of the live queue.
-Verification: Live API and 390px phone browser checks passed, including the mobile overflow and fixed status-bar guards.
-Remaining risk: Direct website application rules remain an explicit Faruk decision, and chat answers still need the documented ledger handoff.
-Next action: Answer the direct-website operating-contract item when ready; future agents should persist cross-channel answers before closing.
+Result: PR #86 adds the asynchronous `/investigation` workflow, evidence-linked reports, companion wiki drafts for selected destinations, fixtures, and a focused validator.
+Verification: Focused report validation, existing converge, queue-CAS, and skill-cache tests, plus `git diff --check`, passed.
+Remaining risk: PR #86 still awaits review; wiki publication remains operator approval-gated.
+Next action: Review PR #86, then decide whether to merge it.
 
 Operating rules:
 - Keep work agent-agnostic and use repository files, queue, tracker, and pull requests as the source of truth.
@@ -17,9 +17,9 @@ Operating rules:
 - Keep this chat focused on coordination; create a separate outcome chat for implementation.
 
 Recent commits:
-- 4ccc52d Mark job postings that have gone, and snapshot them before they do (#74)
-- 444a9f9 Reconcile queue answers across channels (#73)
-- e9dfa2c Add secondary contract lane to jobs dashboard (#72)
+- b9b8bff Add evidence-linked investigation report workflow
+- 17e094e Give every job card a Glassdoor link and stop ranking unrated employers as bad (#85)
+- bc23442 Track the daily job-discovery task prompt as a template (#84)
 
 Working-tree status:
 - Clean
