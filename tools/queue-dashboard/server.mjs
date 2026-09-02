@@ -553,7 +553,12 @@ function parseJobs(text) {
     // salary, Glassdoor culture, then estimated likelihood of success - but a posting
     // confirmed gone sinks below the ones you can still apply to. The top card in a tier
     // being a dead link is the thing that sent us looking for these safeguards.
+    // An already-submitted application is history worth keeping, not a recommendation, so
+    // it sinks below every posting still open to him rather than being removed. Freddy's
+    // complaint on 2026-09-02 was that the top of the board was roles he had already
+    // applied to, and nothing in the sort had ever said otherwise.
     jobs.sort((a, b) =>
+      (a.status === "applied" ? 1 : 0) - (b.status === "applied" ? 1 : 0) ||
       (a.liveness === "dead" ? 1 : 0) - (b.liveness === "dead" ? 1 : 0) ||
       b.salaryValue - a.salaryValue ||
       compareCulture(a, b) ||
@@ -1047,6 +1052,8 @@ border-radius:3px;padding:.85rem 1rem;display:flex;flex-direction:column;gap:.55
 .job-card.tier-c{border-left-color:var(--ink-3);opacity:.7}
 /* A gone posting stays on the board, faded and struck through rather than removed, so the
    fact that a role disappeared is visible instead of silently vanishing from the list. */
+.job-card.status-applied{opacity:.68;border-left-color:var(--ink-3);border-style:dashed}
+.job-card.status-applied .chip{background:var(--clear);color:var(--surface)}
 .job-card.liveness-dead{opacity:.62;border-left-color:var(--ink-3)}
 .job-card.liveness-dead h3{text-decoration:line-through;text-decoration-thickness:1px}
 .job-liveness{font-size:.78rem;line-height:1.4;border-radius:2px;padding:.4rem .55rem;
@@ -1369,7 +1376,21 @@ function renderJobs(s){
     return;
   }
 
+  // Tier is the recommendation, so demoting an applied posting inside its tier is not
+  // enough: on 2026-09-02 Tier S was five postings and all five were already applied, so
+  // the whole top of the board was history. Applied postings are lifted out of their tier
+  // into one trailing group instead - kept in full, with their tier named on the card, but
+  // never occupying a recommendation slot.
+  const sections = [];
+  const applied = [];
   for (const section of s.sections){
+    const open = [];
+    for (const job of section.jobs) (job.status === 'applied' ? applied : open).push(job);
+    if (open.length) sections.push({ title: section.title, jobs: open });
+  }
+  if (applied.length) sections.push({ title: 'Already applied - history, not recommendations', jobs: applied });
+
+  for (const section of sections){
     const group = document.createElement('section');
     group.className = 'job-group';
     const head = document.createElement('div');
@@ -1378,11 +1399,14 @@ function renderJobs(s){
     group.appendChild(head);
 
     for (const job of section.jobs){
-      const tierClass = /^Tier S\b/i.test(section.title) ? 'tier-s'
-        : /^Tier A\b/i.test(section.title) ? 'tier-a'
-        : /^Tier B\b/i.test(section.title) ? 'tier-b' : 'tier-c';
+      // The escapes are doubled because this whole script sits inside the PAGE template
+      // literal, where a lone \b is a backspace. Every card has been classed tier-c since
+      // the tier colours were added, so no tier has ever shown its own colour.
+      const tierClass = /^Tier S\\b/i.test(job.tier || section.title) ? 'tier-s'
+        : /^Tier A\\b/i.test(job.tier || section.title) ? 'tier-a'
+        : /^Tier B\\b/i.test(job.tier || section.title) ? 'tier-b' : 'tier-c';
       const card = document.createElement('article');
-      card.className = 'job-card ' + tierClass + ' liveness-' + job.liveness;
+      card.className = 'job-card ' + tierClass + ' liveness-' + job.liveness + ' status-' + job.status;
       const cultureScore = job.cultureScore ? job.cultureScore.toFixed(1) + '/5' : 'not rated';
       const fitScore = job.fitScore ? Math.round(job.fitScore) + '/100' : 'not scored';
       const salary = job.salary || 'not posted';
@@ -1391,7 +1415,8 @@ function renderJobs(s){
       card.innerHTML = '<span class="chip">' + esc(job.status) + '</span>'
         + livenessBanner(job)
         + '<h3>' + esc(job.title) + '</h3>'
-        + '<div class="job-company">' + esc(job.company || 'Company not listed') + '</div>'
+        + '<div class="job-company">' + esc(job.company || 'Company not listed')
+        + (job.status === 'applied' && job.tier ? ' <span class="meta">(' + esc(job.tier) + ')</span>' : '') + '</div>'
         + '<div class="job-meta"><span class="meta">' + esc(job.location || 'Location not listed') + '</span>'
         + (job.posted ? '<span class="meta">posted ' + esc(job.posted) + '</span>' : '') + '</div>'
         + '<div class="job-metrics">'
