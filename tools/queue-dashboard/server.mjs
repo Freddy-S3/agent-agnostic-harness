@@ -1052,6 +1052,11 @@ border-radius:3px;padding:.85rem 1rem;display:flex;flex-direction:column;gap:.55
 .job-card.tier-c{border-left-color:var(--ink-3);opacity:.7}
 /* A gone posting stays on the board, faded and struck through rather than removed, so the
    fact that a role disappeared is visible instead of silently vanishing from the list. */
+.job-group-applied>.col-head{cursor:pointer;list-style:none}
+.job-group-applied>.col-head::-webkit-details-marker{display:none}
+.job-group-applied>.col-head h2::before{content:'▸';display:inline-block;margin-right:.45rem;color:var(--ink-3);transition:transform .12s}
+.job-group-applied[open]>.col-head h2::before{transform:rotate(90deg)}
+.applied-hint{color:var(--ink-3);font-size:.72rem;letter-spacing:.04em;margin-left:.5rem}
 .job-card.status-applied{opacity:.68;border-left-color:var(--ink-3);border-style:dashed}
 .job-card.status-applied .chip{background:var(--clear);color:var(--surface)}
 .job-card.liveness-dead{opacity:.62;border-left-color:var(--ink-3)}
@@ -1216,6 +1221,7 @@ window.addEventListener('hashchange', () => selectPanel(location.hash.slice(1), 
 let paused = false;   // stop the 5s repaint from wiping what is being typed
 let mtimes = {};
 let jobsMtime = 0;
+let appliedOpen = false;   // the applied lane starts collapsed and survives the 5s repaint
 
 async function send(file, title, answer, note){
   if (!answer.trim()) return;
@@ -1388,14 +1394,23 @@ function renderJobs(s){
     for (const job of section.jobs) (job.status === 'applied' ? applied : open).push(job);
     if (open.length) sections.push({ title: section.title, jobs: open });
   }
-  if (applied.length) sections.push({ title: 'Already applied - history, not recommendations', jobs: applied });
+  if (applied.length) sections.push({ title: 'Already applied', jobs: applied, collapsible: true });
 
   for (const section of sections){
-    const group = document.createElement('section');
-    group.className = 'job-group';
-    const head = document.createElement('div');
+    // The applied lane is a <details> so it stays shut until he asks for it. Its open state
+    // is held in a variable rather than on the element, because the whole panel is rebuilt
+    // every five seconds and a details element rebuilt from scratch would snap closed under
+    // him mid-read.
+    const group = document.createElement(section.collapsible ? 'details' : 'section');
+    group.className = 'job-group' + (section.collapsible ? ' job-group-applied' : '');
+    const head = document.createElement(section.collapsible ? 'summary' : 'div');
     head.className = 'col-head';
-    head.innerHTML = '<h2>' + esc(section.title) + '</h2><span class="count">' + section.jobs.length + '</span>';
+    head.innerHTML = '<h2>' + esc(section.title) + '</h2><span class="count">' + section.jobs.length + '</span>'
+      + (section.collapsible ? '<span class="applied-hint">history, not recommendations</span>' : '');
+    if (section.collapsible){
+      group.open = appliedOpen;
+      group.ontoggle = () => { appliedOpen = group.open; };
+    }
     group.appendChild(head);
 
     for (const job of section.jobs){
