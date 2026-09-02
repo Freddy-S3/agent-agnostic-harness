@@ -2,9 +2,10 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
 $fixtures = @(
-    @{ Name = 'successful.md'; Status = 'complete'; Marker = '### Observed facts' },
-    @{ Name = 'inconclusive.md'; Status = 'inconclusive'; Marker = '### Unresolved questions' },
-    @{ Name = 'hypothesis.md'; Status = 'partial'; Marker = '### Hypotheses' }
+    @{ Name = 'successful.md'; Status = 'complete'; Route = 'report'; Marker = '### Observed facts' },
+    @{ Name = 'inconclusive.md'; Status = 'inconclusive'; Route = 'report'; Marker = '### Unresolved questions' },
+    @{ Name = 'hypothesis.md'; Status = 'partial'; Route = 'report'; Marker = '### Hypotheses' },
+    @{ Name = 'companion-wiki.md'; Status = 'complete'; Route = 'report-and-wiki-draft'; Marker = '### Inferences' }
 )
 
 $required = @(
@@ -13,6 +14,8 @@ $required = @(
     '^Question: ',
     '^Scope: ',
     '^Methods: ',
+    '^Output route: ',
+    '^Wiki destination: ',
     '^## Findings$',
     '^### Observed facts$',
     '^### Inferences$',
@@ -55,10 +58,23 @@ foreach ($fixture in $fixtures) {
     if ($text -notmatch "(?m)^Status:\s+$([regex]::Escape($fixture.Status))$") {
         throw "$($fixture.Name) has the wrong status"
     }
+    if ($text -notmatch "(?m)^Output route:\s+$([regex]::Escape($fixture.Route))$") {
+        throw "$($fixture.Name) has the wrong output route"
+    }
     if ($text -notmatch '(?m)Evidence:\s+\[E\d+\]') {
         throw "$($fixture.Name) has no finding-to-evidence reference"
     }
     if ($text -notmatch "(?m)^$([regex]::Escape($fixture.Marker))$") {
         throw "$($fixture.Name) is missing its classification marker: $($fixture.Marker)"
+    }
+    if ($fixture.Route -eq 'report-and-wiki-draft') {
+        if ($text -notmatch '(?m)^Wiki destination:\s+.+$') {
+            throw "$($fixture.Name) has no exact wiki destination"
+        }
+        if ($text -notmatch '(?m)^Publication:\s+pending operator approval$') {
+            throw "$($fixture.Name) does not keep publication approval-gated"
+        }
+    } elseif ($text -notmatch '(?m)^Wiki destination:\s+none selected$') {
+        throw "$($fixture.Name) should remain report-only without a selected wiki destination"
     }
 }

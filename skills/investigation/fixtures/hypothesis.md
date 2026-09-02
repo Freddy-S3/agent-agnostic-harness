@@ -12,6 +12,9 @@ Provider webhook delivery and repository-host internals were excluded.
 
 Methods: Compared event identifiers, worker timestamps, and the branch-assignment trace.
 
+Output route: report
+Wiki destination: none selected
+
 ## Findings
 
 ### Observed facts

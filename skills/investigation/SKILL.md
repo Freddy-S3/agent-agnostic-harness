@@ -1,6 +1,6 @@
 ---
 name: investigation
-description: "Run an asynchronous investigation and produce a concise evidence-linked report. Use for customer, repository, operational, or system investigations when an engineer needs findings without reading the full trace; use research for source-backed topic memos and debugging for unexpected behavior that needs a failing repro."
+description: "Run an asynchronous investigation and produce a concise evidence-linked report, with a companion wiki draft when a selected wiki connection and exact page are available. Use for customer, repository, operational, or system investigations when an engineer needs findings without reading the full trace; use research for source-backed topic memos and debugging for unexpected behavior that needs a failing repro."
 user-invocable: true
 ---
 
@@ -18,11 +18,10 @@ Record the scope, the requested output route, the allowed sources, the stop cond
 Use one of these output routes:
 
 - `report` - produce the report and retain the trace as drill-down evidence.
-- `wiki-draft` - produce the report as a draft for one explicitly selected wiki page.
-- `report-and-wiki-draft` - produce both artifacts, with the same evidence references.
+- `report-and-wiki-draft` - produce the report and a companion draft for one explicitly selected wiki page, with the same evidence references.
 
-Treat `report` as the default route.
-Create a wiki draft only when the work item or operator explicitly selects a page.
+Treat `report` as the default route when no selected wiki connection and exact destination page are available.
+When a selected wiki connection and exact destination page are available, use `report-and-wiki-draft` automatically for every investigation.
 Publication always requires operator approval after the draft is reviewable.
 
 ## 2. Gather evidence asynchronously
@@ -115,23 +114,24 @@ An inconclusive result is a valid report when it clearly names the missing evide
 
 Keep the report and its evidence bundle as the durable source of truth.
 
-When the selected route includes `wiki-draft`:
+When a selected wiki connection and exact destination page are available:
 
 1. Confirm the exact destination page before drafting.
-2. Create a draft that preserves the report status, evidence identifiers, uncertainty, and recommended next steps.
+2. Create a companion draft that preserves the report status, evidence identifiers, uncertainty, and recommended next steps.
 3. Keep publication separate from draft generation.
 4. Wait for an operator approval tied to that exact page.
 5. Publish only after approval, then record the published page reference in the report.
 
+Without a selected wiki destination, return the report and retain the trace without creating a wiki artifact.
 Never infer a wiki destination from a ticket type, parent, epic, or linked work item.
-Never turn an investigation into a companion wiki draft merely because the work item is an investigation.
+Never create a companion wiki draft merely because the work item is an investigation.
 
 ## 5. Close the run
 
 Before returning the report, check that the question, scope, methods, findings, evidence, uncertainty, and next steps are all present.
 Check that every material finding has an evidence reference and that facts, inferences, hypotheses, and unresolved questions are not mixed.
 Check that the status matches the actual stopping point and that a partial, cancelled, or failed run names a safe recovery action.
-Check that a wiki route names one explicit page and remains unpublished until approval.
+Check that a selected wiki route names one explicit page, preserves the report evidence, and remains unpublished until approval.
 
 Return the bounded report first.
 Offer trace identifiers and the evidence index as drill-down material, not as a substitute for the report.

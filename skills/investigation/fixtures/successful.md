@@ -12,6 +12,9 @@ Provider reliability and model selection were excluded.
 
 Methods: Compared the ticket snapshot with the draft, inspected the worker trace, and replayed the context-loading step.
 
+Output route: report
+Wiki destination: none selected
+
 ## Findings
 
 ### Observed facts

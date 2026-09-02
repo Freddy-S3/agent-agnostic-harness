@@ -12,6 +12,9 @@ Network infrastructure and unrelated worker latency were excluded.
 
 Methods: Compared queue timestamps with provider response metadata and inspected the warning trace segment.
 
+Output route: report
+Wiki destination: none selected
+
 ## Findings
 
 ### Observed facts
