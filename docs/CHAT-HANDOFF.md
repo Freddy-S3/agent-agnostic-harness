@@ -8,8 +8,8 @@ No docs/PROJECT-CONTEXT.md exists yet; use docs/PROJECT-CONTEXT-TEMPLATE.md from
 
 Result: PR #86 adds the asynchronous `/investigation` workflow, evidence-linked reports, companion wiki drafts for selected destinations, fixtures, and a focused validator.
 Verification: Focused report validation, existing converge, queue-CAS, and skill-cache tests, plus `git diff --check`, passed.
-Remaining risk: PR #86 still awaits review; wiki publication remains operator approval-gated.
-Next action: Review PR #86, then decide whether to merge it.
+Remaining risk: PR #86's companion-wiki fixture has a material finding without an evidence reference, and the validator does not enforce finding-level links.
+Next action: Request the targeted validator and fixture fix, rerun checks, and re-review PR #86 before deciding whether to merge it.
 
 Operating rules:
 - Keep work agent-agnostic and use repository files, queue, tracker, and pull requests as the source of truth.

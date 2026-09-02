@@ -9,7 +9,7 @@
 - [x] Phase 3: Workflow, fixtures, and focused validator
 - [x] Phase 3: Companion wiki draft route
 - [x] Phase 4: Verification and queue persistence
-- [ ] Phase 5: Faruk review of PR #86
+- [ ] Phase 5: Address finding-level evidence coverage and re-review PR #86
 
 ## Files Changed So Far
 - skills/investigation/SKILL.md (done)
@@ -17,4 +17,4 @@
 - tools/test-investigation-report.ps1 (done)
 
 ## Next Step
-Review PR #86, then decide whether to merge it.
+Request finding-level evidence coverage on PR #86, re-run the validator, and review again before deciding whether to merge it.
