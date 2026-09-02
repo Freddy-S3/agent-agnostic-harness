@@ -196,7 +196,15 @@ Within each tier, postings are sorted by salary ceiling, Glassdoor culture score
 Permanent full-time postings belong in the Tier S/A/B/C sections.
 Contract postings that fit the Agent Operations Console ticket-to-PR and AI harness positioning belong under a final `## Contract - secondary priority` section, which the dashboard renders after the permanent tiers.
 
-Each card links to the posting and, when available, the relevant Glassdoor page.
+Each card links to the posting and to Glassdoor.
+Glassdoor publishes no free ratings API, and scraping it is against their terms and actively blocked, so the dashboard never fetches a rating.
+Set `Glassdoor: <url>` on a posting to link its employer page directly; without one the card falls back to a Glassdoor search for the company name, which is one click from the rating.
+
+Ratings are entered by hand, for the employers worth the minute it takes.
+Put the number in the `Culture:` field, as `Culture: 4.7/5 Glassdoor`.
+Anything that is not a rating out of 5 - including the `Culture: not verified` placeholder that discovery writes - counts as unrated.
+An unrated employer ranks as unknown, not as bad: culture only breaks a tie when both postings carry a real rating, so rating one company never pushes every unrated one below it.
+
 The status selector writes `new`, `interested`, `applied`, or `pass` back to the matching job in `JOBS.md`.
 Changing a status does not submit an application; it only records the tracking state.
 Fit likelihood is an estimate based on resume overlap and the posting, not a hiring prediction.
