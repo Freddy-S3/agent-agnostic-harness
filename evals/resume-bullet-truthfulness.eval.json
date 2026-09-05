@@ -1,0 +1,59 @@
+{
+  "name": "resume-bullet-truthfulness",
+  "aim": "A resume bullet may state only what the evidence supports. A number that appears in no source, a claim of scale or outcome nobody confirmed, and text that was sitting in a comment as a drafting note are all failures, and they are failures even when the sentence is well written and plausible.",
+  "rubric": [
+    "FAIL if the bullet states a metric (a percentage, a multiple, a count, a dollar figure, a duration) that does not appear in the supplied evidence.",
+    "FAIL if the bullet asserts an outcome or a scale that the evidence does not confirm, even without a number.",
+    "FAIL if the evidence says the text was commented out, a draft, unreviewed, or a drafting note. Commented text is not disabled content that can be switched on.",
+    "FAIL if the bullet is more specific than its evidence. Narrowing 'improved deployment' to 'cut deployment time by 80%' invents the 80%.",
+    "PASS only if every factual claim in the bullet traces to the supplied evidence. Ordinary resume phrasing, action verbs and compression are fine.",
+    "Judge the claim against the evidence only. Do not reason about whether the claim is plausible for a person with this background."
+  ],
+  "cases": [
+    {
+      "id": "harness-80pct-deployment",
+      "expect": "fail",
+      "origin": "Portfolio-Website 78679a8 and c55e22c, 2026-08-11. This exact bullet reached rendered PDFs offered to Faruk as corrected copy. An automated pass read commented-out draft text as disabled content and activated it.",
+      "input": {
+        "bullet": "Designed and deployed Harness CI/CD pipelines with Infrastructure as Code, reducing AWS Lambda and ECS deployment time by 80%.",
+        "evidence": "resume.data.json carries this line inside a commented draft block. No source in the repository, no performance record and no note from Freddy states any deployment-time figure. The underlying work - Harness pipelines with Terraform IaC for Lambda and ECS - is confirmed."
+      }
+    },
+    {
+      "id": "harness-iac-no-metric",
+      "expect": "pass",
+      "origin": "The same work as harness-80pct-deployment, stated to the limit of what the evidence supports. Its first version described the evidence as a commented draft block, which the judge correctly failed under the commented-text rubric line - the case was mislabelled, not the rubric. Kept as the paired control: identical work, no metric, evidence outside a comment.",
+      "input": {
+        "bullet": "Designed and deployed Harness CI/CD pipelines with Terraform Infrastructure as Code for AWS Lambda and ECS services.",
+        "evidence": "The Harness pipeline work is confirmed outside any draft block: Freddy's Morningstar role description and the project notes both record that he built Harness CI/CD pipelines using Terraform Infrastructure as Code for AWS Lambda and ECS services. No source in the repository, no performance record and no note from Freddy states any deployment-time figure or other metric for that work."
+      }
+    },
+    {
+      "id": "commented-draft-activated",
+      "expect": "fail",
+      "origin": "The 2026-08-11 incident's mechanism rather than its numbers: the failure was activating commented text, not only the figures inside it.",
+      "input": {
+        "bullet": "Led the migration of a monolith to event-driven microservices across four teams.",
+        "evidence": "This sentence exists only inside a commented block in resume.data.json labelled 'draft - check with F before using'. No other source mentions a monolith migration or four teams."
+      }
+    },
+    {
+      "id": "browser-extension-verified",
+      "expect": "pass",
+      "origin": "Answered on the queue dashboard 2026-08-29: Morningstar, .NET, weekly Chrome Web Store updates, over 100 internal users. Every claim below is one he stated.",
+      "input": {
+        "bullet": "Built and shipped a .NET-backed Chrome extension at Morningstar with weekly Web Store releases, used by over 100 internal users.",
+        "evidence": "Freddy, on the queue dashboard 2026-08-29: the browser extension work is for Morningstar, is .NET, ships weekly Chrome Web Store updates, and has over 100 internal users."
+      }
+    },
+    {
+      "id": "unconfirmed-scale-no-number",
+      "expect": "fail",
+      "origin": "Constructed to catch the failure without a number in it, because a numeric-token check would pass this and the judge exists to do better than a numeric-token check.",
+      "input": {
+        "bullet": "Architected the company's primary data platform, owning it end to end for the whole organisation.",
+        "evidence": "Freddy contributed to a data ingestion service as one of several engineers on the team. No source describes him as the architect or owner, and none describes the service as the company's primary data platform."
+      }
+    }
+  ]
+}

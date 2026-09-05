@@ -1,0 +1,68 @@
+{
+  "name": "queue-item-self-containedness",
+  "aim": "A blocked queue item is read on a phone, days later, by someone with no memory of the session that wrote it. It has to state the decision in full on its own. The dashboard renders the description and the options and nothing else, so anything the reader needs that lives in the log, in an earlier entry, or in the writing session's context is not reachable.",
+  "rubric": [
+    "FAIL if the item refers to things it never names - 'the four fixes', 'the two options above', 'the defect discussed earlier', 'as noted previously'.",
+    "FAIL if acting on it requires reading an earlier log entry, another queue item, a commit, or a file the item does not quote enough of.",
+    "FAIL if it points at a previous date's answer instead of restating what that answer settled.",
+    "FAIL if the options are fragments, single words, or labels rather than complete sentences a reader can choose between without further context.",
+    "FAIL if it uses a term specific to this work without explaining it, where the reader would have to go looking to know what is being asked.",
+    "PASS if a reader who has never seen this project could pick an option and be right about what they chose. Length is not the test; a short item that names everything it depends on passes."
+  ],
+  "cases": [
+    {
+      "id": "four-fixes-unnamed",
+      "expect": "fail",
+      "origin": "QUEUE-PC.md, the resume page-count item. The dashboard was rendering the 2026-08-14 log entry as the item's description. It was rewritten on 2026-08-15 for exactly this reason, and Faruk's own answer on it was that he was not sure what the santoku bullet is.",
+      "input": {
+        "description": "Restating the 2026-08-11 partial answer as an actual blocker, because 'not yet authorised' recorded in prose kept the item reading as ordinary pending work and it never surfaced as something waiting on him. The four fixes are unchanged and still unauthorised.",
+        "options": ["Apply them", "Don't", "Come back to this later"]
+      }
+    },
+    {
+      "id": "four-fixes-rewritten",
+      "expect": "pass",
+      "origin": "The shape the 2026-08-15 rewrite moved toward: every defect named in the description, every option a sentence.",
+      "input": {
+        "description": "The resume runs to two pages and you have said it must be one. Four content changes would each reclaim space, and none is authorised yet: (1) the Certifications and Education table wraps a row and sits 8.8pt off its content because the cell is vertically centred - fixing the alignment costs no content; (2) the awards section carries a trailing blank row; (3) the Projects section has a single entry that could be folded into Experience; (4) the last Experience bullet is a maintenance description that adds no new claim. You previously said to stop and ask rather than cut content to hit one page, so nothing has been applied.",
+        "options": [
+          "Apply the alignment fix only, since it reclaims space without removing any content, and report the resulting page count before anything else is cut.",
+          "Apply all four changes and accept that the single Projects entry and the final maintenance bullet come off the resume.",
+          "Keep all the content and accept a two-page resume.",
+          "Leave this until after the current application batch is out."
+        ]
+      }
+    },
+    {
+      "id": "back-reference-to-prior-answer",
+      "expect": "fail",
+      "origin": "The failure of pointing at a date instead of restating it, which is what made the four-fixes item unreadable in the first place.",
+      "input": {
+        "description": "Per your answer on 2026-08-11, the approach discussed there still stands and the remaining blocker is unchanged. Confirm whether to proceed on the same basis.",
+        "options": ["Proceed as before", "Change the approach", "Hold"]
+      }
+    },
+    {
+      "id": "short-but-complete",
+      "expect": "pass",
+      "origin": "Guards against the judge learning that long equals self-contained. This is brief and names everything it needs.",
+      "input": {
+        "description": "The job-applications repository has no git remote, so about twenty tailored application write-ups and the positioning docs exist only on this PC and are not backed up. Everything is committed locally on the branch feat/ai-systems-engineer-term. Credentials and the answers file stay gitignored either way. Creating the remote needs your GitHub account.",
+        "options": [
+          "Create a private GitHub repository for job-applications and push the branch to it.",
+          "Create the repository yourself and tell me, and I will push the branch and open the pull request.",
+          "Leave it committed locally with no remote and accept that it is not backed up."
+        ]
+      }
+    },
+    {
+      "id": "undefined-jargon",
+      "expect": "fail",
+      "origin": "Faruk's own words on the four-fixes item were that he was not sure what the santoku bullet is. A term the writing session understood and the reader did not.",
+      "input": {
+        "description": "The santoku bullet needs a decision before the cascade can be regenerated, since the balanced rendition inherits it and the draft gate will trip otherwise.",
+        "options": ["Keep it", "Drop it", "Rewrite it"]
+      }
+    }
+  ]
+}
