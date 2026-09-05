@@ -22,6 +22,7 @@ at the moment its trigger fires. Paths are absolute so they resolve from any hos
 | `~/Repo/agent-agnostic-harness/instructions/rules/new-projects.md` | Act on a new project idea, or split mixed harness and product work |
 | `~/Repo/agent-agnostic-harness/instructions/rules/context-and-subagents.md` | Spawn a subagent, or decide what to load into context |
 | `~/Repo/agent-agnostic-harness/instructions/rules/tickets-and-review.md` | Start Jira or Confluence backed work, or review a pull request |
+| `~/Repo/agent-agnostic-harness/instructions/rules/premise-interrogation.md` | **Start substantial delivery-mode work, or act on a stated fact you did not verify yourself.** Four questions before Gate 1, and before any substantial personal-mode task. A company was reported dead while it had 42 open roles, a resume was investigated on a checkout 29 commits behind, and discovery reported zero matches from a hardcoded list of five boards - each survived planning and none survives one question about its premise. |
 | `~/Repo/agent-agnostic-harness/instructions/rules/agentic-loop.md` | Run the six-phase loop explicitly in delivery mode |
 | `~/Repo/agent-agnostic-harness/instructions/rules/incident-record.md` | Argue an exception to any core rule, or need the full incident behind a one-clause tag below |
 | `~/Repo/agent-agnostic-harness/instructions/WIDGETS.md` | Add or change a clickable card button in any skill |

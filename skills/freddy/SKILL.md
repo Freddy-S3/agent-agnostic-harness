@@ -18,11 +18,12 @@ For casual personal work with minimal interruption, `/faruk` is the counterpart 
 ## Delivery overlay
 
 1. Set `mode: delivery` and `director: /freddy` in the task ledger, regardless of directory.
-2. Select the smallest effective owner and apply its workflow through the shared contract.
-3. Preserve the owner's interaction protocol, including required rounds, checkpoints, and approvals.
-4. For `/ship`, honor its `proceed`, `lgtm`, and `done` gates and report the task as paused until the corresponding reply arrives.
-5. Emit the compact operational trace below at dispatch and meaningful phase boundaries.
-6. End with the shared completion evaluation plus a skill evaluation that retains only instructions that changed a decision or action.
+2. Interrogate the premise before selecting an owner, per `instructions/rules/premise-interrogation.md`. Name what must be true for the task to be worth doing, say whether that was verified this session or inherited, and run the cheapest check that would falsify it. Route to `/grilling` when the premise is large or cannot be checked cheaply.
+3. Select the smallest effective owner and apply its workflow through the shared contract.
+4. Preserve the owner's interaction protocol, including required rounds, checkpoints, and approvals.
+5. For `/ship`, honor its `proceed`, `lgtm`, and `done` gates and report the task as paused until the corresponding reply arrives.
+6. Emit the compact operational trace below at dispatch and meaningful phase boundaries.
+7. End with the shared completion evaluation plus a skill evaluation that retains only instructions that changed a decision or action.
 
 This is an operational trace, not private reasoning.
 It reports decisions, actions, validations, and outcomes at a useful level of detail.

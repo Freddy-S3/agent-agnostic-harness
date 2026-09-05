@@ -164,7 +164,9 @@ The ad hoc ledger is created at startup like a tracker-backed one, not only when
 
 ### Phase 1-2: Plan (automatic → outputs Gate 1)
 
-Run PLAN skill: explore affected files, find the reference sibling, and decompose the work into dependency-ordered sequential sub-tasks.
+Interrogate the premise BEFORE planning, per `instructions/rules/premise-interrogation.md`. Planning takes the task's framing as given and optimises inside it, so a premise that is false survives planning intact - a company was reported dead while it had 42 open roles, a resume was investigated on a checkout 29 commits behind, and discovery reported zero matches from a hardcoded list of five boards. Name what must be true, say how it was established, run the cheapest check that would falsify it, and name what scope could be dropped. If the premise is large or cannot be checked cheaply, route to `/grilling` instead of proceeding on the assumption.
+
+Then run PLAN skill: explore affected files, find the reference sibling, and decompose the work into dependency-ordered sequential sub-tasks.
 Add a parallel wave only when independently bounded work materially benefits from it; independent work is not, by itself, a reason to spawn more agents.
 Surface any blockers as part of the Gate 1 output.
 
@@ -173,6 +175,7 @@ Surface any blockers as part of the Gate 1 output.
  GATE 1 - PLAN  (reply to continue)
 ════════════════════════════════════════════════
 Task:       <task name>
+Premise:    <what must be true for this to be worth doing> - <verified how, or "assumed">
 Ticket:     <Jira key> | none (ticketless)
 Reference:  <file being modeled after>
 Type:       feature | bugfix | refactor
