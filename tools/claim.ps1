@@ -268,7 +268,9 @@ switch ($Action) {
             exit $EXIT_CONFLICT
         }
         if ($resolved.Kind -eq 'tree' -and -not $AllowDirty) {
-            $dirty = @(Get-DirtyWorktreePaths $resolved.Key)
+            $dirty = @(Get-DirtyWorktreePaths $resolved.Key | Where-Object {
+                -not [string]::IsNullOrWhiteSpace([string]$_)
+            })
             if ($dirty.Count -gt 0) {
                 Write-Output "DIRTY: $($resolved.Key) still has real work. Commit it, stash it with a handoff, or rerun release with -AllowDirty after recording why it remains open."
                 $dirty | ForEach-Object { Write-Output "  $_" }
