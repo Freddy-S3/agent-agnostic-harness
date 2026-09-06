@@ -8,7 +8,9 @@ node tools/queue-dashboard/server.mjs
 # http://127.0.0.1:4317
 ```
 
-The page is split into four tabs:
+The page is split into five tabs:
+
+- **Next** is the generated Control Center: what to do next, what is blocked on you, what is in flight, and which sources were not readable.
 
 - **Queue** shows only unanswered and unfinished work, including the PC and phone gates.
 - **History** keeps answered and completed items available without crowding the working queue.
@@ -41,7 +43,12 @@ pointed at the port.
 So give it its own checkout and point the hook there:
 
 ```
-git worktree add ~/Repo/agent-agnostic-harness-dashboard feature/queue-dashboard
+powershell -NoProfile -File ~/Repo/agent-agnostic-harness/tools/worktree-add.ps1 `
+  -RepoRoot ~/Repo/agent-agnostic-harness `
+  -Path ~/Repo/agent-agnostic-harness-dashboard `
+  -Branch feature/queue-dashboard `
+  -StartPoint origin/main `
+  -Family agent-agnostic-harness
 ```
 
 `start.ps1` also fails closed: it greps the server file for the token check and refuses

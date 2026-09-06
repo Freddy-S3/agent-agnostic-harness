@@ -32,6 +32,25 @@
 
 set -e
 
+# Git for Windows can invoke hooks with its Unix-tool directory missing from PATH.
+# Resolve the shell Git itself uses and put that directory back before the hook's
+# portable path normalisation and diagnostics run.
+git_shell=$(git var GIT_SHELL_PATH 2>/dev/null || true)
+case "$git_shell" in
+	*/sh.exe)
+		git_usr=${git_shell%/sh.exe}
+		case "$git_usr" in
+			[A-Za-z]:/*)
+				drive=${git_usr%%:*}
+				rest=${git_usr#*:}
+				git_usr="/$drive$rest"
+				;;
+		esac
+		PATH="$git_usr:$PATH"
+		export PATH
+		;;
+esac
+
 # --- 0. Bounds ------------------------------------------------------------
 # Global core.hooksPath means this file runs in every repository on the machine,
 # including scratch clones and other people's checkouts. Only the managed root is
@@ -95,6 +114,10 @@ for c in pwsh powershell powershell.exe; do
 done
 [ -n "$ps" ] || exit 0
 
+# Enforce the active-folder limit at the commit boundary as a backstop for sessions that
+# created a checkout without the guarded worktree-add command. Scope the check to the
+# committing repository's family so an unrelated project cannot block this commit.
+hygiene="$hook_dir/../tools/check-folder-hygiene.ps1"
 refuse() {
 	cat >&2 <<-MSG
 
@@ -126,6 +149,13 @@ refuse() {
 	MSG
 	exit 1
 }
+
+if [ -f "$hygiene" ]; then
+	workspace=$(dirname "$tree")
+	if ! out=$($ps -NoProfile -NonInteractive -File "$hygiene" -Action check -WorkspaceRoot "$workspace" -CandidatePath "$tree" 2>&1); then
+		refuse "folder-hygiene said: $(printf '%s' "$out" | tr -d '\r' | head -n 5)"
+	fi
+fi
 
 [ -n "$session" ] || refuse "This session exported no session id, so it cannot hold a claim."
 

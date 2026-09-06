@@ -271,13 +271,24 @@ def main() -> None:
                     ]
                 )
                 page.goto(url, wait_until="domcontentloaded")
-                page.wait_for_selector("#panel-queue:not([hidden])")
+                page.wait_for_selector("#panel-control:not([hidden])")
                 page.wait_for_function(
                     "document.querySelector('#pulse').textContent.includes('LIVE')"
                 )
+                page.wait_for_selector("#panel-control .sec")
+                page.wait_for_selector("#panel-control .cc-act")
 
                 queue_count = page.locator("#t-queue").inner_text()
                 history_count = page.locator("#t-history").inner_text()
+                assert page.locator("[role=tab]").count() == 5
+                assert (
+                    page.locator("#panel-control .sec").first.inner_text().strip().upper()
+                    == "DO THIS NEXT"
+                ), page.locator("#panel-control .sec").all_inner_texts()
+                assert page.locator("#panel-control .cc-act").count() > 0
+                assert page.locator("#panel-control .cc-ev").count() > 0
+                page.locator("#tab-queue").click()
+                page.wait_for_selector("#panel-queue:not([hidden])")
                 assert queue_count == "6", f"queue count: {queue_count}"
                 assert history_count == "3", f"history count: {history_count}"
                 assert page.locator("#t-jobs").inner_text() == "4"
@@ -325,6 +336,12 @@ def main() -> None:
                 )
                 assert page.url.endswith("#history")
                 assert page.locator("#panel-history .history-card").count() == 4
+                assert (
+                    page.locator("#panel-history")
+                    .get_by_text("Answered, not picked up yet", exact=True)
+                    .count()
+                    == 1
+                )
                 assert page.locator("#panel-history").get_by_text("Answered outside the dashboard", exact=True).count() == 1
                 assert page.locator("#panel-queue[hidden]").count() == 1
 

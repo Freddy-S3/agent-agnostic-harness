@@ -47,7 +47,10 @@ are not separate Projects or conversations.
 
 Separate sibling repositories get separate worktrees when their changes can proceed
 independently. A swarm worktree is an execution copy, not a new business Project. Never
-run two writing agents in the same worktree.
+run two writing agents in the same worktree. Keep no more than three active folders for one
+repository family, using the guarded `tools/worktree-add.ps1` command; this keeps the
+canonical checkout, one pinned service, and one active task without allowing stale checkout
+debt to grow indefinitely.
 
 ## Portability across hosts
 

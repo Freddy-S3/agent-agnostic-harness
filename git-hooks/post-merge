@@ -6,6 +6,21 @@
 #
 # Never fail the git operation this is attached to: a rulebook that is one
 # commit stale is a smaller problem than a commit that will not complete.
+git_shell=$(git var GIT_SHELL_PATH 2>/dev/null || true)
+case "$git_shell" in
+	*/sh.exe)
+		git_usr=${git_shell%/sh.exe}
+		case "$git_usr" in
+			[A-Za-z]:/*)
+				drive=${git_usr%%:*}
+				rest=${git_usr#*:}
+				git_usr="/$drive$rest"
+				;;
+		esac
+		PATH="$git_usr:$PATH"
+		export PATH
+		;;
+esac
 hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 sh "$hook_dir/../tools/sync-codex-rulebook.sh" || true
 exit 0
