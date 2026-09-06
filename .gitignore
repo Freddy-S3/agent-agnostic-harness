@@ -16,3 +16,8 @@ queue/QUEUE.md
 # become trackable just because the name moved on.
 skills/job-search/
 skills/pdev/
+
+# Host-managed session state and generated backups are not project work.
+memories/repo/tasks/
+.claude/settings.local.json
+skills/*/SKILL.md.bak-*

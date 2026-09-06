@@ -34,6 +34,10 @@ Then append the same items to `status/TRACKER.md` in the cross-skill format, so 
 
 After the open-decision sweep, reconcile any existing queue item settled in this conversation, including an item Faruk says is already complete. Record `DECIDED` and `ANSWERED`, verify before marking it `done`, and create a new queue item for unfinished follow-up work. Read the changed entry back. If the queue file cannot be updated in this turn, append the exact queue filename, item title, full answer, source, date, and `state: answered` as one JSON object to `ANSWERS.jsonl` in the resolved queue directory. This explicit handoff is required because the queue dashboard reads files, not conversation history.
 
+Before reporting the session complete, run `tools/check-dirty-worktrees.ps1` for the workspace.
+Every real dirty path must be committed on a named branch, stashed with a durable handoff, or explicitly discarded.
+If the guard fails, keep the session open or persist the exact cleanup decision as a blocked queue item.
+
 **Why this outranks the rest of the skill.** Faruk's dashboard parses the two queue files and the explicit `ANSWERS.jsonl` handoff - not `TRACKER.md`, the transcript, or your closing summary.
 A decision reported only in chat is a decision he never sees, and it looks identical to no decision at all.
 On 2026-08-14 he opened a dashboard showing zero blockers while seventeen real ones sat in that night's session reports.

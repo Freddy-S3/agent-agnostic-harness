@@ -52,6 +52,9 @@ Keep no more than three active folders for one project family: one canonical che
 pinned service checkout, and one active task checkout. `tools/worktree-add.ps1` enforces the
 limit before creation, while claims and the pre-commit hook catch bypasses. Archives and
 runtime folders are excluded by the shared `tools/folder-hygiene.psm1` classifier.
+Real dirty work cannot pass closeout: `tools/check-dirty-worktrees.ps1` reports unclassified
+changes, and claim release refuses to release a tree until the work is committed, stashed with
+a handoff, or explicitly released with a recorded exception.
 The full setup, copy-paste Project instructions, and reinstall checkpoint live in
 [`docs/PROJECT-OPERATING-MODE.md`](docs/PROJECT-OPERATING-MODE.md).
 
