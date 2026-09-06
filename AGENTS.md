@@ -18,8 +18,9 @@ Before your first write in this working tree:
 
     pwsh -NoProfile -File tools/claim.ps1 acquire -Tree <this tree> -Session $HARNESS_SESSION
 
-Exit code 3 means a peer holds it: create your own worktree off `origin/main` and claim
-that instead. `git-hooks/pre-commit` enforces this.
+Exit code 3 means a peer holds it: create your own worktree with
+`tools/worktree-add.ps1`, then claim that path instead. The guarded command enforces the
+three-active-folder limit, and `git-hooks/pre-commit` enforces the claim.
 
 ## Repository specifics
 

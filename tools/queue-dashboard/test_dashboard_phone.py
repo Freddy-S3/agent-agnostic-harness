@@ -73,11 +73,18 @@ def main() -> None:
             ]
         )
         page.goto(url, wait_until="domcontentloaded")
-        page.wait_for_selector("#panel-queue:not([hidden])")
+        page.wait_for_selector("#panel-control:not([hidden])")
         page.wait_for_function(
             "document.querySelector('#pulse').textContent.includes('LIVE')"
         )
-        assert page.locator("[role=tab]").count() == 4
+        page.wait_for_selector("#panel-control .sec")
+        page.wait_for_selector("#panel-control .cc-act")
+        assert page.locator("[role=tab]").count() == 5
+        assert (
+            page.locator("#panel-control .sec").first.inner_text().strip().upper()
+            == "DO THIS NEXT"
+        ), page.locator("#panel-control .sec").all_inner_texts()
+        assert page.locator("#panel-control .cc-act").count() > 0
         assert page.locator("#panel-queue .card").count() > 0
 
         for panel in ("queue", "history", "reading-list", "jobs"):

@@ -20,6 +20,23 @@
 
 set -e
 
+# Git for Windows can invoke hooks with its Unix-tool directory missing from PATH.
+git_shell=$(git var GIT_SHELL_PATH 2>/dev/null || true)
+case "$git_shell" in
+	*/sh.exe)
+		git_usr=${git_shell%/sh.exe}
+		case "$git_usr" in
+			[A-Za-z]:/*)
+				drive=${git_usr%%:*}
+				rest=${git_usr#*:}
+				git_usr="/$drive$rest"
+				;;
+		esac
+		PATH="$git_usr:$PATH"
+		export PATH
+		;;
+esac
+
 msg_file="$1"
 [ -n "$msg_file" ] || exit 0
 [ -f "$msg_file" ] || exit 0

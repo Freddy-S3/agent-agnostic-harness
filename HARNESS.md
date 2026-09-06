@@ -47,6 +47,11 @@ Claude Code, Codex, or another host by this repository.
 The current execution default is one agent and one active writing agent per worktree.
 Spawn only for independently bounded complex work or an explicit request, and cap justified
 parallel work at three agents until the policy is changed.
+
+Keep no more than three active folders for one project family: one canonical checkout, one
+pinned service checkout, and one active task checkout. `tools/worktree-add.ps1` enforces the
+limit before creation, while claims and the pre-commit hook catch bypasses. Archives and
+runtime folders are excluded by the shared `tools/folder-hygiene.psm1` classifier.
 The full setup, copy-paste Project instructions, and reinstall checkpoint live in
 [`docs/PROJECT-OPERATING-MODE.md`](docs/PROJECT-OPERATING-MODE.md).
 

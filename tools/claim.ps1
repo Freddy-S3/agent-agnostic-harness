@@ -131,6 +131,33 @@ function Get-BranchOf($treePath) {
     try { return (git -C $treePath rev-parse --abbrev-ref HEAD 2>$null) } catch { return $null }
 }
 
+function Test-FolderLimit($treePath) {
+    $workspace = $env:HARNESS_TREE_ROOT
+    if (-not $workspace) { $workspace = Split-Path -Parent $treePath }
+    try {
+        $treeFull = (Resolve-Path -LiteralPath $treePath -ErrorAction Stop).ProviderPath
+        $workspaceFull = (Resolve-Path -LiteralPath $workspace -ErrorAction Stop).ProviderPath
+        $treeKey = $treeFull.TrimEnd('\', '/').ToLowerInvariant()
+        $workspaceKey = $workspaceFull.TrimEnd('\', '/').ToLowerInvariant()
+        if ($treeKey -ne $workspaceKey -and -not $treeKey.StartsWith("$workspaceKey\")) { return $true }
+
+        $module = Join-Path $PSScriptRoot 'folder-hygiene.psm1'
+        if (-not (Test-Path -LiteralPath $module)) { return $true }
+        Import-Module $module -Force
+        $violations = @(Get-FamilyViolations -WorkspaceRoot $workspaceFull -CandidatePath $treeFull -MaxFolders 3)
+        if ($violations.Count -eq 0) { return $true }
+        Write-Output 'FOLDER_LIMIT: refusing the write claim because this project family exceeds three active folders.'
+        foreach ($violation in $violations) {
+            Write-Output ("  {0}: {1} folders" -f $violation.Family, $violation.Count)
+            foreach ($path in $violation.Paths) { Write-Output "    $path" }
+        }
+        return $false
+    } catch {
+        Write-Output "FOLDER_LIMIT: could not verify the active-folder limit: $($_.Exception.Message)"
+        return $false
+    }
+}
+
 function Show-Claim($claim, $staleMinutes) {
     $state = if (Test-Stale $claim $staleMinutes) { 'STALE' } else { 'live' }
     "{0,-8} {1,-6} {2}`n         session={3} branch={4} heartbeat={5}" -f `
@@ -187,6 +214,7 @@ switch ($Action) {
     }
 
     'acquire' {
+        if ($resolved.Kind -eq 'tree' -and -not (Test-FolderLimit $resolved.Key)) { exit 5 }
         if ($existing -and $existing.session -eq $Session) {
             Write-Claim $file $resolved $existing.takeover_of | Out-Null
             Write-Output "reacquired: $($resolved.Key)"
@@ -195,7 +223,7 @@ switch ($Action) {
         if ($existing -and -not $stale) {
             Write-Output "CONFLICT: $($resolved.Key) is held by $($existing.session) (heartbeat $($existing.heartbeat))."
             if ($resolved.Kind -eq 'tree') {
-                Write-Output 'Do not write in this tree. Create your own worktree off the default branch and claim that path instead.'
+                Write-Output 'Do not write in this tree. Create your own worktree with tools/worktree-add.ps1 and claim that path instead.'
             } else {
                 Write-Output 'Do not regenerate this cascade. Wait for release, or claim a different cascade.'
             }
