@@ -25,6 +25,7 @@ import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { controlCenter } from "./control-center.mjs";
 
 const run = promisify(execFile);
 const PORT = Number(process.env.PORT || 4317);
@@ -653,7 +654,7 @@ async function snapshot() {
     /* nothing to add */
   }
 
-  return {
+  const snap = {
     groups,
     study: await studySnapshot(),
     jobs: await jobsSnapshot(),
@@ -664,6 +665,12 @@ async function snapshot() {
     readAt: Date.now(),
     queueDir: QUEUE_DIR,
   };
+
+  // Computed last, over the snapshot just read, so the Control Center is a VIEW of this
+  // data rather than a second read of the same files. A second read is how two surfaces
+  // start disagreeing, which is the whole reason this is generated rather than written.
+  snap.control = await controlCenter(snap, REPO_ROOT);
+  return snap;
 }
 
 // ---------------------------------------------------------------- write-back
@@ -1063,6 +1070,37 @@ color:var(--ink);text-decoration:none;background:var(--surface-2)}
 .job-actions select{font:inherit;font-size:.78rem;padding:.28rem .45rem;border:1px solid var(--rule);
 border-radius:2px;background:var(--surface);color:var(--ink);min-width:8rem}
 @media(max-width:560px){.job-metrics{grid-template-columns:1fr}.job-actions{align-items:stretch}.job-actions a,.job-actions select{flex:1 1 auto;text-align:center}}
+/* Control Center. Sized so the top action stays readable at 375px without zooming -
+   this is the surface opened on a phone, and an action you have to pinch to read is an
+   action you skip. Uses the page's existing tokens so it inherits light and dark. */
+.cc-act{display:flex;gap:.75rem;align-items:flex-start;padding:.8rem .9rem;
+border:1px solid var(--rule);border-radius:10px;margin:.5rem 0;background:var(--surface)}
+.cc-top{border-color:var(--blocked)}
+.cc-rank{flex:0 0 1.7rem;height:1.7rem;border-radius:50%;display:grid;place-items:center;
+background:var(--blocked);color:var(--surface);font-weight:700;font-size:.95rem}
+.cc-body{min-width:0;flex:1}
+.cc-body h3{margin:0 0 .3rem;font-size:1.02rem;line-height:1.3}
+.cc-mins{font-weight:400;font-size:.8rem;color:var(--ink-3);white-space:nowrap}
+.cc-why{margin:.25rem 0;line-height:1.45;color:var(--ink-2)}
+.cc-do{margin:.35rem 0;font-size:.92rem}
+.cc-ev{margin:.3rem 0 0;font-size:.78rem;color:var(--ink-3);line-height:1.4;overflow-wrap:anywhere}
+.cc-ev code{font-size:.76rem}
+.cc-block{padding:.6rem .75rem;border:1px solid var(--rule);border-radius:8px;margin:.4rem 0}
+.cc-block .gate{margin-left:.5rem}
+/* The panel stacks four sections; without this they run together and the headings read
+   as part of the block above them. */
+#control section+section{margin-top:1.5rem}
+#control .sec{margin-bottom:.4rem}
+.cc-pr a{margin-right:.35rem}
+.cc-pr{padding:.4rem 0;font-size:.9rem;overflow-wrap:anywhere}
+.cc-phase{font-weight:600;margin:.3rem 0}
+.cc-warn{color:var(--waiting)}
+@media(max-width:420px){
+.cc-act{padding:.65rem .7rem;gap:.55rem}
+.cc-body h3{font-size:.97rem}
+.cc-mins{display:block;margin-top:.15rem}
+}
+
 </style></head><body>
 <div class="wrap">
   <header>
@@ -1075,8 +1113,10 @@ border-radius:2px;background:var(--surface);color:var(--ink);min-width:8rem}
   </header>
 
   <nav class="tabs" id="tabs" aria-label="Dashboard sections" role="tablist">
+    <button class="tab" type="button" role="tab" id="tab-control" aria-controls="panel-control"
+      aria-selected="true" data-panel="control">Next <span class="count hot" id="t-control">0</span></button>
     <button class="tab" type="button" role="tab" id="tab-queue" aria-controls="panel-queue"
-      aria-selected="true" data-panel="queue">Queue <span class="count" id="t-queue">0</span></button>
+      aria-selected="false" data-panel="queue">Queue <span class="count" id="t-queue">0</span></button>
     <button class="tab" type="button" role="tab" id="tab-history" aria-controls="panel-history"
       aria-selected="false" data-panel="history">History <span class="count" id="t-history">0</span></button>
     <button class="tab" type="button" role="tab" id="tab-reading-list" aria-controls="panel-reading-list"
@@ -1086,7 +1126,11 @@ border-radius:2px;background:var(--surface);color:var(--ink);min-width:8rem}
   </nav>
 
   <main>
-    <section class="panel" id="panel-queue" role="tabpanel" aria-labelledby="tab-queue">
+    <section class="panel" id="panel-control" role="tabpanel" aria-labelledby="tab-control">
+      <div id="control"></div>
+    </section>
+
+    <section class="panel" id="panel-queue" role="tabpanel" aria-labelledby="tab-queue" hidden>
       <section>
         <h2 class="sec">Blocked on you <span class="count hot" id="dcount">0</span></h2>
         <p class="panel-note">Highest downstream impact first when items declare <code>Depends on:</code>.</p>
@@ -1139,10 +1183,12 @@ border-radius:2px;background:var(--surface);color:var(--ink);min-width:8rem}
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const safeUrl = value => /^https?:\\/\\//i.test(String(value)) ? String(value) : '';
 
-const panels = ['queue', 'history', 'reading-list', 'jobs'];
+// 'control' leads and is the default: the whole point of the Control Center is that the
+// page opens on "what do I do next" rather than on the full queue.
+const panels = ['control', 'queue', 'history', 'reading-list', 'jobs'];
 
 function selectPanel(name, updateHash = true){
-  const active = panels.includes(name) ? name : 'queue';
+  const active = panels.includes(name) ? name : 'control';
   for (const button of document.querySelectorAll('[data-panel]')){
     const selected = button.dataset.panel === active;
     button.setAttribute('aria-selected', selected ? 'true' : 'false');
@@ -1471,6 +1517,71 @@ function fitStatusbar(){
 }
 window.addEventListener('resize', fitStatusbar);
 
+// The Control Center answers one question - what do I do next - and every line it shows
+// carries the source it came from. Rendering the evidence is not decoration: it is what
+// stops this becoming a fifth surface that asserts things nobody can check.
+function renderControl(c){
+  const host = document.getElementById('control');
+  if (!host) return;
+  if (!c) { host.innerHTML = '<p class="empty">Control Center could not be generated.</p>'; return; }
+
+  let h = '';
+
+  h += '<section><h2 class="sec">Do this next</h2>';
+  if (!c.actions.length) {
+    h += '<p class="empty">No action could be derived from the readable sources. That is a signal about the sources, not about your day.</p>';
+  }
+  for (const a of c.actions) {
+    h += '<article class="cc-act' + (a.rank === 1 ? ' cc-top' : '') + '">'
+      +  '<div class="cc-rank">' + a.rank + '</div>'
+      +  '<div class="cc-body">'
+      +    '<h3>' + esc(a.title) + ' <span class="cc-mins">' + esc(a.minutes) + ' min</span></h3>'
+      +    '<p class="cc-why">' + esc(a.why) + '</p>'
+      +    '<p class="cc-do"><strong>Do:</strong> ' + esc(a.unblock) + '</p>'
+      +    '<p class="cc-ev"><code>' + esc(a.source) + '</code> - ' + esc(a.evidence) + '</p>'
+      +  '</div></article>';
+  }
+  h += '</section>';
+
+  h += '<section><h2 class="sec">Blocked on you <span class="count hot">' + c.blockedTotal + '</span></h2>';
+  if (!c.blocked.length) h += '<p class="empty">Nothing is waiting on a decision from you.</p>';
+  for (const b of c.blocked) {
+    h += '<div class="cc-block"><strong>' + esc(b.title) + '</strong>'
+      +  '<span class="gate">' + esc(b.gate) + '</span>'
+      +  '<p class="cc-do">' + esc(b.unblock) + '</p></div>';
+  }
+  if (c.blockedTotal > c.blocked.length) {
+    h += '<p class="panel-note">' + (c.blockedTotal - c.blocked.length) + ' more on the Queue tab.</p>';
+  }
+  if (c.answeredUnconsumed) {
+    h += '<p class="panel-note cc-warn">' + c.answeredUnconsumed + ' item(s) you have already answered are still not marked done - decisions made and not collected.</p>';
+  }
+  h += '</section>';
+
+  h += '<section><h2 class="sec">In flight, needs nothing from you <span class="count">' + c.inFlight.length + '</span></h2>';
+  if (!c.inFlight.length) h += '<p class="empty">No open pull requests.</p>';
+  for (const p of c.inFlight) {
+    h += '<div class="cc-pr"><a href="' + esc(p.url) + '" target="_blank" rel="noopener">'
+      +  esc(p.repo) + ' #' + p.number + '</a> ' + esc(p.title) + '</div>';
+  }
+  h += '</section>';
+
+  h += '<section><h2 class="sec">Phase</h2>'
+    +  '<p class="cc-phase">' + esc(c.phase.name) + '</p>'
+    +  '<p class="cc-why">' + esc(c.phase.moveItForward) + '</p>'
+    +  '<p class="cc-ev">derived from ' + esc(c.phase.derivedFrom) + '</p></section>';
+
+  if (c.unavailable.length) {
+    h += '<section><h2 class="sec">Not readable from here</h2>';
+    for (const u of c.unavailable) h += '<p class="cc-ev">' + esc(u) + '</p>';
+    h += '</section>';
+  }
+
+  host.innerHTML = h;
+  const t = document.getElementById('t-control');
+  if (t) t.textContent = c.actions.length;
+}
+
 async function tick(){
   if (paused) return;
   let d;
@@ -1502,6 +1613,7 @@ async function tick(){
   document.getElementById('dcount').textContent = decisions.length;
   document.getElementById('t-queue').textContent = current.reduce((n, g) => n + g.items.length, 0);
   document.getElementById('t-history').textContent = historyItems.length;
+  renderControl(d.control);
   document.getElementById('t-archived').textContent = historyItems.length;
   const host = document.getElementById('decisions');
   host.innerHTML = '';
