@@ -26,6 +26,16 @@ powershell -NoProfile -File tools\worktree-add.ps1 -RepoRoot <repo> -Path <new-p
 If a family is already over the limit, stop and classify the folders before doing more work.
 Read each folder's status and active claims, preserve dirty work, and use `git worktree remove` for clean registered worktrees.
 
+Before closing a session or releasing a write claim, run the dirty-work guard:
+
+```powershell
+powershell -NoProfile -File tools\check-dirty-worktrees.ps1 -WorkspaceRoot $env:USERPROFILE\Repo
+```
+
+Every real dirty path must be committed on a named branch, stashed with a durable handoff, or explicitly discarded.
+The claim release command enforces the same rule for the tree being released.
+Host-managed memories, local settings, temporary output, Python caches, and dated skill backups are classified separately and do not count as project work.
+
 Removing a local worktree does not delete its remote branch.
 Do not delete a remote branch as part of folder hygiene unless that separate action is explicitly requested.
 

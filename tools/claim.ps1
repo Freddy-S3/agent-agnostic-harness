@@ -28,7 +28,9 @@
 .PARAMETER Action
   check | verify | acquire | release | heartbeat | list
 
-  'check' answers "is this tree free for me to take". 'verify' answers the different
+  'release' refuses to silently leave real dirty work behind; use -AllowDirty only when
+  a durable handoff has been recorded. 'check' answers "is this tree free for me to take".
+  'verify' answers the different
   question the hook needs: "does this session already hold this tree". They are not
   inverses - check succeeds on a free tree, verify fails on one.
 
@@ -61,12 +63,19 @@ param(
     # Take over a stale claim. Refused against a live one - that is the whole point.
     [switch]$Force,
 
-    [string]$RegistryPath
+    [string]$RegistryPath,
+
+    # Keep a claim when real work remains so the next session cannot mistake an unfinished
+    # checkout for a clean handoff. This is an explicit escape hatch for intentional pauses.
+    [switch]$AllowDirty
 )
 
 $ErrorActionPreference = 'Stop'
 $EXIT_CONFLICT = 3
 $EXIT_USAGE = 4
+$EXIT_DIRTY = 5
+
+Import-Module (Join-Path $PSScriptRoot 'dirty-worktree.psm1') -Force
 
 function Get-Registry {
     if ($RegistryPath) { $p = $RegistryPath }
@@ -257,6 +266,16 @@ switch ($Action) {
         if ($existing.session -ne $Session -and -not $Force) {
             Write-Output "CONFLICT: $($resolved.Key) is held by $($existing.session), not $Session. Releasing another session's live claim needs -Force."
             exit $EXIT_CONFLICT
+        }
+        if ($resolved.Kind -eq 'tree' -and -not $AllowDirty) {
+            $dirty = @(Get-DirtyWorktreePaths $resolved.Key | Where-Object {
+                -not [string]::IsNullOrWhiteSpace([string]$_)
+            })
+            if ($dirty.Count -gt 0) {
+                Write-Output "DIRTY: $($resolved.Key) still has real work. Commit it, stash it with a handoff, or rerun release with -AllowDirty after recording why it remains open."
+                $dirty | ForEach-Object { Write-Output "  $_" }
+                exit $EXIT_DIRTY
+            }
         }
         Remove-Item $file -Force
         Write-Output "released: $($resolved.Key)"
