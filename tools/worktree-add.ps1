@@ -21,7 +21,10 @@ $target = [IO.Path]::GetFullPath($Path)
 if (-not $WorkspaceRoot) { $WorkspaceRoot = Split-Path -Parent $repo }
 
 $guard = Join-Path $PSScriptRoot 'check-folder-hygiene.ps1'
-$ps = (Get-Command pwsh, powershell.exe, powershell -ErrorAction Stop | Select-Object -First 1).Source
+# -ErrorAction Stop on a name list throws on the first missing name, so a machine without
+# pwsh never reached powershell.exe and the guard failed before it ran (2026-09-13).
+$ps = (Get-Command pwsh, powershell.exe, powershell -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+if (-not $ps) { throw 'No PowerShell executable found on PATH.' }
 $guardArgs = @('-NoProfile', '-NonInteractive', '-File', $guard, '-Action', 'assert-add', '-WorkspaceRoot', $WorkspaceRoot, '-CandidatePath', $target)
 if ($Family) { $guardArgs += @('-Family', $Family) }
 & $ps @guardArgs
