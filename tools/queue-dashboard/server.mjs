@@ -525,6 +525,7 @@ function parseJobs(text) {
       return {
         title: job.title,
         tier: section.title,
+        tierField: (fieldValue(jobBody, "Tier").match(/^([SABC])/i) || [])[1]?.toUpperCase() || null,
         company: fieldValue(jobBody, "Company"),
         location: fieldValue(jobBody, "Location"),
         salary,
@@ -557,7 +558,47 @@ function parseJobs(text) {
     // it sinks below every posting still open to him rather than being removed. Freddy's
     // complaint on 2026-09-02 was that the top of the board was roles he had already
     // applied to, and nothing in the sort had ever said otherwise.
-    jobs.sort((a, b) =>
+    sections.push({ title: section.title, jobs });
+  }
+
+  // The discovery run appends in file order, so a new posting cannot land inside its tier
+  // section; it carries a "Tier: S" line instead. That line wins over the heading it sits
+  // under: the trailing discoveries section is where the bytes went, not a recommendation.
+  const TIER_TITLES = {
+    S: "Tier S - apply this week",
+    A: "Tier A - apply if the pitch is easy",
+    B: "Tier B - backfill",
+    C: "Tier C - pass unless something changes",
+  };
+  const byTitle = new Map(sections.map((section) => [section.title, section]));
+  const tierSection = (letter) => {
+    const existing = sections.find((section) => new RegExp(`^Tier ${letter}\b`, "i").test(section.title));
+    if (existing) return existing;
+    const created = { title: TIER_TITLES[letter], jobs: [] };
+    sections.push(created);
+    byTitle.set(created.title, created);
+    return created;
+  };
+  for (const section of sections.slice()) {
+    const keep = [];
+    for (const job of section.jobs) {
+      const letter = job.tierField;
+      if (letter && !new RegExp(`^Tier ${letter}\b`, "i").test(section.title)) {
+        const target = tierSection(letter);
+        job.tier = target.title;
+        target.jobs.push(job);
+      } else {
+        keep.push(job);
+      }
+    }
+    section.jobs = keep;
+  }
+  for (let i = sections.length - 1; i >= 0; i--) {
+    if (!sections[i].jobs.length && !/^Tier [SABC]/i.test(sections[i].title)) sections.splice(i, 1);
+  }
+
+  for (const section of sections) {
+    section.jobs.sort((a, b) =>
       (a.status === "applied" ? 1 : 0) - (b.status === "applied" ? 1 : 0) ||
       (a.liveness === "dead" ? 1 : 0) - (b.liveness === "dead" ? 1 : 0) ||
       b.salaryValue - a.salaryValue ||
@@ -565,7 +606,6 @@ function parseJobs(text) {
       b.fitScore - a.fitScore ||
       a.title.localeCompare(b.title)
     );
-    sections.push({ title: section.title, jobs });
   }
 
   const tierOrder = { S: 0, A: 1, B: 2, C: 3 };
