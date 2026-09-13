@@ -90,14 +90,43 @@ function Test-Stale([string]$root) {
 # a pinned worktree is that they differ. Checking $PSScriptRoot's repo would therefore audit
 # the wrong HEAD in precisely the split this guard exists for, so resolve the root from the
 # listening process's own command line and fall back to $PSScriptRoot only if that fails.
+function Get-ServingPid([int]$p) {
+  try {
+    return Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction Stop |
+      Select-Object -First 1 -ExpandProperty OwningProcess
+  } catch {
+    return $null
+  }
+}
+
 function Get-ServingRoot([int]$p) {
   try {
-    $owner = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction Stop |
-      Select-Object -First 1 -ExpandProperty OwningProcess
+    $owner = Get-ServingPid $p
     $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId=$owner" -ErrorAction Stop).CommandLine
     $m = [regex]::Match($cmd, '([A-Za-z]:\\[^"]*?)tools\\queue-dashboard\\server\.mjs')
     if ($m.Success) { return $m.Groups[1].Value.TrimEnd('\') }
     return $null
+  } catch {
+    return $null
+  }
+}
+
+# Test-Stale answers "is the checkout behind main". This answers the other half: "is the
+# process behind the checkout". After a pull the checkout is current, so Test-Stale says
+# fine and the launcher exits, while the node process still holds the code it loaded
+# before the pull. That is exactly how -Restart came to do nothing right after the pull
+# it recommends. File mtimes are the signal, not commit times: a pull rewrites the files
+# at pull time, whereas a commit's timestamp can predate a server that never saw it.
+# Returns $true (outdated), $false (current), or $null (cannot tell).
+function Test-Outdated([string]$root, [int]$p) {
+  try {
+    $owner = Get-ServingPid $p
+    if (-not $owner) { return $null }
+    $started = (Get-Process -Id $owner -ErrorAction Stop).StartTime
+    $newest = Get-ChildItem (Join-Path $root 'tools\queue-dashboard') -File -Recurse -ErrorAction Stop |
+      Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if (-not $newest) { return $null }
+    return ($newest.LastWriteTime -gt $started)
   } catch {
     return $null
   }
@@ -125,7 +154,9 @@ if (Test-Up $port) {
   $repoRoot = Get-ServingRoot $port
   if (-not $repoRoot) { $repoRoot = $localRoot }
   $tailnetMissing = $tailnetAddress -and -not (Test-UpAt $tailnetAddress $port)
-  if (-not $tailnetMissing -and (Test-Stale $repoRoot) -ne $true) { exit 0 }
+  $stale = (Test-Stale $repoRoot) -eq $true
+  $outdated = (Test-Outdated $repoRoot $port) -eq $true
+  if (-not $tailnetMissing -and -not $stale -and -not $outdated -and -not $Restart) { exit 0 }
 
   if ($tailnetMissing) {
     $msg = "dashboard on port $port is missing its Tailscale listener at $tailnetAddress - restarting it so phone clients can connect"
@@ -136,11 +167,19 @@ if (Test-Up $port) {
     # Warn by default rather than killing a server the user may be typing an answer into.
     # Submitted answers are already on disk; unsent text in a box is not, and silently
     # discarding it to fix a staleness problem the user has not seen yet is the wrong trade.
-    $msg = "dashboard on port $port is running from $repoRoot, which is BEHIND origin/main - " +
-           "it may be serving stale code. Fix: git -C `"$repoRoot`" pull --ff-only, then re-run " +
-           "this script with -Restart."
+    # An explicit -Restart is the user accepting that trade, so it always restarts.
+    if ($stale) {
+      $msg = "dashboard on port $port is running from $repoRoot, which is BEHIND origin/main - " +
+             "it may be serving stale code. Fix: git -C `"$repoRoot`" pull --ff-only, then re-run " +
+             "this script with -Restart."
+    } elseif ($outdated) {
+      $msg = "dashboard on port $port started before the files in $repoRoot were last updated - " +
+             "it is serving code older than the checkout. Fix: re-run this script with -Restart."
+    } else {
+      $msg = "restarting dashboard on port $port at the caller's request"
+    }
     Write-Note $msg
-    Write-Warning $msg
+    if ($stale -or $outdated) { Write-Warning $msg }
 
     if (-not $Restart) { exit 0 }
     if (-not (Stop-Dashboard $port)) { exit 0 }
