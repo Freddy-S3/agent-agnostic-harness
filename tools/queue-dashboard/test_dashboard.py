@@ -121,6 +121,17 @@ Liveness: unreachable
 Liveness checked: 2026-08-25T03:58:10.000Z
 Liveness detail: navigation failed: net::ERR_CONNECTION_RESET (failed twice)
 
+### Higher salary, weaker culture - Example C
+Company: Example C
+Location: Toronto, Ontario (hybrid)
+Salary: CAD 220,000 - 260,000
+Culture: 4.0/5 Glassdoor
+Fit score: 80/100
+Posted: 2026-08-15
+URL: https://example.com/culture-order
+Fit: Higher compensation, weaker culture than Example B.
+Status: new
+
 ## Tier S - apply this week
 
 ### Senior AI Platform Engineer - Example S
@@ -291,7 +302,7 @@ def main() -> None:
                 page.wait_for_selector("#panel-queue:not([hidden])")
                 assert queue_count == "6", f"queue count: {queue_count}"
                 assert history_count == "3", f"history count: {history_count}"
-                assert page.locator("#t-jobs").inner_text() == "4"
+                assert page.locator("#t-jobs").inner_text() == "5"
                 assert page.locator("#panel-queue .card").count() == 6
                 assert page.locator("#tabs").evaluate(
                     "element => getComputedStyle(element).minWidth === '0px'"
@@ -380,12 +391,14 @@ def main() -> None:
                 assert page.url.endswith("#jobs")
                 assert "Contract roles follow in a secondary lane" in page.locator("#panel-jobs .panel-note").inner_text()
                 job_cards = page.locator("#panel-jobs .job-card")
-                assert job_cards.count() == 4
+                assert job_cards.count() == 5
                 assert job_cards.nth(0).locator("h3").inner_text() == "Senior AI Platform Engineer - Example S"
                 # The dead posting sinks below the live one inside its tier, even though it pays more.
                 assert job_cards.nth(1).locator("h3").inner_text() == "Lower salary - Example B"
-                assert job_cards.nth(2).locator("h3").inner_text() == "Higher salary - Example A"
-                assert job_cards.nth(3).locator("h3").inner_text() == "Ticket-to-PR Automation Consultant - Example Contract"
+                # Culture outranks salary within a live tier: 4.6/5 beats 4.0/5 despite lower pay.
+                assert job_cards.nth(2).locator("h3").inner_text() == "Higher salary, weaker culture - Example C"
+                assert job_cards.nth(3).locator("h3").inner_text() == "Higher salary - Example A"
+                assert job_cards.nth(4).locator("h3").inner_text() == "Ticket-to-PR Automation Consultant - Example Contract"
                 # Every card carries a Glassdoor link. An explicit "Glassdoor:" field wins;
                 # otherwise the card falls back to a search for the employer, because there
                 # is no free ratings API and scraping Glassdoor is not an option.
@@ -400,6 +413,10 @@ def main() -> None:
                         "Glassdoor": search + "Example%20B",
                     },
                     {
+                        "Open posting": "https://example.com/culture-order",
+                        "Glassdoor": search + "Example%20C",
+                    },
+                    {
                         "Open posting (gone)": "https://example.com/high",
                         "Glassdoor": search + "Example%20A",
                     },
@@ -409,13 +426,13 @@ def main() -> None:
                     },
                 ]
                 # An unrated employer reads as "not rated", never as a zero score.
-                contract_metrics = job_cards.nth(3).locator(".job-metrics").inner_text()
+                contract_metrics = job_cards.nth(4).locator(".job-metrics").inner_text()
                 assert "not rated" in contract_metrics
                 assert "0.0/5" not in contract_metrics
                 # Liveness must be legible in words, not only in colour, and the two
                 # failure states must never read alike: "gone" is what the site told us,
                 # "could not check" is our own failure and claims nothing about the role.
-                dead_card = job_cards.nth(2)
+                dead_card = job_cards.nth(3)
                 assert "liveness-dead" in dead_card.get_attribute("class")
                 dead_text = dead_card.locator(".job-liveness").inner_text()
                 assert "Posting is gone" in dead_text

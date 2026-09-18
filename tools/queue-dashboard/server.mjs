@@ -551,7 +551,7 @@ function parseJobs(text) {
     });
 
     // Tier remains the primary recommendation. Within a tier, the requested order is
-    // salary, Glassdoor culture, then estimated likelihood of success - but a posting
+    // Glassdoor culture, salary, then estimated likelihood of success - but a posting
     // confirmed gone sinks below the ones you can still apply to. The top card in a tier
     // being a dead link is the thing that sent us looking for these safeguards.
     // An already-submitted application is history worth keeping, not a recommendation, so
@@ -601,8 +601,8 @@ function parseJobs(text) {
     section.jobs.sort((a, b) =>
       (a.status === "applied" ? 1 : 0) - (b.status === "applied" ? 1 : 0) ||
       (a.liveness === "dead" ? 1 : 0) - (b.liveness === "dead" ? 1 : 0) ||
-      b.salaryValue - a.salaryValue ||
       compareCulture(a, b) ||
+      b.salaryValue - a.salaryValue ||
       b.fitScore - a.fitScore ||
       a.title.localeCompare(b.title)
     );
@@ -1219,7 +1219,7 @@ background:var(--blocked);color:var(--surface);font-weight:700;font-size:.95rem}
         <h2 class="sec">Recommended jobs</h2>
         <span class="gate" id="jobs-summary"></span>
       </div>
-      <p class="panel-note">Permanent tiers first. Contract roles follow in a secondary lane. Within each group: salary, Glassdoor culture, then estimated application likelihood.</p>
+      <p class="panel-note">Permanent tiers first. Contract roles follow in a secondary lane. Within each group: Glassdoor culture, salary, then estimated application likelihood.</p>
       <div class="jobs" id="jobs"></div>
     </section>
   </main>
@@ -1415,7 +1415,7 @@ function renderJobs(s){
   if (s.unreachable) health.push(s.unreachable + ' could not be checked');
   if (s.unchecked) health.push(s.unchecked + ' never checked');
   document.getElementById('jobs-summary').textContent = s.total
-    + (s.total === 1 ? ' posting' : ' postings') + ' - sorted by salary, culture, fit'
+    + (s.total === 1 ? ' posting' : ' postings') + ' - sorted by culture, salary, fit'
     + (health.length ? ' - ' + health.join(', ') : '');
   if (!s.total){
     host.innerHTML = '<p class="empty">No recommended jobs yet.</p>';
