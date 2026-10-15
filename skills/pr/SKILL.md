@@ -84,7 +84,23 @@ Use this structure, dropping any section that would be empty:
 Only tick a box for a check that genuinely ran.
 An unticked box is honest; a ticked one that did not run is not.
 
-Never append a "Generated with Claude Code" (or similar) footer or link to the PR body.
+Never attribute the PR to an agent: no "Generated with Claude Code" footer or link, no
+`Co-Authored-By: Claude` line, in the title or the body. This is the same rule AGENTS.md
+applies to commit messages, and it covers pull requests too.
+
+Write the body to a file and run it through the stripper before every `gh pr create` and
+every `gh pr edit`:
+
+```powershell
+powershell -NoProfile -File tools\strip-pr-attribution.ps1 -Path body.md
+gh pr create --body-file body.md
+```
+
+The step is mandatory rather than advisory because this instruction already existed here
+as prose and was violated 33 times across three repositories before anyone noticed. A
+convention with no mechanism is one the tooling quietly ignores, so the mechanism is the
+rule now and this paragraph only explains it. `-Check` exits 1 without modifying anything,
+for a CI gate.
 
 ## Verify
 
