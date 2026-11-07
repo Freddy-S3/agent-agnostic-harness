@@ -26,6 +26,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { controlCenter } from "./control-center.mjs";
+import { allowedWriteOrigin, readLimitedBody } from "./request-security.mjs";
 
 const run = promisify(execFile);
 const PORT = Number(process.env.PORT || 4317);
@@ -1814,13 +1815,16 @@ tick(); setInterval(tick, 5000);
 </script></body></html>`;
 
 async function readBody(req) {
-  let raw = "";
-  for await (const chunk of req) raw += chunk;
-  return raw;
+  return readLimitedBody(req);
 }
 
 const handler = async (req, res) => {
   try {
+    res.setHeader("cache-control", "no-store");
+    if (req.method === "POST" && !allowedWriteOrigin(req.headers.origin, req.headers.host, process.env.QUEUE_PUBLIC_ORIGIN)) {
+      res.writeHead(403, { "content-type": "application/json", "cache-control": "no-store" });
+      return res.end(JSON.stringify({ error: "untrusted request origin" }));
+    }
     if (req.method === "POST" && req.url === "/unlock") {
       const given = new URLSearchParams(await readBody(req)).get("token") || "";
       if (!sameToken(given.trim())) {
@@ -1887,7 +1891,7 @@ const handler = async (req, res) => {
     }
     res.writeHead(404).end("not found");
   } catch (err) {
-    const code = err && err.code === 409 ? 409 : err && err.code === 404 ? 404 : 500;
+    const code = err && [404, 409, 413].includes(err.code) ? err.code : 500;
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: String(err && err.message) }));
   }

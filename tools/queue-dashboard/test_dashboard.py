@@ -7,6 +7,8 @@ import socket
 import subprocess
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from datetime import date
 from pathlib import Path
 
@@ -82,7 +84,7 @@ ANSWER_LEDGER = (
     f'"recorded":"{TODAY}"}}\n'
 )
 
-STUDY = """## Reading
+STUDY = """## NEXT 1 - Reading
 - [ ] Read the first chapter
 - [x] Finish the introduction
 """
@@ -259,6 +261,33 @@ def main() -> None:
 
                 url = f"http://127.0.0.1:{port}/"
                 wait_for_server(port)
+                endpoint = url + "api/study"
+                payload = b'{"index":0,"done":true,"text":"Read the first chapter"}'
+                headers = {"Cookie": "qd=dashboard-test-token", "Content-Type": "application/json"}
+                for origin in (None, "https://attacker.example"):
+                    attack_headers = dict(headers)
+                    if origin:
+                        attack_headers["Origin"] = origin
+                    request = urllib.request.Request(endpoint, data=payload, headers=attack_headers, method="POST")
+                    try:
+                        urllib.request.urlopen(request)
+                        raise AssertionError("untrusted write unexpectedly succeeded")
+                    except urllib.error.HTTPError as error:
+                        assert error.code == 403, f"unexpected rejection: {error.code}"
+                assert (queue_dir / "STUDY.md").read_text(encoding="utf-8") == STUDY
+
+                oversized = urllib.request.Request(
+                    endpoint,
+                    data=b"x" * 65_537,
+                    headers={**headers, "Origin": url.rstrip("/")},
+                    method="POST",
+                )
+                try:
+                    urllib.request.urlopen(oversized)
+                    raise AssertionError("oversized write unexpectedly succeeded")
+                except urllib.error.HTTPError as error:
+                    assert error.code == 413, f"unexpected size rejection: {error.code}"
+                assert (queue_dir / "STUDY.md").read_text(encoding="utf-8") == STUDY
                 context.add_cookies(
                     [
                         {

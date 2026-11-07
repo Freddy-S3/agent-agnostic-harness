@@ -298,7 +298,16 @@ To stop publishing: `tailscale serve --https=443 off`.
 | `QUEUE_DIR` | `~/.claude-harness/queue` |
 | `PORT` | `4317` |
 | `QUEUE_TOKEN` | generated into `.dashboard-token` on first run |
+| `QUEUE_PUBLIC_ORIGIN` | unset; exact HTTPS origin if an authenticated reverse proxy is configured |
 
 It binds `127.0.0.1` only, and should stay that way. The queue holds private content, so
 remote access belongs behind an identity-checked mesh like Tailscale, not behind a
 `0.0.0.0` bind or a public tunnel.
+
+Write requests require a trusted, matching `Origin` and `Host`; localhost and existing
+tailnet routes are recognized, and an explicitly configured public origin must use HTTPS.
+Request bodies are limited to 64 KiB and responses are marked `no-store`.
+These guards do not authenticate an external proxy or make an internet-facing tunnel safe
+by themselves. Keep `QUEUE_PUBLIC_ORIGIN` unset until a separate identity gate is deployed
+and tested. Run `node --test tools/queue-dashboard/request-security.test.mjs` and
+`python tools/queue-dashboard/test_request_security.py` for focused security checks.
