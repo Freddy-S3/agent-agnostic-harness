@@ -6,14 +6,23 @@ The PC must be on, signed in, and running both the dashboard and the tunnel.
 
 `start-ssh-tunnel.ps1` is the local tunnel runner.
 It requires a dedicated SSH key and a separately verified pinned host key, fails if the
-remote port cannot bind, and retries a disconnected tunnel.
+remote socket cannot bind, and retries a disconnected tunnel.
 It never accepts an unknown host key or forwards the dashboard directly to the internet.
 Use `-DryRun` to inspect the SSH arguments without connecting.
 
 This is preparation, not a complete or safe public deployment.
 Before enabling access, the remote endpoint must enforce HTTPS and a separate
-authentication gate, restrict its SSH account to loopback-only remote forwarding,
+authentication gate, restrict its SSH account to remote Unix socket forwarding,
 and be tested from an unauthenticated client.
+The example Basic Authentication gate does not provide MFA or login throttling;
+do not publish it on the internet without a separately tested MFA-capable identity
+gate and abuse protection.
+The server must create `/run/queuebridge` with owner `queuebridge`, group `caddy`,
+and mode `2750`: the bridge account can create the socket, Caddy can traverse the
+directory and connect, and other unprivileged users cannot replace the socket.
+The effective SSH policy gives the socket mode `0660` and lets it inherit the Caddy
+group from that setgid directory. Do not deploy until these permissions and socket
+ownership have been verified on the actual server.
 The example Caddy and SSH configurations illustrate those boundaries.
 Caddy 2.11.9 and OpenSSH 8.9 accepted the syntax in isolated local validation;
 neither example has been installed or tested on a remote server.
@@ -25,5 +34,9 @@ local argument checks. With `CADDY_BINARY` set to a trusted Caddy executable, ru
 `python tools/queue-dashboard/remote/test-proxy.py` to check both authentication
 layers and a safe write against the real dashboard with synthetic data. On Linux, set `SSHD_BINARY` and run
 `sh tools/queue-dashboard/remote/test-sshd-config.sh` to check the effective
-restrictions for the bridge account. A real tunnel and identity gate require
-separate integration tests.
+restrictions for the bridge account. `test-unix-tunnel.py` requires root in a
+disposable Linux test environment; it creates a private mount namespace and uses
+synthetic users and keys to exercise a real tunnel. It checks that the proxy user can
+connect, an unrelated user cannot reach or replace the socket, TCP forwarding is
+denied, and the bridge account cannot run a command. A deployed tunnel and identity
+gate still require a separate real-device test.

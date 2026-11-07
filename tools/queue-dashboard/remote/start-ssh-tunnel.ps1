@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory = $true)][string]$KnownHostsFile,
     [ValidatePattern('^[a-z_][a-z0-9_-]*$')][string]$UserName = 'queuebridge',
     [ValidateRange(1, 65535)][int]$LocalPort = 4317,
-    [ValidateRange(1, 65535)][int]$RemotePort = 4317,
+    [ValidatePattern('^/run/queuebridge/[a-zA-Z0-9_-]+\.sock$')][string]$RemoteSocket = '/run/queuebridge/queue.sock',
     [switch]$DryRun
 )
 
@@ -30,7 +30,7 @@ $arguments = @(
     '-o', 'ServerAliveInterval=30',
     '-o', 'ServerAliveCountMax=3',
     '-i', $identity,
-    '-R', "127.0.0.1:${RemotePort}:127.0.0.1:${LocalPort}",
+    '-R', "${RemoteSocket}:127.0.0.1:${LocalPort}",
     "${UserName}@${ServerName}"
 )
 

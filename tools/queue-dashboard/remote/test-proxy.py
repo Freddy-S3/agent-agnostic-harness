@@ -5,6 +5,7 @@ certificate and never installs a CA, changes DNS, or touches real queue data.
 """
 
 import base64
+import http.client
 import json
 import os
 from pathlib import Path
@@ -40,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix="queue-proxy-test-") as raw:
     config = root / "Caddyfile"
     config.write_text(
         "{\n    local_certs\n    skip_install_trust\n    auto_https disable_redirects\n}\n"
-        + EXAMPLE.read_text(encoding="utf-8").replace("127.0.0.1:4317", f"127.0.0.1:{upstream_port}"),
+        + EXAMPLE.read_text(encoding="utf-8").replace("unix//run/queuebridge/queue.sock", f"127.0.0.1:{upstream_port}"),
         encoding="utf-8",
     )
     env = {
@@ -116,7 +117,19 @@ with tempfile.TemporaryDirectory(prefix="queue-proxy-test-") as raw:
         except urllib.error.HTTPError as error:
             assert error.code == 401, f"unexpected dashboard-login response: {error.code}"
 
-        headers = {**basic_headers, "Cookie": "qd=synthetic-dashboard-token"}
+        connection = http.client.HTTPSConnection("localhost", proxy_port, context=tls, timeout=5)
+        connection.request(
+            "POST", "/unlock", body=b"token=synthetic-dashboard-token",
+            headers={**basic_headers, "Origin": url.rstrip("/"), "Content-Type": "application/x-www-form-urlencoded"},
+        )
+        login = connection.getresponse()
+        assert login.status == 303, f"unexpected dashboard login status: {login.status}"
+        cookie = login.getheader("Set-Cookie")
+        assert cookie and "; Secure" in cookie and "; HttpOnly" in cookie and "; SameSite=Strict" in cookie
+        login.read()
+        connection.close()
+
+        headers = {**basic_headers, "Cookie": cookie.split(";", 1)[0]}
         request = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(request, context=tls, timeout=5) as response:
             assert response.status == 200

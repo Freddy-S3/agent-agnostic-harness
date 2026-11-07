@@ -5,5 +5,5 @@ https://{$QUEUE_HOST} {
     }
 
     header Cache-Control "no-store"
-    reverse_proxy 127.0.0.1:4317
+    reverse_proxy unix//run/queuebridge/queue.sock
 }

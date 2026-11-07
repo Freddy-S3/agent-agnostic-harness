@@ -26,10 +26,12 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { controlCenter } from "./control-center.mjs";
-import { allowedWriteOrigin, readLimitedBody } from "./request-security.mjs";
+import { allowedWriteOrigin, readLimitedBody, validPublicOrigin } from "./request-security.mjs";
 
 const run = promisify(execFile);
 const PORT = Number(process.env.PORT || 4317);
+const PUBLIC_ORIGIN = process.env.QUEUE_PUBLIC_ORIGIN || "";
+if (!validPublicOrigin(PUBLIC_ORIGIN)) throw new Error("QUEUE_PUBLIC_ORIGIN must be a canonical HTTPS origin without a trailing slash");
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const QUEUE_DIR = process.env.QUEUE_DIR || join(homedir(), ".claude-harness", "queue");
@@ -1821,7 +1823,7 @@ async function readBody(req) {
 const handler = async (req, res) => {
   try {
     res.setHeader("cache-control", "no-store");
-    if (req.method === "POST" && !allowedWriteOrigin(req.headers.origin, req.headers.host, process.env.QUEUE_PUBLIC_ORIGIN)) {
+    if (req.method === "POST" && !allowedWriteOrigin(req.headers.origin, req.headers.host, PUBLIC_ORIGIN)) {
       res.writeHead(403, { "content-type": "application/json", "cache-control": "no-store" });
       return res.end(JSON.stringify({ error: "untrusted request origin" }));
     }

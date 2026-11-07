@@ -1,5 +1,15 @@
 const MAX_BODY_BYTES = 64 * 1024;
 
+export function validPublicOrigin(value) {
+  if (!value) return true;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && parsed.origin === value && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+}
+
 export function allowedWriteOrigin(origin, host, publicOrigin = "") {
   if (typeof origin !== "string" || typeof host !== "string") return false;
   try {
@@ -15,20 +25,42 @@ export function allowedWriteOrigin(origin, host, publicOrigin = "") {
   }
 }
 
-export async function readLimitedBody(req) {
-  const chunks = [];
-  let size = 0;
-  let oversized = false;
-  for await (const chunk of req) {
-    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    size += bytes.length;
-    if (size > MAX_BODY_BYTES) oversized = true;
-    if (!oversized) chunks.push(bytes);
-  }
-  if (oversized) {
-    const error = new Error("request body too large");
-    error.code = 413;
-    throw error;
-  }
-  return Buffer.concat(chunks).toString("utf8");
+export function readLimitedBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let finished = false;
+    req.on("data", (chunk) => {
+      if (finished) return;
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      size += bytes.length;
+      if (size > MAX_BODY_BYTES) {
+        finished = true;
+        chunks.length = 0;
+        const error = new Error("request body too large");
+        error.code = 413;
+        reject(error);
+        return;
+      }
+      chunks.push(bytes);
+    });
+    req.on("end", () => {
+      if (!finished) {
+        finished = true;
+        resolve(Buffer.concat(chunks).toString("utf8"));
+      }
+    });
+    req.on("error", (error) => {
+      if (!finished) {
+        finished = true;
+        reject(error);
+      }
+    });
+    req.on("aborted", () => {
+      if (!finished) {
+        finished = true;
+        reject(new Error("request aborted"));
+      }
+    });
+  });
 }

@@ -17,8 +17,10 @@ for expected in \
   'passwordauthentication no' \
   'kbdinteractiveauthentication no' \
   'allowtcpforwarding remote' \
-  'allowstreamlocalforwarding no' \
-  'permitlisten 127.0.0.1:4317' \
+  'allowstreamlocalforwarding remote' \
+  'streamlocalbindmask 0117' \
+  'streamlocalbindunlink yes' \
+  'permitlisten none' \
   'permitopen none' \
   'gatewayports no' \
   'allowagentforwarding no' \
