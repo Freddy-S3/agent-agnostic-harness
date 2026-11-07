@@ -1,35 +1,26 @@
-"""Verify the example proxy protects a synthetic localhost service.
+"""Verify the example proxy protects a real dashboard with synthetic data.
 
 Set CADDY_BINARY to a trusted Caddy executable. This test uses a self-signed local
 certificate and never installs a CA, changes DNS, or touches real queue data.
 """
 
 import base64
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
 import os
 from pathlib import Path
 import socket
 import ssl
 import subprocess
 import tempfile
-import threading
 import time
 import urllib.error
 import urllib.request
 
 CADDY = os.environ["CADDY_BINARY"]
 EXAMPLE = Path(__file__).with_name("Caddyfile.example")
+ROOT = Path(__file__).resolve().parents[3]
+SERVER = ROOT / "tools" / "queue-dashboard" / "server.mjs"
 TEST_HASH = "$2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNmpkT/5qqR7hx4IjWJPDhjvG"
-
-
-class SyntheticHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"synthetic queue")
-
-    def log_message(self, *args):
-        pass
 
 
 def free_port():
@@ -40,9 +31,11 @@ def free_port():
 
 with tempfile.TemporaryDirectory(prefix="queue-proxy-test-") as raw:
     root = Path(raw)
-    upstream = ThreadingHTTPServer(("127.0.0.1", 0), SyntheticHandler)
-    upstream_port = upstream.server_address[1]
-    threading.Thread(target=upstream.serve_forever, daemon=True).start()
+    queue = root / "queue"
+    queue.mkdir()
+    study = queue / "STUDY.md"
+    study.write_text("## Reading\n- [ ] Synthetic chapter\n", encoding="utf-8")
+    upstream_port = free_port()
     proxy_port = free_port()
     config = root / "Caddyfile"
     config.write_text(
@@ -57,11 +50,32 @@ with tempfile.TemporaryDirectory(prefix="queue-proxy-test-") as raw:
         "XDG_DATA_HOME": str(root / "data"),
         "XDG_CONFIG_HOME": str(root / "config"),
     }
+    dashboard_env = {
+        **os.environ,
+        "QUEUE_DIR": str(queue),
+        "QUEUE_TOKEN": "synthetic-dashboard-token",
+        "PORT": str(upstream_port),
+        "QUEUE_PUBLIC_ORIGIN": f"https://localhost:{proxy_port}",
+    }
+    dashboard = subprocess.Popen(
+        ["node", str(SERVER)], cwd=ROOT, env=dashboard_env,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
     proxy = subprocess.Popen(
         [CADDY, "run", "--config", str(config), "--adapter", "caddyfile"],
         env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     try:
+        for _ in range(100):
+            if dashboard.poll() is not None:
+                raise AssertionError("dashboard exited before accepting requests")
+            try:
+                with socket.create_connection(("127.0.0.1", upstream_port), timeout=0.2):
+                    break
+            except OSError:
+                time.sleep(0.1)
+        else:
+            raise AssertionError("dashboard did not start")
         for _ in range(100):
             if proxy.poll() is not None:
                 raise AssertionError("Caddy exited before accepting requests")
@@ -94,11 +108,42 @@ with tempfile.TemporaryDirectory(prefix="queue-proxy-test-") as raw:
             assert error.code == 401, f"unexpected incorrect-password response: {error.code}"
 
         credentials = base64.b64encode(b"queue:hiccup").decode("ascii")
-        request = urllib.request.Request(url, headers={"Authorization": f"Basic {credentials}"})
+        basic_headers = {"Authorization": f"Basic {credentials}"}
+        request = urllib.request.Request(url, headers=basic_headers)
+        try:
+            urllib.request.urlopen(request, context=tls, timeout=5)
+            raise AssertionError("dashboard unexpectedly bypassed its own login")
+        except urllib.error.HTTPError as error:
+            assert error.code == 401, f"unexpected dashboard-login response: {error.code}"
+
+        headers = {**basic_headers, "Cookie": "qd=synthetic-dashboard-token"}
+        request = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(request, context=tls, timeout=5) as response:
             assert response.status == 200
-            assert response.read() == b"synthetic queue"
+            assert b"Queue" in response.read()
             assert response.headers.get("Cache-Control") == "no-store"
+
+        payload = json.dumps({"index": 0, "done": True, "text": "Synthetic chapter"}).encode()
+        attack = urllib.request.Request(
+            url + "api/study", data=payload,
+            headers={**headers, "Origin": "https://attacker.example", "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(attack, context=tls, timeout=5)
+            raise AssertionError("cross-origin write unexpectedly succeeded")
+        except urllib.error.HTTPError as error:
+            assert error.code == 403, f"unexpected cross-origin response: {error.code}"
+        assert "- [ ]" in study.read_text(encoding="utf-8")
+
+        legitimate = urllib.request.Request(
+            url + "api/study", data=payload,
+            headers={**headers, "Origin": url.rstrip("/"), "Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(legitimate, context=tls, timeout=5) as response:
+            assert response.status == 200
+        assert "- [x]" in study.read_text(encoding="utf-8")
     finally:
         proxy.terminate()
         try:
@@ -106,5 +151,9 @@ with tempfile.TemporaryDirectory(prefix="queue-proxy-test-") as raw:
         except subprocess.TimeoutExpired:
             proxy.kill()
             proxy.wait(timeout=5)
-        upstream.shutdown()
-        upstream.server_close()
+        dashboard.terminate()
+        try:
+            dashboard.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            dashboard.kill()
+            dashboard.wait(timeout=5)
