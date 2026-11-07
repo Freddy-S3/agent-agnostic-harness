@@ -29,6 +29,14 @@ if len(sys.argv) == 1:
     raise SystemExit(0)
 if sys.argv[1:] != ["--isolated"]:
     raise SystemExit("Invalid test mode")
+if os.geteuid() != 0:
+    raise SystemExit("Run this isolated integration test as root")
+if os.readlink("/proc/self/ns/mnt") == os.readlink(f"/proc/{os.getppid()}/ns/mnt"):
+    raise SystemExit("Refusing to mount without a separate mount namespace")
+for mount in Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines():
+    optional_fields = mount.split(" - ", 1)[0].split()[6:]
+    if any(field.startswith("shared:") for field in optional_fields):
+        raise SystemExit("Refusing to mount with shared propagation")
 
 
 def run(*args, **kwargs):
