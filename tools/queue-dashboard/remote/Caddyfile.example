@@ -1,0 +1,9 @@
+# Illustrative configuration. Do not expose until authenticated end-to-end tests pass.
+https://{$QUEUE_HOST} {
+    basic_auth {
+        queue {$QUEUE_BASIC_HASH}
+    }
+
+    header Cache-Control "no-store"
+    reverse_proxy 127.0.0.1:4317
+}

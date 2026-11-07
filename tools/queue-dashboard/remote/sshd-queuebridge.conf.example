@@ -1,0 +1,17 @@
+# Include this only after validating the effective sshd configuration.
+# The bridge account is not an interactive shell and can bind only this loopback port.
+Match User queuebridge
+    AuthenticationMethods publickey
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    AllowTcpForwarding remote
+    AllowStreamLocalForwarding no
+    PermitListen 127.0.0.1:4317
+    GatewayPorts no
+    AllowAgentForwarding no
+    X11Forwarding no
+    PermitTTY no
+    PermitUserRC no
+    PermitUserEnvironment no
+    PermitTunnel no
+    ForceCommand /usr/sbin/nologin
