@@ -81,6 +81,15 @@ test("worker selection is cloud-first, desktop-only for local requirements, and 
   assert.equal(deferred.queue, "desktop");
 });
 
+test("desktop is the single fallback when cloud delivery is unavailable", () => {
+  const result = selectWorker(createAction(action({ actionId: "action-fallback" })), {
+    cloud: { available: false, repositories: [owner.repository], tools: [] },
+    desktop: { available: true, repositories: [owner.repository], tools: [] },
+  });
+  assert.equal(result.worker, "desktop-connector");
+  assert.match(result.reason, /cloud delivery is unavailable/);
+});
+
 test("duplicate action ids are idempotent and leave audit evidence", async () => {
   const directory = await mkdtemp(join(tmpdir(), "queue-actions-"));
   let deliveries = 0;

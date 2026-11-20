@@ -69,9 +69,15 @@ The adapter receives the complete action and the selected routing record through
 
 An adapter must treat `actionId` as its own idempotency key and return an acceptance receipt without executing arbitrary browser input.
 
-No live adapter is configured by this repository.
+`tools/queue-dashboard/adapters.mjs` provides the live HTTP adapter boundary.
+It sends the action to a server-side HTTPS endpoint with a bearer token and an `Idempotency-Key` header.
+The bearer token never reaches the browser or the action log.
 
-Without one, the durable action and audit records remain available for the next authorized session.
+Configure `QUEUE_CLOUD_ADAPTER_URL` with `QUEUE_CLOUD_ADAPTER_TOKEN`, or `QUEUE_DESKTOP_ADAPTER_URL` with `QUEUE_DESKTOP_ADAPTER_TOKEN`, only after the corresponding host is authorized.
+The matching capability JSON is still required, so an endpoint without a capability record cannot receive work.
+Local HTTP endpoints are accepted only when `QUEUE_ALLOW_INSECURE_ADAPTERS=1` is explicitly set for local testing.
+
+Without an authorized adapter, the durable action and audit records remain available for the next authorized session.
 
 ## Offline snapshots
 
@@ -128,7 +134,9 @@ Before desktop delivery can resume local-only work, the desktop connector must b
 
 Those permissions are intentionally not created by this change.
 
-The private address `queue.alazyengineer.com` still needs an authenticated host or reverse proxy, DNS, TLS, and a deployment target chosen by the owner.
+The reproducible Lightsail path is in [deploy/queue-relay/README.md](../deploy/queue-relay/README.md).
+It stages the authenticated service on loopback before DNS or TLS, uses the Lightsail browser session instead of copying an SSH private key, and leaves only 443 open after activation.
+The private address `queue.alazyengineer.com` still requires that staged authentication check before its DNS and TLS activation steps.
 
 The public blog on Amplify is a separate surface and is not changed by this repository.
 
