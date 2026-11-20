@@ -9,8 +9,8 @@ Items that need Faruk physically at his PC: local toolchain (Node/Python/etc.),
 software installs, folder-access approvals, a running build he needs eyes on, or a
 browser session driven through his own logged-in Chrome.
 
-Same format and rules as `queue/QUEUE-PHONE.example.md` — see that file's header for
-the shared mechanics (statuses, `/queue` contract, resuming).
+Same format and rules as `queue/QUEUE-PHONE.example.md` - see that file's header for
+the shared mechanics (statuses, one-item runner contract, checkpoints, and resuming).
 
 **Moving an item to the other queue:** cut the whole `## ` entry (including its `Log:`)
 and paste it into the phone queue, or vice versa. No format change needed — a queue

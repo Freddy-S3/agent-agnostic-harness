@@ -67,7 +67,17 @@ Assert-Eq $r.Code 0 'a matching fingerprint appends'
 Assert ((Get-Content -Raw $q) -match 'appended line') 'the appended content lands in the file'
 Assert ((Get-Content -Raw $q) -match '## Existing item') 'the existing content survives the append'
 
-# --- 2. a stale fingerprint is refused -------------------------------------------------
+# --- 2. a matching fingerprint replaces the complete file -----------------------------
+$q = New-QueueFile
+$fp = Get-Fp $q
+$replacement = Join-Path $root 'replacement.md'
+[System.IO.File]::WriteAllText($replacement, "# Replaced`n")
+$r = Invoke-Cas @('replace', '-Path', $q, '-Expect', $fp, '-ContentPath', $replacement)
+Assert-Eq $r.Code 0 'a matching fingerprint replaces'
+Assert ((Get-Content -Raw $q) -eq "# Replaced`n") 'replacement content becomes the complete file'
+Assert ((Get-Content -Raw $q) -notmatch '## Existing item') 'replacement removes the old content'
+
+# --- 3. a stale fingerprint is refused -------------------------------------------------
 $q = New-QueueFile
 $stale = Get-Fp $q
 Add-Content -Path $q -Value 'a peer wrote this' -Encoding utf8
@@ -76,16 +86,17 @@ Assert-Eq $r.Code 5 'a stale fingerprint is reported as a conflict'
 Assert ((Get-Content -Raw $q) -notmatch 'should not land') 'a conflicted append writes nothing'
 Assert ((Get-Content -Raw $q) -match 'a peer wrote this') "the peer's write survives the refusal"
 
-# --- 3. an absent file fingerprints as 'absent' ----------------------------------------
+# --- 4. an absent file fingerprints as 'absent' ----------------------------------------
 $missing = Join-Path $root 'never-created.md'
 Assert-Eq (Get-Fp $missing) 'absent' 'an absent file fingerprints as absent'
 
-# --- 4. usage errors ------------------------------------------------------------------
+# --- 5. usage errors ------------------------------------------------------------------
 $q = New-QueueFile
 Assert-Eq (Invoke-Cas @('append', '-Path', $q, '-Content', 'x')).Code 4 'append without -Expect is a usage error'
 Assert-Eq (Invoke-Cas @('append', '-Path', $q, '-Expect', (Get-Fp $q))).Code 4 'append with no content is a usage error'
+Assert-Eq (Invoke-Cas @('replace', '-Path', $q, '-Expect', (Get-Fp $q), '-ContentPath', (Join-Path $root 'missing.md'))).Code 4 'replace with a missing content file is a usage error'
 
-# --- 5. a large append travels by file, not by command line ----------------------------
+# --- 6. a large append travels by file, not by command line ----------------------------
 # 40 KB is past the Windows command-line cap, so this case fails outright without
 # -ContentPath. It is the shape a discovery run produces when it merges a batch of new
 # postings into JOBS.md in one write.
@@ -103,7 +114,7 @@ Assert ($after -match '### Posting 1\b') 'the first entry of a large append land
 Assert ($after -match '### Posting 1600\b') 'the last entry of a large append lands'
 Assert ($after -match '## Existing item') 'a large append preserves the existing content'
 
-# --- 6. -ContentPath obeys the same fingerprint guard ----------------------------------
+# --- 7. -ContentPath obeys the same fingerprint guard ----------------------------------
 $q = New-QueueFile
 $stale = Get-Fp $q
 Add-Content -Path $q -Value 'a peer wrote this' -Encoding utf8
@@ -111,12 +122,12 @@ $r = Invoke-Cas @('append', '-Path', $q, '-Expect', $stale, '-ContentPath', $big
 Assert-Eq $r.Code 5 'a stale fingerprint is refused for -ContentPath too'
 Assert ((Get-Content -Raw $q) -notmatch '### Posting 1\b') 'a conflicted -ContentPath append writes nothing'
 
-# --- 7. -Content and -ContentPath together are a usage error ---------------------------
+# --- 8. -Content and -ContentPath together are a usage error ---------------------------
 $q = New-QueueFile
 $r = Invoke-Cas @('append', '-Path', $q, '-Expect', (Get-Fp $q), '-Content', 'x', '-ContentPath', $bigFile)
 Assert-Eq $r.Code 4 'passing both -Content and -ContentPath is a usage error'
 
-# --- 8. a missing -ContentPath is a usage error, not a silent no-op --------------------
+# --- 9. a missing -ContentPath is a usage error, not a silent no-op --------------------
 $q = New-QueueFile
 $r = Invoke-Cas @('append', '-Path', $q, '-Expect', (Get-Fp $q), '-ContentPath', (Join-Path $root 'no-such-file.md'))
 Assert-Eq $r.Code 4 'a missing -ContentPath is a usage error'

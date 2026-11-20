@@ -37,12 +37,31 @@ Adding an item is appending a new `## ` entry with `Status: pending` to whicheve
 
 **Moving an item between queues:** cut the whole `## ` entry (including its `Log:`) from one file and paste it into the other — no format change needed, a queue entry is self-contained. Add a one-line `Log:` note on the move (from which queue, and why). Do this when a blocked PC item turns out to have a phone-doable half worth splitting out.
 
+## Software-factory run boundary
+
+`tools/queue-runner.ps1` is the deterministic boundary around the model-driven workflow.
+
+- Run `pwsh -NoProfile -File tools/queue-runner.ps1 start -Gate auto` before work begins.
+  It reads both queues, resumes the highest-impact `in-progress` item before considering `pending`, preserves phone-before-PC order for `auto`, and claims exactly one item.
+- An actionable item has exactly one `Repo:` line resolving to an existing Git repository.
+  A missing or ambiguous route stops with an actionable error instead of guessing or skipping to another item.
+- `start` writes `.software-factory/checkpoints/<run>.json` before marking the item `in-progress`.
+  The checkpoint carries the owning route, phase, next action, and write-ahead intent history.
+- Before a branch, push, build, network call, external tool, or other risky operation, run `checkpoint -Operation` with its partial state and a runnable discriminator.
+  Close it with `checkpoint -Outcome` after the operation.
+- On usage, permission, network, or tool failure, run `stop -Reason`.
+  The item stays `in-progress`, the checkpoint becomes `paused`, and the next firing resumes the same run from its recorded phase.
+- Finish only after one bounded verification path and a PR opened or updated when code changed.
+  `finish -Verification ... -PullRequest ...` records the evidence and marks the item done; it never merges or publishes.
+- Public publishing, paid infrastructure, external messages, production deployment, and merges are human gates.
+  Use `block -Reason ... -Options ...` when one of those decisions stops the run.
+
 ## Contract
 
 1. Set the mode to personal for the whole run, regardless of directory. Borrow `/faruk`'s one-interruption rule and `/sleep`'s recoverability discipline (branch, frequent real commits, never rewrite published history) — this runs unattended by design, so treat every item as a `/sleep`-style task even during the day.
-2. Read both queue files for the impact pass, even when an argument limits which gate this run may work. Resume the highest-impact `in-progress` item in the selected gate if one exists - it means a prior run was interrupted mid-task, most likely by hitting the usage limit. Otherwise take the highest-impact `pending` item in that gate. If no dependency edges are declared, preserve source order.
-3. Mark the item `in-progress` in the queue file and save it before starting work, so an interruption a moment later still leaves an accurate queue state. The queue file itself isn't tracked in `agent-agnostic-harness` git — see Model above — so this is a plain file write, not a commit.
-4. Work the item to completion in its own repo (the `Repo:` line), on its own branch, following that item's brief. Append a dated one-line note to the item's `Log:` after each meaningful step (branch created, PR opened, blocked on X) — not a full transcript, just enough for the next run or Faruk to pick up the thread cold.
+2. Start `tools/queue-runner.ps1` before work begins. Read both queue files for the impact pass, even when an argument limits which gate this run may work. Resume the highest-impact `in-progress` item in the selected gate if one exists. Otherwise take the highest-impact `pending` item in that gate. If no dependency edges are declared, preserve source order.
+3. Let the runner validate that the selected item has exactly one owning repository, create its checkpoint, mark it `in-progress`, and return the route before starting work. The queue file itself is not tracked in `agent-agnostic-harness` git, so the runner uses `tools/queue-cas.ps1` for its shared-file mutation.
+4. Work only that item in its owning repo and on its own branch. Append a dated one-line note to the item's `Log:` after each meaningful step, such as a branch created, a PR opened, or a pause after a failure. Do not select or start a second item in the same run.
 5. **When the item carries a `Done when:` command, converge on it rather than declaring it finished.** After the item's work, run:
 
    ```
@@ -53,10 +72,10 @@ Adding an item is appending a new `## ` entry with `Status: pending` to whicheve
 
    | Exit | Meaning | Do this |
    | --- | --- | --- |
-   | 0 `converged` | the predicate passed | mark the item `done` and move on |
-   | 0 `no-predicate` | the item declares none | legacy behaviour: mark `done` and move on |
+   | 0 `converged` | the predicate passed | pass the result to `finish`, then end this run |
+   | 0 `no-predicate` | the item declares none | use the bounded verification result with `finish`, then end this run |
    | 6 `reiterate` | the predicate failed, budget remains | re-enter the item **from its brief, with a fresh context window**, then run the step again |
-   | 7 `capped` | the cap tripped | the script has already set the item `blocked` with the failing output and an `Options:` list. Move to the next item. Do not raise the cap on your own authority |
+   | 7 `capped` | the cap tripped | the script has already set the item `blocked` with the failing output and an `Options:` list. End this run. Do not raise the cap on your own authority |
    | 4 `usage` | the `Done when:` is prose, or the title matches no entry | fix the item, do not work around the gate |
    | 5 `conflict` | a peer wrote the queue file mid-step | re-read the file and re-decide, per the CAS rule |
 
@@ -66,9 +85,9 @@ Adding an item is appending a new `## ` entry with `Status: pending` to whicheve
 
    **`fix_plan.md` is the loop's scratch memory.** In the item's worktree, written by the first iteration and read and pruned by each one after it: the decomposition, what has been tried, what a prior iteration concluded, what remains. Its reader is a successor iteration of the same item, mid-flight — not Faruk and not the dashboard. Nothing from it goes into `Blocked reason:` or `Options:` unmodified. Delete it when the item reaches `done`.
 
-6. When the item is fully done (PR opened, or the deliverable otherwise landed, and the predicate passed if it has one), mark it `done` in the queue file. Move to the next `pending` item and repeat, in the same run, until the queue is empty or you hit a stopping condition below.
-7. When you hit a usage-limit error (rate-limit / quota message from the harness or API, not an ordinary tool error), stop immediately: leave the current item `in-progress` with a log line describing exactly where it stopped in the queue file, and end the run. Do not ask anything first — there is nobody to answer.
-8. When an item is genuinely blocked on something only Faruk can decide (credentials, a judgment call with no reversible default, something in the `/sleep` stop-and-confirm list), mark it `blocked` with a `Blocked reason:` field and move on to the next item rather than stalling the whole queue. Write that reason to be read cold on a phone by someone with no memory of this run: state what is being asked, what it affects, and what happens either way. It is the field the dashboard renders. Keep dates, measurements, and what earlier runs concluded in `Log:`, and never let the decision field point at them (`the four fixes`, `see above`, `unchanged since`, a bare prior date) or narrate its own rewriting. **Write an `Options:` list on that item in the same edit**, naming the two to four answers you actually considered, each phrased as the instruction Faruk would be giving you (`Branch, commit, push, PR`, not `Yes`). This is not optional and not a formality: it is the only moment the alternatives are known, the dashboard turns them into one-click answers, and a later run reads them to see which paths were already weighed. A blocker with no options costs Faruk a written reply and costs the next agent the reasoning.
+6. When the bounded verification passes and the PR is opened or updated, run the runner's `finish` action with the verification result and PR URL. Marking an item done means the code change is handed off for review, not merged or deployed.
+7. When you hit a usage-limit error, permission refusal, network failure, or tool failure, stop immediately with the runner's `stop` action. Leave the current item `in-progress`, record where it stopped, and end the run. The next firing resumes from the checkpoint without starting a second item.
+8. When an item is genuinely blocked on something only Faruk can decide, use the runner's `block` action or write the same `Blocked reason:` and `Options:` fields through the queue CAS flow. Write the reason to be read cold on a phone: state what is being asked, what it affects, and what happens either way. Keep dates, measurements, and what earlier runs concluded in `Log:`, and never let the decision field point at them (`the four fixes`, `see above`, `unchanged since`, a bare prior date) or narrate its own rewriting. **Write an `Options:` list on that item in the same edit**, naming the two to four answers you actually considered, each phrased as the instruction Faruk would be giving you (`Branch, commit, push, PR`, not `Yes`).
 9. A queued item that describes a new project (not a change to an existing repo) follows the new-project convention in `instructions/AGENTS.md`: new sibling repo under `C:\Users\Faruk\Repo`, `git init`, matching GitHub repo, portfolio-piece bar, and a tech stack chosen for what is currently in demand rather than defaulted to Faruk's resume stack.
 
 ## Status tracker
@@ -96,12 +115,12 @@ This applies without exception to a run spawned as a subagent or a parallel task
 
 ## Direct item commands
 
-Normally `/queue` picks the next item itself, top-down. Faruk can override that for one item by naming it, either typed or by clicking a card (see Rendering):
+Normally `/queue` asks the runner for one item using the impact and resume rules above. Faruk can override that one-item choice by naming a title, either typed or by clicking a card (see Rendering):
 
 | He says | Do this |
 | --- | --- |
 | `Run the queue item "<title>" next.` | Work that item now, ahead of queue order. Leave the ordering of everything else alone. |
-| `Skip the queue item "<title>" for this run.` | Leave its status untouched, log `skipped this run` with the date, move to the next item. Not the same as `blocked` — a skip carries no reason and expires at the end of the run. |
+| `Skip the queue item "<title>" for this run.` | Leave its status untouched, log `skipped this run` with the date, and end this run. Not the same as `blocked` - a skip carries no reason and expires at the end of the run. |
 | `Move the queue item "<title>" to the <pc\|phone> queue.` | The move described in Model: cut the whole entry, paste it into the other file, log the move and why. |
 | `Unblock the queue item "<title>": <fix>.` | Re-check the blocking condition. If it now passes, set the item back to `pending` and continue; if it still fails, leave it `blocked` and log what specifically still fails, naming the actual error rather than a guess at its cause. |
 
@@ -119,7 +138,7 @@ When a run is interactive, render the per-run report as clickable cards per `ins
 
 A single Claude Code session cannot wait out a usage-limit reset by itself — there is no in-session timer for that. Resumption is external:
 
-- A scheduled task (see `mcp__scheduled-tasks`, or the `schedule` skill) re-invokes `/queue` on an interval — e.g. every 2-3 hours. Each firing is a fresh session: it resolves the queue directory (see Model), finds the `in-progress` item left by the last run, and continues. If usage is still limited, that firing's first action fails fast and harmlessly; the next one picks it up once the limit has reset. This is the recommended setup and only needs creating once — check `mcp__scheduled-tasks__list_scheduled_tasks` for an existing `queue-runner` task before creating a duplicate. Since PC items need Faruk present, a scheduled `queue-runner` should generally target `/queue phone`; leave `/queue pc` (or bare `/queue`) for when Faruk invokes it himself at his desk.
+- If the host supports scheduled tasks, keep one low-frequency `queue-runner` automation for the phone queue, such as every six hours. Its first action is the deterministic `queue-runner.ps1 start` check; when there is no actionable item it exits without starting model work. Each firing is a fresh session that resumes the checkpointed `in-progress` item, and each firing owns at most one item. Check for an existing `queue-runner` task before creating a duplicate. Do not create one schedule per usage reset or a set of token-polling schedules. PC items stay manual because they may need Faruk at the desk.
 - Absent a scheduled task, resumption happens the next time Faruk (or anything) invokes `/queue` manually — nothing is lost, the queue file is the durable state.
 
 Never try to sleep or poll inside one run waiting for a reset; end the run and let the next invocation do the waiting.

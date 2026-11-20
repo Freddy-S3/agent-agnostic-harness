@@ -132,4 +132,5 @@ In personal mode, run `/closing` only when the session actually produced a reusa
   - Length is earned by decisions and genuine risk only, never by effort spent. A long report is a failure mode wearing the costume of thoroughness.
   - Specifically: do not re-explain what was just done, do not summarize work he already approved, and do not produce a table unless he asked for data.
   - The reason, so this is not over-applied: brevity is compression of the narration, never of the substance. A real problem, a correction to something previously reported wrong, or a decision that is his to make must still be stated in full. Dropping one of those to hit a line count is a worse failure than any amount of verbosity.
+- During long-running work, proactively send a concise checkpoint covering what is being done, what is already decided, and the one action or decision needed from Faruk, if any.
 

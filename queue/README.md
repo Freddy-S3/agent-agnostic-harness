@@ -118,6 +118,24 @@ Two format rules, because the parser drops what it cannot match and never says s
 The full rule, with a worked good/bad example taken from a real item, is in
 `instructions/AGENTS.md` under the unpersisted-decision rule.
 
+## One-item software-factory runs
+
+`tools/queue-runner.ps1` is the durable boundary for unattended product work.
+It chooses one highest-impact `in-progress` item before `pending` work, requires exactly
+one existing Git repository in `Repo:`, and uses `tools/queue-cas.ps1` for queue mutations.
+
+The `start` action writes a checkpoint before marking the item `in-progress`.
+The `checkpoint` action records write-ahead intents and runnable discriminators.
+The `stop` action leaves the item resumable after usage, permission, network, or tool
+failure.
+The `finish` action requires bounded verification and a PR handoff before it marks code
+work done.
+It never merges, publishes, pays, sends external messages, or deploys production.
+
+If the host supports scheduling, use one low-frequency queue-runner task that exits before
+model work when no actionable item exists.
+Do not create a schedule for each token reset.
+
 ## Where the real queue files live
 
 `QUEUE-PC.md` and `QUEUE-PHONE.md` are gitignored and not tracked in this repo. Real
