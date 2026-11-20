@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile } from "node:fs/promises";
+import { appendFile, mkdir, open, readFile, unlink } from "node:fs/promises";
 import { dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -61,12 +61,31 @@ async function existingSignal(path, record) {
   }
 }
 
+async function acquireLock(path) {
+  const lockPath = `${path}.lock`;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    try {
+      return { handle: await open(lockPath, "wx"), lockPath };
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  }
+  throw new Error("signal file is busy");
+}
+
 export async function emitSignal(path, record) {
   if (!path) throw new Error("a signal file is required");
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
-  if (await existingSignal(path, record)) return { emitted: false, duplicate: true };
-  await appendFile(path, `${JSON.stringify(record)}\n`, { encoding: "utf8", mode: 0o600 });
-  return { emitted: true, duplicate: false };
+  const lock = await acquireLock(path);
+  try {
+    if (await existingSignal(path, record)) return { emitted: false, duplicate: true };
+    await appendFile(path, `${JSON.stringify(record)}\n`, { encoding: "utf8", mode: 0o600 });
+    return { emitted: true, duplicate: false };
+  } finally {
+    await lock.handle.close();
+    await unlink(lock.lockPath).catch(() => undefined);
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

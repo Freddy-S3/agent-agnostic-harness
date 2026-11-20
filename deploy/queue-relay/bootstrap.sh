@@ -61,6 +61,8 @@ ensure_env() {
   fi
   grep -q '^QUEUE_DIR=' "$ENV_FILE" || printf 'QUEUE_DIR=%s\n' "$DATA_DIR" >> "$ENV_FILE"
   grep -q '^PORT=' "$ENV_FILE" || printf 'PORT=4317\n' >> "$ENV_FILE"
+  grep -Eq '^QUEUE_TOKEN=.+$' "$ENV_FILE" || printf 'QUEUE_TOKEN=%s\n' "$(openssl rand -hex 24)" >> "$ENV_FILE"
+  grep -Eq '^QUEUE_SNAPSHOT_KEY=.+$' "$ENV_FILE" || printf 'QUEUE_SNAPSHOT_KEY=%s\n' "$(openssl rand -hex 32)" >> "$ENV_FILE"
   chmod 0600 "$ENV_FILE"
 }
 

@@ -27,7 +27,9 @@ test("factory signal is bounded and idempotent", async () => {
   const path = join(directory, "signals.jsonl");
   try {
     const record = validateMainSignal(valid);
-    assert.deepEqual(await emitSignal(path, record), { emitted: true, duplicate: false });
+    const concurrent = await Promise.all([emitSignal(path, record), emitSignal(path, record)]);
+    assert.equal(concurrent.filter((result) => result.emitted).length, 1);
+    assert.equal(concurrent.filter((result) => result.duplicate).length, 1);
     assert.deepEqual(await emitSignal(path, record), { emitted: false, duplicate: true });
     const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/);
     assert.equal(lines.length, 1);
