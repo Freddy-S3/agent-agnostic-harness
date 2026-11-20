@@ -10,9 +10,9 @@ drafting, review, PR merges, CI-verified changes — nothing that needs the user
 toolchain, a software install, or eyes on a running build.
 
 Same format and rules as `queue/QUEUE-PC.example.md`. Drop larger ideas here (or in the
-PC queue, whichever gate fits) as new `## ` entries, in any order. `/queue` works items
-top to bottom, oldest pending first, and rewrites the file it's working in place as
-status changes.
+PC queue, whichever gate fits) as new `## ` entries, in any order. The runner works one
+highest-impact actionable item per firing, resumes an `in-progress` item first, and rewrites
+the file in place as status changes.
 
 **Moving an item to the other queue:** cut the whole `## ` entry (including its `Log:`)
 and paste it into the PC queue, or vice versa. Leave a one-line `Log:` note on the move.
