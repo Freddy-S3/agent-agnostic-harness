@@ -24,13 +24,18 @@
   # For an append larger than a command line can carry, stage it in a file first:
   .\queue-cas.ps1 append -Path $q -Expect $fp -ContentPath $stagedEntryFile
 
+  # For a guarded whole-file status update:
+  .\queue-cas.ps1 replace -Path $q -Expect $fp -ContentPath $stagedQueueFile
+
 .NOTES
   Exit codes: 0 success, 5 fingerprint mismatch (re-read and re-decide), 4 usage error.
+  The replace action is used for status transitions that must preserve the rest of the
+  queue file while append remains the smaller primitive for new entries.
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory, Position = 0)]
-    [ValidateSet('fingerprint', 'append')]
+    [ValidateSet('fingerprint', 'append', 'replace')]
     [string]$Action,
 
     [Parameter(Mandatory)]
@@ -58,7 +63,7 @@ if ($Action -eq 'fingerprint') {
 }
 
 if (-not $Expect) {
-    [Console]::Error.WriteLine('append requires -Expect <fingerprint taken when you read the file>.')
+    [Console]::Error.WriteLine("$Action requires -Expect <fingerprint taken when you read the file>.")
     exit $EXIT_USAGE
 }
 # Windows caps a command line at roughly 32 KB, so a large append has to arrive as a file
@@ -66,27 +71,50 @@ if (-not $Expect) {
 # failure with an empty error message, which reads as a broken tool rather than a limit.
 if ($ContentPath) {
     if ($Content) {
-        [Console]::Error.WriteLine('append takes -Content or -ContentPath, not both.')
+        [Console]::Error.WriteLine("$Action takes -Content or -ContentPath, not both.")
         exit $EXIT_USAGE
     }
     if (-not (Test-Path $ContentPath)) {
-        [Console]::Error.WriteLine("append -ContentPath not found: $ContentPath")
+        [Console]::Error.WriteLine("$Action -ContentPath not found: $ContentPath")
         exit $EXIT_USAGE
     }
     $Content = [System.IO.File]::ReadAllText($ContentPath)
 }
 if ($null -eq $Content -or $Content -eq '') {
-    [Console]::Error.WriteLine('append requires -Content or -ContentPath.')
+    [Console]::Error.WriteLine("$Action requires -Content or -ContentPath.")
     exit $EXIT_USAGE
 }
 
 $actual = Get-Fingerprint $Path
 if ($actual -ne $Expect) {
     Write-Output "MISMATCH: $Path changed since you read it (expected $($Expect.Substring(0,[Math]::Min(12,$Expect.Length))), found $($actual.Substring(0,[Math]::Min(12,$actual.Length))))."
-    Write-Output 'Re-read the file and re-decide before appending. Another session may have logged the same finding.'
+    Write-Output 'Re-read the file and re-decide before writing. Another session may have logged the same finding.'
     exit $EXIT_MISMATCH
 }
 
-Add-Content -Path $Path -Value $Content -Encoding utf8
-Write-Output "appended: $Path"
+if ($Action -eq 'append') {
+    Add-Content -Path $Path -Value $Content -Encoding utf8
+    Write-Output "appended: $Path"
+    exit 0
+}
+
+if (-not (Test-Path -LiteralPath $Path)) {
+    [Console]::Error.WriteLine("replace requires an existing file: $Path")
+    exit $EXIT_USAGE
+}
+
+# Replace the complete file only after the expected fingerprint matches. The queue
+# runner uses this for status/checkpoint fields; append remains the smaller primitive
+# for new entries and answer records.
+$tmp = "$Path.tmp-$PID"
+$backup = "$Path.bak-$PID"
+try {
+    [System.IO.File]::WriteAllText($tmp, $Content, [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::Replace($tmp, $Path, $backup)
+}
+finally {
+    if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+    if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue }
+}
+Write-Output "replaced: $Path"
 exit 0
