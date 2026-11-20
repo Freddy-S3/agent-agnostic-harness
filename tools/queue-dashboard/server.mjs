@@ -26,6 +26,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { controlCenter } from "./control-center.mjs";
+import { createConfiguredAdapters } from "./adapters.mjs";
 import {
   ActionContractError,
   ActionStore,
@@ -75,7 +76,10 @@ const ACTION_CAPABILITIES = {
   cloud: capabilityConfig(process.env.QUEUE_CLOUD_CAPABILITIES),
   desktop: capabilityConfig(process.env.QUEUE_DESKTOP_CAPABILITIES),
 };
-const actionStore = new ActionStore({ directory: QUEUE_DIR, capabilities: ACTION_CAPABILITIES });
+const ACTION_ADAPTERS = createConfiguredAdapters(process.env, {
+  allowInsecureLocal: process.env.QUEUE_ALLOW_INSECURE_ADAPTERS === "1",
+});
+const actionStore = new ActionStore({ directory: QUEUE_DIR, capabilities: ACTION_CAPABILITIES, adapters: ACTION_ADAPTERS });
 
 const today = () => new Date().toISOString().slice(0, 10);
 
