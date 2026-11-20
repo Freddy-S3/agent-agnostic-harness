@@ -376,6 +376,15 @@ def main() -> None:
 
                 page.locator("#tab-queue").click()
                 page.wait_for_selector("#panel-queue:not([hidden])")
+                assert page.locator(".safe-actions button").count() >= 3
+                independent_card = page.locator("#panel-queue .card").filter(has_text="Independent work").first
+                independent_card.get_by_role("button", name="Approve").click()
+                for _ in range(20):
+                    if "Approved from the queue portal" in (queue_dir / "QUEUE-PC.md").read_text(encoding="utf-8"):
+                        break
+                    time.sleep(0.05)
+                else:
+                    raise AssertionError("safe approve action did not reach QUEUE-PC.md")
                 page.locator("#panel-queue .opt").first.click()
                 for _ in range(20):
                     if f"DECIDED {TODAY}" in (queue_dir / "QUEUE-PC.md").read_text(

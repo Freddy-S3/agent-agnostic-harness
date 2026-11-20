@@ -1,15 +1,16 @@
-Continue the agent-agnostic-harness-factory-runner project.
+Continue the agent-agnostic-harness project.
 
 Purpose: Resume coordination
-Repository: C:\Users\faruk\Repo\agent-agnostic-harness-factory-runner
-Current branch: feat/software-factory-runner
+Repository: agent-agnostic-harness
+Current branch: feat/queue-control-interactive
 Read AGENTS.md before acting.
 No docs/PROJECT-CONTEXT.md exists yet; use docs/PROJECT-CONTEXT-TEMPLATE.md from the harness when creating one.
 
-Result: PR #100 adds a resumable one-item software-factory runner, queue CAS replacement, checkpoints, routing, bounded handoff, human gates, and the long-running checkpoint rule.
-Verification: Queue-CAS 22 assertions, queue-runner 22 assertions, converge 38 assertions, cache checks 18 assertions, rule-trigger validation, and git diff --check passed.
-Remaining risk: No deployment or credential blocker remains; the local commit hook and SSH signing helper could not start because of the host's Git-for-Windows MSYS permission error, so the documented per-commit signing fallback was used.
-Next action: Review PR #100, merge only with the human gate, then refresh the canonical checkout so the active schedule can use the runner.
+Result: PR #101 adds authenticated interactive queue actions, exact worker routing, idempotent audit records, encrypted offline snapshots, and a fail-closed browser boundary.
+Base update: PR #100, the resumable one-item software-factory runner, is merged into main as c17ab25ee0d68d5db1ea9ae07d1b033eb5998c1f.
+Verification: Node action-contract and server-action tests, syntax checks, responsive authenticated dashboard checks, and git diff --check passed before the base update.
+Remaining risk: PR #101 still needs its branch refreshed against the merged runner, then its checks must pass. Live desktop/cloud adapters, repository authorization, private hosting, DNS, TLS, and deployment remain intentionally unconfigured.
+Next action: Review the refreshed PR #101, then merge it if the checks and conflict resolution are acceptable.
 
 Operating rules:
 - Keep work agent-agnostic and use repository files, queue, tracker, and pull requests as the source of truth.
@@ -17,11 +18,13 @@ Operating rules:
 - Keep this chat focused on coordination; create a separate outcome chat for implementation.
 
 Recent commits:
-- be5b0d7 Implement resumable one-item queue runner
+- 467df04 Refresh coordination handoff
+- 6a8667e Add interactive queue action control
+- c17ab25 PR #100 merge commit for the software-factory runner
 - 7821ec77 Give the no-agent-attribution rule a mechanism for pull requests (#99)
 - 38a4f08 Make dashboard job ordering culture first (#98)
 
 Working-tree status:
-- Clean
+- Clean after the conflict-resolution commit.
 
 First action: read the repository guidance and report the current goals, blockers, and next recommended action.

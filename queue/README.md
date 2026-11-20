@@ -90,6 +90,22 @@ Status: pending
 Depends on: Choose the deployment target
 ```
 
+## Routing metadata for interactive decisions
+
+The interactive dashboard binds every action to exactly one project, repository, session, and run.
+
+Add `Project:`, `Repo:`, `Session:`, and `Run:` fields to an item when a connected session should receive its decision directly.
+
+Use `Requires local files: true`, `Requires local credentials: true`, `Requires freshest sync: true`, or `Required tools: tool-name` to make worker selection leave the item for the desktop connector when cloud capability is insufficient.
+
+Cloud delivery is first for connected remote repositories.
+
+The desktop connector is the single worker for local-only or freshest-sync work, and unavailable capabilities remain queued rather than being duplicated across workers.
+
+The browser action allowlist is limited to answering, approving, skipping, and unblocking.
+
+See `docs/QUEUE-CONTROL.md` for the action/session contract, encrypted offline snapshots, adapter boundary, and required host authorization.
+
 ## Write the decision, not its history
 
 `Blocked reason:` and `Options:` are read cold, on a phone, by someone who has never seen the

@@ -26,6 +26,12 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { controlCenter } from "./control-center.mjs";
+import {
+  ActionContractError,
+  ActionStore,
+  readEncryptedSnapshot,
+  writeEncryptedSnapshot,
+} from "./action-contract.mjs";
 
 const run = promisify(execFile);
 const PORT = Number(process.env.PORT || 4317);
@@ -52,6 +58,24 @@ const ARCHIVE_RECENT_DAYS = 7;
 const STUDY_FILE = "STUDY.md";
 const JOBS_FILE = "JOBS.md";
 const JOB_STATUSES = ["new", "interested", "applied", "pass"];
+const SNAPSHOT_FILE = join(QUEUE_DIR, ".queue-snapshot.enc");
+const SNAPSHOT_KEY_FILE = join(QUEUE_DIR, ".queue-snapshot-key");
+
+function capabilityConfig(raw) {
+  if (!raw) return { available: false, repositories: [], tools: [] };
+  try {
+    const value = JSON.parse(raw);
+    return value && typeof value === "object" ? value : { available: false, repositories: [], tools: [] };
+  } catch {
+    return { available: false, repositories: [], tools: [] };
+  }
+}
+
+const ACTION_CAPABILITIES = {
+  cloud: capabilityConfig(process.env.QUEUE_CLOUD_CAPABILITIES),
+  desktop: capabilityConfig(process.env.QUEUE_DESKTOP_CAPABILITIES),
+};
+const actionStore = new ActionStore({ directory: QUEUE_DIR, capabilities: ACTION_CAPABILITIES });
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -91,6 +115,16 @@ async function loadToken() {
   const t = randomBytes(24).toString("base64url");
   await writeFile(TOKEN_FILE, t + "\n", { encoding: "utf8", mode: 0o600 });
   return t;
+}
+
+async function loadSnapshotKey() {
+  if (process.env.QUEUE_SNAPSHOT_KEY?.trim()) return process.env.QUEUE_SNAPSHOT_KEY.trim();
+  try {
+    const key = (await readFile(SNAPSHOT_KEY_FILE, "utf8")).trim();
+    return key || null;
+  } catch {
+    return null;
+  }
 }
 
 let TOKEN = "";
@@ -254,10 +288,40 @@ function answerPickedUp(log, answeredAt) {
   });
 }
 
+function actionMetadata(body, file, title, repo) {
+  const fieldCount = (name) => [...body.matchAll(new RegExp(`^${name}:\\s*.+$`, "gm"))].length;
+  const project = fieldValue(body, "Project") || repo || "queue-dashboard";
+  const repository = repo || "queue-items";
+  const safeRef = (value, fallback) => String(value || fallback)
+    .replace(/[^A-Za-z0-9._:/-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120) || fallback;
+  const requiredTools = (fieldValue(body, "Required tools") || "")
+    .split(",")
+    .map((tool) => tool.trim())
+    .filter(Boolean);
+  const flag = (name) => /^(?:1|true|yes)$/i.test(fieldValue(body, name));
+  return {
+    owner: { project, repository },
+    sessionRef: {
+      sessionId: safeRef(fieldValue(body, "Session"), "queue-dashboard"),
+      runId: safeRef(fieldValue(body, "Run"), `${file}-${title}`),
+    },
+    requirements: {
+      localFiles: flag("Requires local files"),
+      localCredentials: flag("Requires local credentials"),
+      freshestSync: flag("Requires freshest sync"),
+      requiredTools,
+    },
+    valid: ["Project", "Repo", "Session", "Run"].every((name) => fieldCount(name) <= 1),
+  };
+}
+
 function parseItem(block, file, answerLedger) {
   const { title, body } = block;
   const status = (body.match(/^Status:\s*(.+)$/m)?.[1] || "unknown").trim();
   const repo = (body.match(/^Repo:\s*(.+)$/m)?.[1] || "").trim();
+  const metadata = actionMetadata(body, file, title, repo);
   const dependsOn = [...body.matchAll(/^Depends on:\s*(.+)$/gm)]
     .map((match) => match[1].trim())
     .filter(Boolean);
@@ -323,6 +387,10 @@ function parseItem(block, file, answerLedger) {
     blockedReason,
     asks,
     options,
+    owner: metadata.owner,
+    sessionRef: metadata.sessionRef,
+    requirements: metadata.requirements,
+    actionContractValid: metadata.valid,
     needsDecision,
     impact: { direct: 0, unblocks: 0 },
     log: log.slice(-3),
@@ -718,6 +786,47 @@ async function snapshot() {
   return snap;
 }
 
+async function readCachedSnapshot() {
+  const key = await loadSnapshotKey();
+  if (!key) return null;
+  try {
+    return await readEncryptedSnapshot(SNAPSHOT_FILE, key);
+  } catch {
+    return null;
+  }
+}
+
+async function queueSnapshot() {
+  if (process.env.QUEUE_OFFLINE !== "1") {
+    const live = await snapshot();
+    if (live.groups.some((group) => !group.error)) {
+      const key = await loadSnapshotKey();
+      if (key) {
+        try {
+          await writeEncryptedSnapshot(SNAPSHOT_FILE, { ...live, offline: false }, key);
+        } catch {
+          // Live reads remain available when the optional encrypted cache cannot be written.
+        }
+      }
+      return { ...live, offline: false };
+    }
+  }
+
+  const cached = await readCachedSnapshot();
+  if (cached) {
+    return {
+      ...cached,
+      offline: true,
+      snapshotAt: cached.readAt || null,
+      readAt: Date.now(),
+      queueDir: "offline encrypted snapshot",
+    };
+  }
+
+  const live = await snapshot();
+  return { ...live, offline: true, snapshotAt: null };
+}
+
 // ---------------------------------------------------------------- write-back
 
 // Insert an answer into the item's own Log section, after the last existing entry and
@@ -744,12 +853,14 @@ function insertLogLine(body, line) {
   return lines.join("\n");
 }
 
-function applyAnswer(text, title, answer) {
+function applyAnswer(text, title, answer, actionId = "") {
   const block = splitBlocks(text).find((b) => b.title === title);
   if (!block) return null;
 
   const stamp = today();
   let body = block.body;
+  const marker = actionId ? `[action:${actionId}]` : "";
+  if (marker && body.includes(marker)) return text;
 
   // Flatten to one line. A multi-line answer would run past the DECIDED field and, if a
   // line happened to start "Word: ", would parse as a new item field.
@@ -759,7 +870,7 @@ function applyAnswer(text, title, answer) {
   // the first thing an agent run reads. The log line is the audit trail.
   // Function replacer, not a string: `$&` or `$1` inside an answer would otherwise be
   // expanded by replace() and corrupt the file.
-  const decidedLine = `DECIDED ${stamp} by Faruk, via the queue dashboard: ${flat}`;
+  const decidedLine = `DECIDED ${stamp} by Faruk, via the queue dashboard${marker ? ` ${marker}` : ""}: ${flat}`;
   const existing = body.match(/^DECIDED\b[^\n]*(?:\n(?![A-Z][a-z]+ ?[a-z]*:|\s*$)[^\n]*)*/m);
   if (existing) {
     // Changing your mind replaces the decision rather than stacking a second DECIDED
@@ -768,12 +879,12 @@ function applyAnswer(text, title, answer) {
   } else {
     body = body.replace(/^Status:.*$/m, (m) => `${m}\n${decidedLine}`);
   }
-  body = insertLogLine(body, `${stamp}: ANSWERED by Faruk via the queue dashboard: ${flat}`);
+  body = insertLogLine(body, `${stamp}: ANSWERED by Faruk via the queue dashboard${marker ? ` ${marker}` : ""}: ${flat}`);
 
   return text.slice(0, block.bodyAt) + body + text.slice(block.end);
 }
 
-async function writeAnswer({ file, title, answer, mtime }) {
+async function writeAnswer({ file, title, answer, mtime, actionId = "" }) {
   const path = join(QUEUE_DIR, file);
   const st = await stat(path);
   // Someone else wrote since the page read. Refuse rather than overwrite their work.
@@ -784,12 +895,13 @@ async function writeAnswer({ file, title, answer, mtime }) {
   }
 
   const text = await readFile(path, "utf8");
-  const next = applyAnswer(text, title, answer);
+  const next = applyAnswer(text, title, answer, actionId);
   if (next === null) {
     const e = new Error(`no queue item titled "${title}" in ${file}`);
     e.code = 404;
     throw e;
   }
+  if (next === text) return { alreadyApplied: true };
 
   await copyFile(path, path + ".bak");
   const tmp = `${path}.tmp-${process.pid}`;
@@ -797,7 +909,7 @@ async function writeAnswer({ file, title, answer, mtime }) {
   await renameWithRetry(tmp, path);
 
   await appendTriage(title, answer);
-  return true;
+  return { alreadyApplied: false };
 }
 
 // Ticking a box rewrites exactly one character on one line. The index locates the line and
@@ -922,6 +1034,95 @@ async function appendTriage(title, answer) {
   }
   const cell = (s) => String(s).replace(/\|/g, "\\|").replace(/\n/g, " ");
   await appendFile(path, `${head}| ${cell(title)} | ${cell(answer)} |\n`, "utf8");
+}
+
+function sameContractValue(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function actionAnswer(action) {
+  if (action.kind === "answer") return action.payload.text;
+  if (action.kind === "approve") return action.payload.note;
+  if (action.kind === "skip") return action.payload.reason;
+  return action.payload.note;
+}
+
+async function queueActionContext(file, title) {
+  if (!FILES.some((entry) => entry.file === file)) {
+    throw new ActionContractError("TARGET_FORBIDDEN", "actions may target only a configured queue file", 403);
+  }
+  const path = join(QUEUE_DIR, file);
+  try {
+    const [text, st] = await Promise.all([readFile(path, "utf8"), stat(path)]);
+    const block = splitBlocks(text).find((entry) => entry.title === title);
+    if (!block) throw new ActionContractError("TARGET_NOT_FOUND", `no queue item titled "${title}" in ${file}`, 404);
+    const item = parseItem(block, file, new Map());
+    if (!item.actionContractValid) {
+      throw new ActionContractError("ACTION_CONTEXT_AMBIGUOUS", "the queue item has repeated owner or session fields", 403);
+    }
+    return {
+      target: { file, title },
+      owner: item.owner,
+      sessionRef: item.sessionRef,
+      requirements: item.requirements,
+      queueMtime: st.mtimeMs,
+      liveAvailable: true,
+    };
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    const cached = await readCachedSnapshot();
+    const group = cached?.groups?.find((entry) => entry.file === file);
+    const item = group?.items?.find((entry) => entry.title === title);
+    if (!item) throw error;
+    if (item.actionContractValid === false) {
+      throw new ActionContractError("ACTION_CONTEXT_AMBIGUOUS", "the cached queue item has repeated owner or session fields", 403);
+    }
+    return {
+      target: { file, title },
+      owner: item.owner,
+      sessionRef: item.sessionRef,
+      requirements: item.requirements,
+      queueMtime: 0,
+      liveAvailable: false,
+    };
+  }
+}
+
+async function submitPortalAction(body) {
+  const file = body?.target?.file;
+  const title = body?.target?.title;
+  const context = await queueActionContext(file, title);
+  if (!sameContractValue(body.target, context.target)
+    || !sameContractValue(body.owner, context.owner)
+    || !sameContractValue(body.sessionRef, context.sessionRef)
+    || !sameContractValue(body.requirements, context.requirements)) {
+    throw new ActionContractError("ACTION_CONTEXT_FORGED", "the action context does not match the owning queue item", 403);
+  }
+
+  return actionStore.submit({
+    actionId: body.actionId,
+    kind: body.kind,
+    target: context.target,
+    owner: context.owner,
+    sessionRef: context.sessionRef,
+    requirements: context.requirements,
+    payload: body.payload,
+    queueMtime: context.queueMtime || Number(body.mtime) || 0,
+  }, {
+    apply: async (action) => {
+      if (!context.liveAvailable) {
+        return { applied: false, reason: "live queue unavailable; recorded for the next session" };
+      }
+      const result = await writeAnswer({
+        file: action.target.file,
+        title: action.target.title,
+        answer: actionAnswer(action),
+        mtime: action.consistency.queueMtime,
+        actionId: action.actionId,
+      });
+      return { applied: true, ...result };
+    },
+  });
 }
 
 // ---------------------------------------------------------------- server
@@ -1055,6 +1256,9 @@ border-radius:2px;background:var(--surface-2);color:var(--ink-2);user-select:non
 .opt input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--ground);font-weight:600}
 .opt span:hover{border-color:var(--accent)}
 .opt input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.safe-actions{display:flex;gap:.35rem;flex-wrap:wrap}
+.safe-actions button{font-size:.75rem}
+.safe-actions button:hover{border-color:var(--accent);color:var(--accent)}
 .statusbar{position:fixed;left:0;right:var(--scrollbar-gap,0px);bottom:0;z-index:20;background:var(--surface);
 border-top:1px solid var(--rule);padding:.7rem 1.25rem;display:flex;align-items:center;
 gap:1rem;flex-wrap:wrap}
@@ -1263,18 +1467,34 @@ let mtimes = {};
 let jobsMtime = 0;
 let appliedOpen = false;   // the applied lane starts collapsed and survives the 5s repaint
 
-async function send(file, title, answer, note){
-  if (!answer.trim()) return;
+async function sendAction(file, item, kind, payload, note){
   note.className = 'said'; note.textContent = 'saving...';
-  const r = await fetch('/api/answer', {
-    method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({file, title, answer: answer.trim(), mtime: mtimes[file]})
-  });
-  const body = await r.json().catch(() => ({}));
-  if (!r.ok) { note.className = 'said bad'; note.textContent = body.error || ('failed: ' + r.status); return; }
-  note.textContent = 'written to ' + file;
-  paused = false;
-  tick();
+  try {
+    const r = await fetch('/api/action', {
+      method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({
+        actionId: crypto.randomUUID(), kind,
+        target: {file, title: item.title}, owner: item.owner,
+        sessionRef: item.sessionRef, requirements: item.requirements,
+        payload, mtime: mtimes[file]
+      })
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { note.className = 'said bad'; note.textContent = body.error || ('failed: ' + r.status); return; }
+    note.textContent = body.status === 'deferred'
+      ? 'saved for the next authorized session'
+      : 'decision recorded and routed';
+    paused = false;
+    tick();
+  } catch {
+    note.className = 'said bad';
+    note.textContent = 'server unreachable';
+  }
+}
+
+async function send(file, item, answer, note){
+  if (!answer.trim()) return;
+  await sendAction(file, item, 'answer', {text: answer.trim()}, note);
 }
 
 let studyMtime = 0;
@@ -1574,19 +1794,33 @@ function card(g, i, history = false){
     inp.name = 'o:' + g.file + ':' + i.title;
     const sp = document.createElement('span');
     sp.textContent = c;
-    inp.onchange = () => send(g.file, i.title, ta.value.trim() ? c + '. ' + ta.value.trim() : c, note);
+    inp.onchange = () => send(g.file, i, ta.value.trim() ? c + '. ' + ta.value.trim() : c, note);
     lab.append(inp, sp);
     opts.appendChild(lab);
   }
 
+  const safeActions = document.createElement('div');
+  safeActions.className = 'safe-actions';
+  for (const action of [
+    ['approve', 'Approve', {note: 'Approved from the queue portal'}],
+    ['skip', 'Skip', {reason: 'Skipped from the queue portal'}],
+    ['unblock', 'Unblock', {note: 'Unblocked from the queue portal'}],
+  ]){
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = action[1];
+    button.onclick = () => sendAction(g.file, i, action[0], action[2], note);
+    safeActions.appendChild(button);
+  }
+
   const go = document.createElement('button');
   go.className = 'go'; go.textContent = 'Send answer';
-  go.onclick = () => send(g.file, i.title, ta.value, note);
+  go.onclick = () => send(g.file, i, ta.value, note);
 
   const row = document.createElement('div');
   row.className = 'row';
   row.append(go, note);
-  box.append(lead, opts, ta, row);
+  box.append(lead, opts, safeActions, ta, row);
   el.appendChild(box);
   return el;
 }
@@ -1673,9 +1907,13 @@ async function tick(){
   }
   catch { document.getElementById('pulse').textContent = 'SERVER UNREACHABLE'; return; }
 
-  document.getElementById('pulse').textContent = 'LIVE - READ FROM DISK';
+  document.getElementById('pulse').textContent = d.offline
+    ? 'OFFLINE - ENCRYPTED SNAPSHOT'
+    : 'LIVE - READ FROM DISK';
   document.getElementById('dir').textContent = d.queueDir;
-  document.getElementById('read').textContent = 'read at ' + new Date(d.readAt).toLocaleTimeString();
+  document.getElementById('read').textContent = d.offline
+    ? 'snapshot from ' + (d.snapshotAt ? new Date(d.snapshotAt).toLocaleTimeString() : 'unknown time')
+    : 'read at ' + new Date(d.readAt).toLocaleTimeString();
   mtimes = Object.fromEntries(d.groups.map(g => [g.file, g.mtime]));
 
   const isHistory = i => i.answered || i.status === 'done';
@@ -1804,7 +2042,8 @@ async function tick(){
        : '<ul><li>none, or gh is unavailable</li></ul>');
 
   document.getElementById('foot').textContent =
-    'Re-reads the queue files every 5s; polling pauses while you are typing an answer. '
+    (d.offline ? 'Viewing the latest encrypted snapshot; actions are recorded for the next authorized session. '
+      : 'Re-reads the queue files every 5s; polling pauses while you are typing an answer. ')
     + 'Answers write a DECIDED line into the item and a row into TRIAGE-' + new Date().toISOString().slice(0,10) + '.md. '
     + 'Answers from other channels use ' + d.answerLedger + '. '
     + (d.triage.length ? 'Triage records: ' + d.triage.join(', ') : '');
@@ -1851,19 +2090,27 @@ const handler = async (req, res) => {
       return res.end(PAGE);
     }
     if (req.url.startsWith("/api/queue")) {
-      const data = await snapshot();
+      const data = await queueSnapshot();
       res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
       return res.end(JSON.stringify(data));
     }
+    if (req.method === "POST" && req.url === "/api/action") {
+      const body = JSON.parse((await readBody(req)) || "{}");
+      const result = await submitPortalAction(body);
+      res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+      return res.end(JSON.stringify({
+        ok: true,
+        actionId: result.action.actionId,
+        duplicate: result.duplicate,
+        status: result.status,
+        applied: result.applied,
+        routing: result.routing,
+        delivery: result.delivery,
+      }));
+    }
     if (req.method === "POST" && req.url === "/api/answer") {
-      const { file, title, answer, mtime } = JSON.parse((await readBody(req)) || "{}");
-      if (!FILES.some((f) => f.file === file) || !title || !answer) {
-        res.writeHead(400, { "content-type": "application/json" });
-        return res.end(JSON.stringify({ error: "file, title and answer are required" }));
-      }
-      await writeAnswer({ file, title, answer, mtime });
-      res.writeHead(200, { "content-type": "application/json" });
-      return res.end(JSON.stringify({ ok: true }));
+      res.writeHead(410, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ error: "direct answers are disabled; submit a signed queue action" }));
     }
     if (req.method === "POST" && req.url === "/api/study") {
       const { index, done, text, mtime } = JSON.parse((await readBody(req)) || "{}");
@@ -1887,7 +2134,9 @@ const handler = async (req, res) => {
     }
     res.writeHead(404).end("not found");
   } catch (err) {
-    const code = err && err.code === 409 ? 409 : err && err.code === 404 ? 404 : 500;
+    const code = Number.isInteger(err?.status)
+      ? err.status
+      : err && err.code === 409 ? 409 : err && err.code === 404 ? 404 : 500;
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: String(err && err.message) }));
   }
@@ -1932,14 +2181,22 @@ async function tailnetAddress() {
   }
 }
 
-TOKEN = await loadToken();
-await listenOn("127.0.0.1", "queue dashboard");
+export async function initializeDashboardForTests() {
+  TOKEN = await loadToken();
+}
 
-const tsIp = await tailnetAddress();
-if (tsIp) await listenOn(tsIp, "tailnet");
-else if (process.env.QUEUE_TAILSCALE === "1") console.log("tailnet bind requested but no tailscale IPv4 found");
+if (process.env.QUEUE_DASHBOARD_NO_LISTEN !== "1") {
+  TOKEN = await loadToken();
+  await listenOn("127.0.0.1", "queue dashboard");
 
-console.log(`reading: ${QUEUE_DIR}`);
-console.log(`repo root: ${REPO_ROOT}`);
-console.log(`unlock token: ${TOKEN}`);
-console.log(`token file: ${TOKEN_FILE}`);
+  const tsIp = await tailnetAddress();
+  if (tsIp) await listenOn(tsIp, "tailnet");
+  else if (process.env.QUEUE_TAILSCALE === "1") console.log("tailnet bind requested but no tailscale IPv4 found");
+
+  console.log(`reading: ${QUEUE_DIR}`);
+  console.log(`repo root: ${REPO_ROOT}`);
+  console.log(`unlock token: ${TOKEN}`);
+  console.log(`token file: ${TOKEN_FILE}`);
+}
+
+export { handler };
