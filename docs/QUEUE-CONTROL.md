@@ -107,6 +107,9 @@ The queue write remains guarded by the existing mtime check, backup, and temp-fi
 
 The dashboard never grants repository, host, cloud, credential, billing, or publishing permissions.
 
+The post-merge GitHub Actions boundary in `.github/workflows/queue-factory.yml` validates only the configured repository's `refs/heads/main` commit and emits one idempotent signal artifact.
+It does not call the queue runner, accept browser actions, bypass capability or human gates, use AWS credentials, or start arbitrary work.
+
 ## Queue metadata
 
 Add these optional fields to a queue item when a live session should receive a decision directly:

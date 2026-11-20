@@ -1,0 +1,29 @@
+name: Queue factory boundary
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate-main-signal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the merged source
+        uses: actions/checkout@v4
+      - name: Validate the bounded local signal
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: node tools/queue-factory-hook.mjs --emit --signal-file "$RUNNER_TEMP/queue-factory-signal.jsonl"
+      - name: Preserve the signal for the authorized local scheduler
+        uses: actions/upload-artifact@v4
+        with:
+          name: queue-factory-signal
+          path: ${{ runner.temp }}/queue-factory-signal.jsonl
+          retention-days: 1
