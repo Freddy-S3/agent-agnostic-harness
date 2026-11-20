@@ -1,7 +1,6 @@
 # Queue dashboard
 
-A local, live view of everything the queue is currently blocked on, with a box to answer
-each blocker in place.
+A local, live view of the queue with authenticated controls for safe owner decisions.
 
 ```
 node tools/queue-dashboard/server.mjs
@@ -144,20 +143,23 @@ than guessed.
 Items with no declared downstream dependents retain their source order as the tie-breaker.
 The dashboard never rewrites queue-file order to apply this view.
 
-## What answering does
+## What a portal action does
 
-Four presets (Approved / Rejected / Defer / Ask me again) submit immediately; anything
-typed in the box is appended to the preset, or sent on its own with **Send answer**.
-Each answer writes two things into the item it belongs to:
+Each queue card offers **Answer**, **Approve**, **Skip**, and **Unblock** controls.
 
-- a `DECIDED <date> by Faruk, via the queue dashboard: <answer>` line directly under
-  `Status:`, because that is the first thing an agent run reads
-- an `ANSWERED` entry at the end of that item's `Log:` section, as the audit trail
+Every control submits a durable action with an action id, exact queue target, owning project and repository, session/run reference, capability requirements, and an allowlisted payload.
 
-and one row into `TRIAGE-<date>.md`, under an `## Answers from the live dashboard`
-section, so a later run can read the day's decisions in one place.
+The contract chooses one worker: cloud-first for connected remote repositories, the outbound desktop connector for local-only or freshest-sync work, or a deferred desktop queue when the required capability is unavailable.
 
-An answer is a recorded decision, not executed work. Nothing here runs anything.
+The action log and audit log are append-only and keyed by the action id, so a retry returns the existing result instead of applying an approval twice.
+
+The dashboard applies the safe queue decision once through the existing backup, mtime, and temp-file write guards.
+
+When a live adapter is unavailable, the action remains durable for the next authorized session.
+
+The browser cannot submit shell, merge, deploy, secret, credential, billing, or public-publishing actions.
+
+See [docs/QUEUE-CONTROL.md](../../docs/QUEUE-CONTROL.md) for the contract, capability checks, encrypted offline snapshots, and host authorization boundary.
 
 ## Answers from another channel
 
@@ -235,6 +237,11 @@ and the click.
 
 Polling pauses while the answer box has focus, so a repaint cannot wipe half-typed text.
 
+Action records are stored as `.queue-actions.jsonl` and audit evidence as
+`.queue-action-audit.jsonl` in the queue directory.
+
+These files are local handoff records, not a cloud connection or an execution permission.
+
 ## Unlocking
 
 Every request needs a token, including loopback ones. That is deliberate rather than
@@ -298,6 +305,10 @@ To stop publishing: `tailscale serve --https=443 off`.
 | `QUEUE_DIR` | `~/.claude-harness/queue` |
 | `PORT` | `4317` |
 | `QUEUE_TOKEN` | generated into `.dashboard-token` on first run |
+| `QUEUE_SNAPSHOT_KEY` | optional 32-byte base64url or 64-character hex key for encrypted offline snapshots |
+| `QUEUE_CLOUD_CAPABILITIES` | optional JSON capability record for an authorized cloud adapter |
+| `QUEUE_DESKTOP_CAPABILITIES` | optional JSON capability record for an authorized desktop connector |
+| `QUEUE_OFFLINE` | `0`; set to `1` only when serving the encrypted snapshot intentionally |
 
 It binds `127.0.0.1` only, and should stay that way. The queue holds private content, so
 remote access belongs behind an identity-checked mesh like Tailscale, not behind a
