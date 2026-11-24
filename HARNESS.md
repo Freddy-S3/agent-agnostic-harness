@@ -29,7 +29,7 @@ For example:
 
 `/ship` runs the complete workflow:
 
-1. Orient and plan against nearby code.
+1. Select a fast, standard, or deep planning path and orient against nearby code.
 2. Implement in dependency order.
 3. Build and run focused validation.
 4. Review the complete change adversarially.
@@ -42,6 +42,11 @@ For a nontrivial task, the checkpoints are:
 | Plan    | `proceed` | Approve the proposed scope and implementation plan.                               |
 | Review  | `lgtm`    | Accept a zero-blocker review and continue to reflection.                          |
 | Reflect | `done`    | Apply proposed harness updates and finish.                                        |
+
+Planning has no default time limit.
+Use `/ship --plan-within 5m <task>` when a professional task needs an explicit planning window; the plan reports whether the window was met or expired without weakening required checks.
+Gate 1 also reports compact preflight/planning elapsed time and worker counts so slow phases can be diagnosed instead of guessed at.
+At Gate 1, reply `proceed + context` when the repository should also receive or update `docs/PROJECT-CONTEXT.md` for faster future sessions.
 
 Use `fork` at a gate to start a fresh chat from a saved handoff when the conversation becomes long.
 Use `pause` to save the task for a later session.
@@ -87,6 +92,8 @@ The trace shows the selected execution owner, supporting skills that changed the
 [dispatch] task: Add coverage for an audio status service
 [skill-eval] selected: /ship - substantial file-changing work
 [skill-eval] supporting: /tdd - behavior needs a red-green test loop
+[parallel] Wave 1 - code map | test path | project context
+[parallel] Wave 1 complete - all reports returned
 [apply] /plan - identified the service and closest test sibling
 [gate] /ship plan - waiting for "proceed"
 [apply] /implement - added coverage after "proceed"

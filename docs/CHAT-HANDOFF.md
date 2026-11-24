@@ -1,8 +1,8 @@
-Continue the agent-agnostic-harness project.
+﻿Continue the agent-agnostic-harness project.
 
-Purpose: Resume private queue portal coordination
-Repository: C:\Users\faruk\.codex\worktrees\484f\agent-agnostic-harness
-Current branch: codex/private-queue-portal
+Purpose: Resume ship-planning workflow review
+Repository: C:\Users\faruk\Repo\agent-agnostic-harness
+Current branch: feat/ship-planning-fast-path-v2
 Read AGENTS.md before acting.
 No docs/PROJECT-CONTEXT.md exists yet; use docs/PROJECT-CONTEXT-TEMPLATE.md from the harness when creating one.
 
@@ -12,9 +12,9 @@ Operating rules:
 - Keep this chat focused on coordination; create a separate outcome chat for implementation.
 
 Recent commits:
-- dedd0c0 Harden relay secret and factory signal handling
-- 73c44aa Add bounded post-merge queue factory hook
-- dedb727 Add authenticated queue adapters and relay bootstrap
+- 17a7c51 Speed up ship planning workflow
+- 3014cae Add harness integration and interview readiness (#103)
+- 8db1466 Add authenticated queue adapters and relay bootstrap (#102)
 
 Working-tree status:
 - Clean
