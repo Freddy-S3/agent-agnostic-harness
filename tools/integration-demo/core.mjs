@@ -397,3 +397,159 @@ export function formatDeployment(result) {
     "Evidence: offline synthetic fixture; no live deployment was run.",
   ].join("\n");
 }
+
+const INTERVIEW_STATUS = Object.freeze({
+  ready: "Ready",
+  missing: "Missing",
+  signIn: "Needs sign-in",
+  notCallable: "Not callable",
+  missingCommand: "Missing command",
+  notVerified: "Not verified",
+  serverFailed: "Server start failed",
+  stale: "Stale evidence",
+});
+
+function evidenceIsStale(evidence, now, ttlMs, currentRevision) {
+  if (!evidence?.checkedAt) return false;
+  return now - evidence.checkedAt > ttlMs || (currentRevision && evidence.revision !== currentRevision);
+}
+
+function interviewRow({ id, label, required = true, status, nextAction, evidence }) {
+  return { id, label, required, status, nextAction, evidence: evidence ?? null };
+}
+
+export function inspectInterviewReadiness({
+  mode = "demo",
+  now = 1_700_000_000_000,
+  ttlMs = 30 * 60 * 1000,
+  currentRevision = "fixture-1",
+  runtime = {},
+  aiTool = {},
+  ide = {},
+  testCommand,
+  testEvidence,
+  serverCommand,
+  serverProbe = {},
+}) {
+  const stale = (evidence) => evidenceIsStale(evidence, now, ttlMs, currentRevision);
+  const rows = [
+    interviewRow({
+      id: "node-runtime",
+      label: "Node.js current LTS runtime",
+      status: !runtime.available ? INTERVIEW_STATUS.missing : stale(runtime.evidence) ? INTERVIEW_STATUS.stale : runtime.lts ? INTERVIEW_STATUS.ready : "Not current LTS",
+      nextAction: !runtime.available ? "Install current Node.js LTS and verify node --version and npm --version." : runtime.lts ? "No action." : "Switch to the current Node.js LTS before the interview.",
+      evidence: runtime.evidence,
+    }),
+    interviewRow({
+      id: "ai-tool",
+      label: "Preferred AI coding tool",
+      status: !aiTool.installed ? INTERVIEW_STATUS.missing : !aiTool.authenticated ? INTERVIEW_STATUS.signIn : !aiTool.callable ? INTERVIEW_STATUS.notCallable : stale(aiTool.evidence) ? INTERVIEW_STATUS.stale : INTERVIEW_STATUS.ready,
+      nextAction: !aiTool.installed ? "Install the preferred coding tool." : !aiTool.authenticated ? "Sign in through the tool's native flow; keep credentials out of chat." : !aiTool.callable ? "Open a harmless test project and verify the tool can read and edit a fixture." : "No action.",
+      evidence: aiTool.evidence,
+    }),
+    interviewRow({
+      id: "ide",
+      label: "IDE and test project",
+      status: !ide.available ? INTERVIEW_STATUS.missing : stale(ide.evidence) ? INTERVIEW_STATUS.stale : INTERVIEW_STATUS.ready,
+      nextAction: !ide.available ? "Open the fixture project in the selected IDE and verify the integrated terminal." : "No action.",
+      evidence: ide.evidence,
+    }),
+    interviewRow({
+      id: "test-command",
+      label: "Test command",
+      status: !testCommand ? INTERVIEW_STATUS.missingCommand : !testEvidence ? INTERVIEW_STATUS.notVerified : stale(testEvidence) ? INTERVIEW_STATUS.stale : INTERVIEW_STATUS.ready,
+      nextAction: !testCommand ? "Identify and run the repository's test command before coding." : !testEvidence ? "Run the repository's test command once and record the result." : "No action.",
+      evidence: testEvidence,
+    }),
+    interviewRow({
+      id: "dev-server",
+      label: "Local development server",
+      status: !serverCommand ? INTERVIEW_STATUS.missingCommand : serverProbe.status === "failed" ? INTERVIEW_STATUS.serverFailed : serverProbe.status !== "passed" ? INTERVIEW_STATUS.notVerified : stale(serverProbe.evidence) ? INTERVIEW_STATUS.stale : INTERVIEW_STATUS.ready,
+      nextAction: !serverCommand ? "Identify the local dev-server command and its expected port." : serverProbe.status === "failed" ? "Fix the local server start failure, then rerun the smoke check." : serverProbe.status !== "passed" ? "Start the local server and record one smoke-check result." : "No action.",
+      evidence: serverProbe.evidence,
+    }),
+  ];
+  const blockers = rows.filter((row) => row.required && row.status !== INTERVIEW_STATUS.ready).map((row) => ({ blocker: `${row.label}: ${row.status}`, nextAction: row.nextAction }));
+  return {
+    mode: mode.toUpperCase(),
+    rows,
+    blockers,
+    ready: blockers.length === 0,
+    next: blockers[0]?.nextAction ?? "Run the clarification-first task plan.",
+  };
+}
+
+export function renderInterviewReadiness(report) {
+  const lines = [
+    `Interview readiness - ${report.mode}`,
+    "Requirement | Status | Evidence",
+    ...report.rows.map((row) => `${row.label} | ${row.status} | ${row.evidence?.summary ?? "none"}`),
+  ];
+  if (report.blockers.length) lines.push("", "BLOCKED ON YOU", ...report.blockers.map((item) => `- ${item.blocker} | ${item.nextAction}`));
+  lines.push("", `Next: ${report.next}`);
+  return lines.join("\n");
+}
+
+export function prepareCodingTask({ request, clarified = false, questions = [], assumptions = [], targetFiles = [] }) {
+  if (!clarified) {
+    return {
+      phase: "clarify",
+      request,
+      questions: questions.length ? questions : ["What behavior should change, and what is explicitly out of scope?"],
+      assumptions: [],
+      targetFiles: [],
+      writeAuthorized: false,
+      writes: 0,
+      next: "Answer the clarification questions, then restate the scope before editing.",
+    };
+  }
+  return {
+    phase: "implement",
+    request,
+    questions: [],
+    assumptions,
+    targetFiles,
+    writeAuthorized: true,
+    writes: 0,
+    next: "Implement the smallest testable step and run its focused check.",
+  };
+}
+
+export function createInterviewWorkboard(tasks) {
+  const ids = new Set();
+  const board = tasks.map((task) => {
+    if (!task.id || ids.has(task.id)) throw new WorkspaceConflict(`Duplicate interview task id: ${task.id ?? "missing"}`);
+    ids.add(task.id);
+    return { id: task.id, title: task.title, owner: task.owner ?? "primary", dependsOn: [...(task.dependsOn ?? [])], status: "planned", evidence: null };
+  });
+  return { tasks: board, visible: true };
+}
+
+export function updateInterviewTask(board, id, patch) {
+  const task = board.tasks.find((item) => item.id === id);
+  if (!task) throw new WorkspaceConflict(`Unknown interview task: ${id}`);
+  const allowed = ["planned", "in-progress", "blocked", "done"];
+  if (patch.status && !allowed.includes(patch.status)) throw new WorkspaceConflict(`Unknown interview task status: ${patch.status}`);
+  return { ...board, tasks: board.tasks.map((item) => item.id === id ? { ...item, ...patch } : item) };
+}
+
+export function renderInterviewWorkboard(board) {
+  return board.tasks.map((task) => `${task.id} | ${task.status} | ${task.owner} | ${task.title} | ${task.evidence?.summary ?? "evidence pending"}`).join("\n");
+}
+
+export function buildInterviewWrapUp({ scope, completed = [], testEvidence, serverEvidence, remaining = [] }) {
+  const missing = [];
+  if (!scope) missing.push("scope");
+  if (!completed.length) missing.push("completed work");
+  if (!testEvidence?.summary) missing.push("test evidence");
+  if (!serverEvidence?.summary) missing.push("server evidence");
+  return {
+    status: missing.length ? "incomplete" : "ready",
+    scope,
+    whatWorks: completed,
+    evidence: { tests: testEvidence ?? null, server: serverEvidence ?? null },
+    remaining,
+    missing,
+    next: missing.length ? `Capture evidence for ${missing.join(", ")}.` : "State what works, what remains, and the exact next action.",
+  };
+}

@@ -12,6 +12,7 @@ Use `/connect-workspace` when you need an evidence-based readiness checklist in 
 It distinguishes installation, registration, configuration, authentication, scoped read evidence, freshness, optional skips, and run authorization.
 Use `/start-ticket` to resolve a ticket into a verified isolated branch/worktree receipt while preserving unrelated work.
 Use `/deploy-nonprod` for a provider-neutral read-only plan, then an explicitly authorized sandbox run with bounded timeout reconciliation and read-back.
+Use `/interview-readiness` before a practical coding assessment to verify the runtime, IDE, AI tool, test command, server, clarification-first plan, visible parallel work, and evidence-backed wrap-up.
 
 The [integration contracts](docs/INTEGRATION-CONTRACTS.md) keep host and provider details out of the portable workflows.
 The [onboarding guide](docs/INTEGRATION-ONBOARDING.md) contains the chat format and the offline synthetic demo.

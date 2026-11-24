@@ -56,3 +56,22 @@ It performs no network calls, creates no real ticket or branch, and runs no depl
 
 Live host discovery, registration, authenticated reads, and authorized nonproduction writes remain separate verification categories.
 Do not claim them from the fixture output.
+
+## Practical coding assessment readiness
+
+When the next task is a live coding assessment, use `/interview-readiness` after the generic connection check.
+The checklist is provider-neutral and keeps private interview logistics outside the repository.
+
+```text
+Interview readiness - DEMO | LIVE
+Node.js current LTS runtime | Ready | node/npm evidence
+Preferred AI coding tool | Ready | installed, authenticated, callable
+IDE and test project | Ready | opened fixture
+Test command | Ready | command ran
+Local development server | Ready | start and smoke evidence
+
+Next: clarify the requested behavior, restate assumptions, then implement the smallest testable step.
+```
+
+The fixture covers missing runtime/tool, sign-in and callability, missing test command, server start failure, stale evidence, clarification-before-write, visible parallel tasks, and evidence-backed wrap-up.
+The live checklist should also confirm the exact current Node.js LTS, IDE, test command, server port, and AI-tool callability on the supplied codebase.

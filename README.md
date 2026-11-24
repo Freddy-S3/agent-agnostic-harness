@@ -95,7 +95,7 @@ Skills refer to the tracker generically via `JIRA_URL` / `CONFLUENCE_URL`. When 
 
 ## Integration workflows
 
-The harness includes chat-first `/connect-workspace`, `/start-ticket`, and `/deploy-nonprod` workflows.
+The harness includes chat-first `/connect-workspace`, `/start-ticket`, `/deploy-nonprod`, and `/interview-readiness` workflows.
 They keep host registration, service adapters, private readiness, task ledgers, and queues as separate concerns.
 Use [the onboarding guide](docs/INTEGRATION-ONBOARDING.md) for the response shape and offline demo, and [the contracts](docs/INTEGRATION-CONTRACTS.md) for the authority boundaries.
 

@@ -30,6 +30,7 @@
         "issue_tracker": { "adapter": "fixture", "provider": "synthetic", "sampleIssue": "APP-101", "requiredFor": ["ticket-start"] },
         "source_control": { "adapter": "fixture", "provider": "synthetic", "requiredFor": ["pr-workflow"] },
         "deployment": { "adapter": "fixture", "provider": "synthetic", "requiredFor": ["deployment-plan", "deployment-run"], "environment": "sandbox" },
+        "coding_assessment": { "adapter": "fixture", "provider": "synthetic", "requiredFor": ["interview-readiness"] },
         "notifications": { "adapter": "disabled", "requiredFor": [] }
       },
       "workflowPolicy": {
@@ -40,6 +41,9 @@
         "requireExactRunAuthorization": true,
         "automaticRetries": false,
         "reconcileUncertainLaunches": true,
+        "clarificationBeforeWrites": true,
+        "parallelTaskVisibility": true,
+        "wrapUpRequiresEvidence": true,
         "networkWritesInDemo": false,
         "automaticMerge": false,
         "publicPublicationRequiresApproval": true
