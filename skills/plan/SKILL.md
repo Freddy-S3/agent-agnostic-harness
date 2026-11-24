@@ -9,6 +9,12 @@ user-invocable: true
 The biggest source of wasted work is implementing the wrong thing.
 This skill front-loads the thinking so implementation becomes mechanical.
 
+## Invocation contract
+
+When `/plan` is invoked by `/ship`, `/ship` supplies the preflight packet containing the handoff result, ticket result, branch/worktree readiness, scoped instructions, project-context findings, planning mode, and optional planning window.
+Start at the selected planning mode and do not repeat the handoff, Jira, branch, or project-context checks.
+When invoked directly, run Phase 0 as written below.
+
 ## Phase 0: Check for Existing Handoff and Jira Context
 
 Before exploring, do two things in parallel:
@@ -23,8 +29,24 @@ Before exploring, do two things in parallel:
 
 ## Phase 1: Orient
 
-1. **Explore first.** Read the affected files and find the closest existing sibling to model after.
-State what you found - do not skip directly to writing code.
+Select the smallest mode that preserves correctness:
+
+- **Fast** - one file or an obvious, low-risk docs/config/test change with no external service, auth, migration, or ambiguous behavior.
+  Read the affected area, define the observable done condition, and surface blockers.
+  Skip broad sibling searches and dependency decomposition unless the scope expands.
+- **Standard** - a normal feature or fix touching up to three files.
+  Read the affected area, one closest sibling, and the nearest validation path, then produce a short dependency-ordered plan.
+- **Deep** - more than three files, external integrations, auth, migrations, ambiguous requirements, or high failure cost.
+  Use the full exploration and decomposition workflow.
+
+The fast path is a scope gate, not a lower quality bar.
+Promote to Standard or Deep when new evidence breaks its assumptions.
+Stop orientation when the completion predicate is satisfied: affected files and why, observable done condition, reference or an explicit reason none exists, and blockers.
+
+1. **Explore first.** Read the affected files and state what you found.
+For Standard and Deep, find the closest existing sibling to model after.
+For Fast, inspect a sibling only when the pattern is not already obvious from the affected area.
+Do not skip directly to writing code.
 2. **Define done.** Write out the final state in concrete terms: which files change, what new behavior exists, what test cases pass.
 3. **Name the reference.** Explicitly state which file/function you are modeling after.
 Do not design from scratch if a sibling exists.
@@ -33,7 +55,12 @@ Ask once, clearly, before proceeding - never coin-flip on a design decision.
 
 ## Phase 2: Decompose
 
-Break the task into sub-tasks labeled by dependency type:
+For Standard and Deep work, fan out independent read-only exploration when it materially reduces wall time.
+Typical workers are code-map, test/validation, project-context, and ticket retrieval when a key is supplied.
+Use no more than three workers in one wave, start the wave together, wait for every report, and serialize all writes.
+Emit compact start and completion status; if the host cannot delegate, state `Parallel delegation unavailable` and continue sequentially.
+
+Break Standard and Deep work into sub-tasks labeled by dependency type:
 - **Parallel** - no shared dependency, can be done simultaneously (e.g., "write DTO" and "write interface")
 - **Sequential** - strict ordering required (e.g., "IoC registration" must follow "service exists")
 
@@ -41,6 +68,12 @@ Rules:
 - Each sub-task should be <= ~20 lines of new code. If larger, decompose further or question the design.
 - For complex features or anything touching > 3 files: write out the plan (3-8 bullets) and confirm with user before implementing.
 - For trivial tasks (single file, obvious change): proceed directly after a one-line statement of intent.
+
+Fast mode uses the one-line intent and completion predicate rather than a dependency graph.
+Promote it when the affected file count, risk, or ambiguity grows.
+
+If the caller supplies a planning window, honor it as an explicit time target without skipping required security, ticket, or scoped-instruction checks.
+When the window expires, stop new discovery, report the evidence gaps, and wait for `continue planning` or the user's adjustment.
 
 ## Phase 3: Gate
 

@@ -14,8 +14,12 @@ Never ask the user to invoke a sub-skill manually.
 ## Invocation
 
 ```
-/ship <task description>
+/ship [--plan-within <duration>] <task description>
 ```
+
+`--plan-within <duration>` is optional and has no default.
+It sets a planning window only when the user asks for one; without it, take the time the task needs.
+Treat the window as a quality-preserving deadline: keep required ticket, security, and scoped-instruction checks, and if the window expires, report the incomplete evidence instead of inventing confidence.
 
 When the host supports scoped agent modes, invoking `/ship` from a project-specific agent (`@<agent> /ship <task>`) is preferred, since the agent supplies the project's conventions.
 
@@ -46,6 +50,10 @@ director: /freddy | /faruk | none
 owner: /ship
 phase: plan | implement | synthesize | review | reflect
 gate: none | 1 | 2 | 3
+plan_mode: fast | standard | deep
+planning_window: none | <duration>
+context: none | requested | updated
+timing: <phase elapsed times and worker counts>
 objective: <one sentence>
 acceptance: <observable definition of done>
 decisions: <settled choices>
@@ -57,6 +65,10 @@ updated: <timestamp>
 ```
 
 Refresh it at startup, after each settled decision, after each worker wave, after each validation, at every phase transition and gate reply, and on any change to `objective`, `changed`, `evidence`, `blocker`, or `next`.
+
+At startup and each phase transition, capture the available wall-clock timestamp.
+At Gate 1, report compact planning telemetry: preflight elapsed, planning elapsed, tool-call count, number of workers launched, and whether any delegation or timing measurement was unavailable.
+Store the same summary in the ledger's `timing` field so a later run can distinguish model deliberation, tool latency, and worker startup overhead without replaying the whole conversation.
 
 ### Write-Ahead Entries
 
@@ -133,6 +145,34 @@ Classify the request before looking up Jira:
 - If the user asks to work from Jira but gives no issue key, ask for the key at Gate 1 rather than guessing from a search result.
 - Record the classification in the Gate 1 output as `Ticket: <key>` or `Ticket: none (ticketless)`.
 
+`/ship` owns preflight context.
+It performs the handoff check, ledger setup, ticket classification, branch/worktree preparation, and project-context discovery before invoking `/plan`.
+When a Jira key is present, start the independent ticket retrieval and repository exploration work together where the host supports parallel delegation; branch/worktree preparation may run in the same wave because it does not depend on the ticket body.
+Do not begin implementation writes until the task branch/worktree is ready.
+If Jira is not configured and no key was supplied, record `Jira: unavailable; ticketless work continues` and proceed locally.
+If a supplied key cannot be authenticated or retrieved, keep that as a blocker rather than silently downgrading it to ticketless work.
+
+### Planning modes and optional timing
+
+Select the smallest mode that preserves correctness before Phase 1 begins.
+The mode is scope- and risk-based, not a promise to rush:
+
+- **Fast** - one file or an obvious, low-risk docs/config/test change with no external service, auth, migration, or ambiguous behavior.
+  Read the affected area, identify the observable done condition, and surface blockers.
+  Skip broad sibling searches and dependency decomposition unless the scope expands.
+- **Standard** - a normal feature or fix touching up to three files.
+  Read the affected area, one closest sibling, and the nearest validation path, then produce a short dependency-ordered plan.
+- **Deep** - more than three files, external integrations, auth, migrations, ambiguous requirements, or a task whose failure cost is high.
+  Use the full exploration and decomposition workflow.
+
+The fast path is a scope gate, not a lower quality bar.
+If new evidence breaks its assumptions, promote the task to Standard or Deep before implementation.
+Professional and personal work may use any mode; neither mode receives an artificial default time limit.
+
+When `--plan-within <duration>` is supplied, record it in the ledger and show whether the planning window was met or expired at Gate 1.
+On expiry, stop opening new discovery branches, synthesize the evidence already gathered, and list any unverified areas or blockers.
+The user may reply `continue planning` to extend the window before implementation.
+
 ---
 
 ## Execution Sequence
@@ -160,15 +200,33 @@ Skip Phase 1-2 and jump directly to Gate 1 with the existing plan pre-filled.
 
 The ad hoc ledger is created at startup like a tracker-backed one, not only when the task pauses. A ledger that only appears on a clean pause is absent in exactly the case it exists for.
 
+The preflight packet passed to `/plan` includes the ledger path, task mode, planning window, ticket result, branch/worktree readiness, scoped instruction paths, and any existing `docs/PROJECT-CONTEXT.md` findings.
+`/plan` must not repeat these checks when invoked by `/ship`.
+
 ---
 
 ### Phase 1-2: Plan (automatic → outputs Gate 1)
 
-Interrogate the premise BEFORE planning, per `instructions/rules/premise-interrogation.md`. Planning takes the task's framing as given and optimises inside it, so a premise that is false survives planning intact - a company was reported dead while it had 42 open roles, a resume was investigated on a checkout 29 commits behind, and discovery reported zero matches from a hardcoded list of five boards. Name what must be true, say how it was established, run the cheapest check that would falsify it, and name what scope could be dropped. If the premise is large or cannot be checked cheaply, route to `/grilling` instead of proceeding on the assumption.
+Interrogate the premise BEFORE planning, per `instructions/rules/premise-interrogation.md`.
+Planning takes the task's framing as given and optimises inside it, so a premise that is false survives planning intact.
+Name what must be true, say how it was established, run the cheapest check that would falsify it, and name what scope could be dropped.
+If the premise is large or cannot be checked cheaply, route to `/grilling` instead of proceeding on the assumption.
 
-Then run PLAN skill: explore affected files, find the reference sibling, and decompose the work into dependency-ordered sequential sub-tasks.
-Add a parallel wave only when independently bounded work materially benefits from it; independent work is not, by itself, a reason to spawn more agents.
+Then run `/plan` with the preflight packet and selected mode.
+Fast mode uses the narrow path described above; Standard and Deep may fan out independent, read-only exploration before the parent synthesizes the plan.
+Use no more than three workers in a wave, start them together, wait for all reports, and keep writes serialized.
+The completion predicate is: affected files and why, observable done condition, reference or an explicit reason none exists, blockers, and an ordered implementation plan appropriate to the selected mode.
+Stop when that predicate is satisfied.
 Surface any blockers as part of the Gate 1 output.
+
+When a parallel wave runs, show compact status so the user can see the swarm without exposing hidden reasoning:
+
+```
+[parallel] Wave 1 started: ticket | project context | code map
+[parallel] Wave 1 complete: ticket ✓ | project context ✓ | code map ✓
+```
+
+If the host cannot delegate, state `Parallel delegation unavailable` and continue sequentially.
 
 ```
 ════════════════════════════════════════════════
@@ -177,6 +235,10 @@ Surface any blockers as part of the Gate 1 output.
 Task:       <task name>
 Premise:    <what must be true for this to be worth doing> - <verified how, or "assumed">
 Ticket:     <Jira key> | none (ticketless)
+Jira:       <fetched | unavailable; ticketless | not requested | blocked>
+Mode:       <fast | standard | deep>
+Planning:   <no window | <duration> met | <duration> expired>
+Timing:     preflight <duration> | plan <duration> | tool calls <N> | workers <N>
 Reference:  <file being modeled after>
 Type:       feature | bugfix | refactor
 
@@ -196,7 +258,7 @@ Blockers (resolve before I start):
 
 Scope estimate: ~<N> lines changed across <N> files
 ════════════════════════════════════════════════
-Reply "proceed" to implement | adjust any item | "fork" to reset context (handoff preserves state)
+Reply "proceed" to implement | "proceed + context" to also create or update `docs/PROJECT-CONTEXT.md` | "continue planning" to extend an expired planning window | adjust any item | "fork" to reset context (handoff preserves state)
 ```
 
 ---
@@ -214,6 +276,17 @@ Implement the plan as dependency-ordered waves:
 6. Run sequential sub-tasks in order after their dependencies are complete.
 7. For sequential work, output the existing status format:
   `  ✓ <sub-task> → <file>`
+
+At each implementation wave, emit one compact start line and one completion line with the worker count.
+For example: `[parallel] Wave 1 started: service | tests` and `[parallel] Wave 1 complete: 2 workers returned`.
+
+If the user replies `proceed + context`, schedule one optional context worker after the implementation changes are available and before final synthesis/review.
+The worker reads the settled diff, existing context file if present, and `docs/PROJECT-CONTEXT-TEMPLATE.md` when creating a new file.
+It may write only `docs/PROJECT-CONTEXT.md`, must preserve existing factual entries and settled decisions, and must not copy chat history or speculative implementation details.
+Use an isolated worktree and claim for the context writer when the host supports it; otherwise serialize the write after the main implementation and say so.
+If an isolated worktree cannot see uncommitted implementation changes, pass the settled changed paths and diff as its reference or use the serialized fallback.
+The parent integrates only the returned context-file change after checking it against the settled implementation state.
+Report its status as `  ✓ project context → docs/PROJECT-CONTEXT.md` or `  ↳ project context unavailable → parent will apply the template`.
 
 Do not create a parallel wave merely because tasks are independent.
 Do not run parallel workers that edit the same file or depend on each other's uncommitted changes.
@@ -297,9 +370,11 @@ Either path completes the session.
 | Reply | Effect |
 |---|---|
 | `proceed` | Approve Gate 1, start implementing |
+| `proceed + context` | Approve Gate 1, start implementing, and create or update `docs/PROJECT-CONTEXT.md` after implementation state is available |
 | `lgtm` | Approve Gate 2, continue to Phase 6 |
 | `done` | Approve Gate 3, apply harness updates |
 | `pause` | At any gate - write handoff artifact, stop (resumable next session) |
+| `continue planning` | Extend an expired optional planning window and resume Phase 1-2 |
 | `skip review` | Skip Gate 2 entirely - only for trivial/config-only changes |
 | `skip reflect` | Skip Phase 6, delete the completed task handoff, and finish - not recommended, harness degrades over time |
 
