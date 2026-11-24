@@ -177,6 +177,9 @@ The user may reply `continue planning` to extend the window before implementatio
 
 ### Compact planning setup
 
+Show this one-line reminder before the question:
+`Planning reminder: default = auto + no time limit | fast | standard | deep | <mode> <duration>`
+
 If the task text did not already provide `--plan-mode` or `--plan-within`, ask one short intake question before the full preflight:
 
 ```
