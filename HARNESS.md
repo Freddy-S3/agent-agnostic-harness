@@ -6,6 +6,17 @@ The harness is separate from application code: it guides the agent but does not 
 
 Agent-agnostic operation is the default: repository files, queue, tracker, and pull requests remain the source of truth so work can move between Codex and Claude Code without losing context.
 
+## Integration setup and delivery
+
+Use `/connect-workspace` when you need an evidence-based readiness checklist in chat.
+It distinguishes installation, registration, configuration, authentication, scoped read evidence, freshness, optional skips, and run authorization.
+Use `/start-ticket` to resolve a ticket into a verified isolated branch/worktree receipt while preserving unrelated work.
+Use `/deploy-nonprod` for a provider-neutral read-only plan, then an explicitly authorized sandbox run with bounded timeout reconciliation and read-back.
+
+The [integration contracts](docs/INTEGRATION-CONTRACTS.md) keep host and provider details out of the portable workflows.
+The [onboarding guide](docs/INTEGRATION-ONBOARDING.md) contains the chat format and the offline synthetic demo.
+Run `node tools/integration-demo/demo.mjs` to show the demo and `node --test tools/integration-demo/*.test.mjs` to validate its failure, resume, authorization, and duplicate-prevention paths.
+
 ## Start Here
 
 Use `/ship <task>` for a substantial change.
