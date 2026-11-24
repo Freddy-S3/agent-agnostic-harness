@@ -20,7 +20,11 @@ This repository is the single source of truth. You write a skill once, in one fo
 | `memories/` | Durable user and repo context notes. |
 | `templates/scheduled-tasks/` | Prompts for host scheduled tasks. These are copied into the host once when a task is created and refreshed by nothing, so they are generated from here rather than hand-written. `tools/check-skill-caches.ps1 -Fix` regenerates them. |
 | `config/mcp-config.template.json` | Sanitized MCP server template, env-var driven. |
+| `config/project-config.template.json` | Provider-neutral logical project and workflow policy template. |
 | `docs/PROJECT-OPERATING-MODE.md` | Portable control-center, Project, chat, repository, and swarm conventions. |
+| `docs/INTEGRATION-ONBOARDING.md` | Chat-first readiness, resume behavior, and offline demo usage. |
+| `docs/INTEGRATION-CONTRACTS.md` | Portable readiness, ticket workspace, and nonproduction deployment contracts. |
+| `tools/integration-demo/` | Deterministic synthetic adapters, demo output, and focused tests. |
 | `HARNESS.md` | How to actually use the harness day to day - start here after installing. |
 | `install.ps1` | Projects this repo into a host's layout. |
 | `bootstrap-new-machine.ps1` | One-time setup for a fresh PC: clones every repo and runs `install.ps1`. See `NEW-MACHINE-SETUP.md`. |
@@ -88,6 +92,22 @@ The MCP template reads everything from the environment, so no credentials live i
 | `AGENT_CA_BUNDLE` | Path to a corporate root CA bundle, if TLS is intercepted |
 
 Skills refer to the tracker generically via `JIRA_URL` / `CONFLUENCE_URL`. When neither is configured, ticket-backed workflows degrade to ticketless rather than blocking.
+
+## Integration workflows
+
+The harness includes chat-first `/connect-workspace`, `/start-ticket`, `/deploy-nonprod`, and `/interview-readiness` workflows.
+They keep host registration, service adapters, private readiness, task ledgers, and queues as separate concerns.
+Use [the onboarding guide](docs/INTEGRATION-ONBOARDING.md) for the response shape and offline demo, and [the contracts](docs/INTEGRATION-CONTRACTS.md) for the authority boundaries.
+
+Run the synthetic demo without credentials or network access:
+
+```powershell
+node tools/integration-demo/demo.mjs
+node --test tools/integration-demo/*.test.mjs
+```
+
+The fixture proves workflow behavior only.
+It is not evidence of live host discovery, authenticated reads, or a real deployment.
 
 ## Adding to the harness
 

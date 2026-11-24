@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Logical harness configuration; map privately to host and service adapters",
+  "mode": "demo",
+  "state": {
+    "rootReference": "HARNESS_STATE_HOME",
+    "reuseExistingTaskQueueAndClaimRoots": true,
+    "publicRuntimeState": false
+  },
+  "host": {
+    "selection": "detect-or-select",
+    "requireNativeRegistrationVerification": true
+  },
+  "projects": [
+    {
+      "id": "demo-app",
+      "displayName": "Synthetic example application",
+      "repositories": [
+        {
+          "id": "example-app",
+          "adapter": "local-git-fixture",
+          "localPathReference": "DEMO_REPOSITORY_PATH",
+          "remote": "origin",
+          "baseBranchPolicy": "resolve-and-verify",
+          "branchPattern": "feature/{ticketKey}-{summarySlug}"
+        }
+      ],
+      "capabilities": {
+        "local_git": { "adapter": "local-git-fixture", "requiredFor": ["local-engineering", "ticket-start"] },
+        "issue_tracker": { "adapter": "fixture", "provider": "synthetic", "sampleIssue": "APP-101", "requiredFor": ["ticket-start"] },
+        "source_control": { "adapter": "fixture", "provider": "synthetic", "requiredFor": ["pr-workflow"] },
+        "deployment": { "adapter": "fixture", "provider": "synthetic", "requiredFor": ["deployment-plan", "deployment-run"], "environment": "sandbox" },
+        "coding_assessment": { "adapter": "fixture", "provider": "synthetic", "requiredFor": ["interview-readiness"] },
+        "notifications": { "adapter": "disabled", "requiredFor": [] }
+      },
+      "workflowPolicy": {
+        "defaultWorkspaceMode": "isolated",
+        "preserveUnrelatedWork": true,
+        "reuseExistingBranches": true,
+        "defaultDeploymentOperation": "plan",
+        "requireExactRunAuthorization": true,
+        "automaticRetries": false,
+        "reconcileUncertainLaunches": true,
+        "clarificationBeforeWrites": true,
+        "parallelTaskVisibility": true,
+        "wrapUpRequiresEvidence": true,
+        "networkWritesInDemo": false,
+        "automaticMerge": false,
+        "publicPublicationRequiresApproval": true
+      },
+      "verification": {
+        "ttlMinutes": 60,
+        "invalidateOnHostOrScopeChange": true,
+        "invalidateOnCredentialRotationMarker": true,
+        "storeSecretsOrSecretHashes": false
+      }
+    }
+  ]
+}
