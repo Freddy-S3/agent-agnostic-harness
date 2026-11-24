@@ -14,9 +14,11 @@ Never ask the user to invoke a sub-skill manually.
 ## Invocation
 
 ```
-/ship [--plan-within <duration>] <task description>
+/ship [--plan-mode <auto|fast|standard|deep>] [--plan-within <duration>] <task description>
 ```
 
+`--plan-mode` is optional and defaults to `auto`.
+`auto` selects the smallest planning mode that preserves correctness; `fast`, `standard`, and `deep` explicitly select a mode.
 `--plan-within <duration>` is optional and has no default.
 It sets a planning window only when the user asks for one; without it, take the time the task needs.
 Treat the window as a quality-preserving deadline: keep required ticket, security, and scoped-instruction checks, and if the window expires, report the incomplete evidence instead of inventing confidence.
@@ -50,7 +52,7 @@ director: /freddy | /faruk | none
 owner: /ship
 phase: plan | implement | synthesize | review | reflect
 gate: none | 1 | 2 | 3
-plan_mode: fast | standard | deep
+plan_mode: requested auto | fast | standard | deep; resolved fast | standard | deep
 planning_window: none | <duration>
 context: none | requested | updated
 timing: <phase elapsed times and worker counts>
@@ -173,6 +175,19 @@ When `--plan-within <duration>` is supplied, record it in the ledger and show wh
 On expiry, stop opening new discovery branches, synthesize the evidence already gathered, and list any unverified areas or blockers.
 The user may reply `continue planning` to extend the window before implementation.
 
+### Compact planning setup
+
+If the task text did not already provide `--plan-mode` or `--plan-within`, ask one short intake question before the full preflight:
+
+```
+Planning setup? Reply `default` for auto mode with no time limit, or send `<mode>` / `<mode> <duration>`.
+```
+
+Accept `default`, `fast`, `standard`, `deep`, `fast 2m`, `standard 5m`, or `deep 10m`.
+Record the answer in the ledger and continue immediately.
+Do not ask again when the task text or command already supplied either value; display the resolved mode and window instead.
+This is a planning-preference intake, not an approval gate.
+
 ---
 
 ## Execution Sequence
@@ -236,7 +251,7 @@ Task:       <task name>
 Premise:    <what must be true for this to be worth doing> - <verified how, or "assumed">
 Ticket:     <Jira key> | none (ticketless)
 Jira:       <fetched | unavailable; ticketless | not requested | blocked>
-Mode:       <fast | standard | deep>
+Mode:       <auto | fast | standard | deep> (resolved: <fast | standard | deep>)
 Planning:   <no window | <duration> met | <duration> expired>
 Timing:     preflight <duration> | plan <duration> | tool calls <N> | workers <N>
 Reference:  <file being modeled after>

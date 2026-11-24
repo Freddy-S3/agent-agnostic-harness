@@ -29,6 +29,9 @@ Before exploring, do two things in parallel:
 
 ## Phase 1: Orient
 
+When the selected mode is **auto**, choose the smallest mode below that preserves correctness.
+When the caller explicitly selected Fast, Standard, or Deep, honor that selection unless new evidence makes it unsafe, then promote to the next mode and explain why.
+
 Select the smallest mode that preserves correctness:
 
 - **Fast** - one file or an obvious, low-risk docs/config/test change with no external service, auth, migration, or ambiguous behavior.

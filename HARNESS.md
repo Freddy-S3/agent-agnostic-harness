@@ -44,6 +44,8 @@ For a nontrivial task, the checkpoints are:
 | Reflect | `done`    | Apply proposed harness updates and finish.                                        |
 
 Planning has no default time limit.
+At `/ship` startup, a compact planning setup prompt asks for `auto`, `fast`, `standard`, or `deep`, plus an optional planning window; reply `default` to continue with auto mode and no time limit.
+You can skip that prompt with explicit flags such as `/ship --plan-mode deep --plan-within 10m <task>`.
 Use `/ship --plan-within 5m <task>` when a professional task needs an explicit planning window; the plan reports whether the window was met or expired without weakening required checks.
 Gate 1 also reports compact preflight/planning elapsed time and worker counts so slow phases can be diagnosed instead of guessed at.
 At Gate 1, reply `proceed + context` when the repository should also receive or update `docs/PROJECT-CONTEXT.md` for faster future sessions.
