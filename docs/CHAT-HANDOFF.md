@@ -1,6 +1,6 @@
 ﻿Continue the agent-agnostic-harness project.
 
-Purpose: Resume ship-planning workflow review
+Purpose: Resume Ship workflow optimization review
 Repository: C:\Users\faruk\Repo\agent-agnostic-harness
 Current branch: feat/ship-planning-fast-path-v2
 Read AGENTS.md before acting.
@@ -12,9 +12,9 @@ Operating rules:
 - Keep this chat focused on coordination; create a separate outcome chat for implementation.
 
 Recent commits:
-- 17a7c51 Speed up ship planning workflow
-- 3014cae Add harness integration and interview readiness (#103)
-- 8db1466 Add authenticated queue adapters and relay bootstrap (#102)
+- 6b26e2e Extend ship phase acceleration
+- 104819f Add ship planning startup reminder
+- acee40e Add compact ship planning setup
 
 Working-tree status:
 - Clean
