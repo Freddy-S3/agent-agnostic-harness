@@ -38,6 +38,14 @@ Keep facts and settled decisions here so Codex, Claude Code, ChatGPT, and future
 - Deployment or publishing path:
 - Required environment variables, without secrets:
 
+## Verification map (when applicable)
+
+- Feature:
+  - Entry point:
+  - User action:
+  - Expected state:
+  - Proof artifact:
+
 ## Continuity
 
 Read `AGENTS.md` first, then this file, then `docs/CHAT-HANDOFF.md` if it exists.

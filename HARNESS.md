@@ -53,6 +53,9 @@ Ship carries a compact phase packet from planning through review: acceptance cri
 Independent validation lanes may run together, while shared-file edits and synthesis stay single-owner.
 After a failure, Ship retries only the invalidated lane and reuses evidence that still matches the settled worktree.
 These accelerators apply in both modes; planning windows remain optional and never lower the professional quality floor.
+For UI or workflow-visible work, Ship carries a compact verification map from user action to expected state and proof artifact.
+Runtime verification uses `/browsertest` even when a project has no pre-existing E2E suite; a build or markup inspection alone is not UI evidence.
+When a recurring correction is mechanically checkable, `/closing` promotes it to a test, lint rule, validator, or API constraint instead of growing prose by default.
 
 Use `fork` at a gate to start a fresh chat from a saved handoff when the conversation becomes long.
 Use `pause` to save the task for a later session.

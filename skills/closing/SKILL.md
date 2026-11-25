@@ -87,6 +87,7 @@ Keep it under 20 lines total. This is a context stash, not a narrative.
 Scan the full conversation, including any earlier `/ship` loops in the same session, for:
 1. **Corrections** - the user corrected your approach, code style, or architecture.
 These are the highest-signal items. The user is telling you what "right" looks like.
+When a correction is mechanically checkable, promote it to a deterministic test, lint rule, validator, or API constraint; keep prose for the judgment that remains.
 2. **Missing context** - you had to search for something that should have been pre-loaded.
 That search cost tokens and time; prevent it next time.
 3. **Ambiguous skill** - a skill's instructions were unclear and you had to guess.
