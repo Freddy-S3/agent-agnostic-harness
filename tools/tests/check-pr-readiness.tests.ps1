@@ -57,6 +57,14 @@ Assert ($r.code -eq 3) 'an open PR path overlap exits three'
 Assert ($r.text -match 'PR #42') 'the overlapping PR number is reported'
 Assert ($r.text -match [regex]::Escape($sharedPath)) 'the overlapping path is reported'
 
+$stackedJson = Join-Path $jsonRoot 'stacked.json'
+@(
+    @{ number = 108; headRefName = 'feature'; baseRefName = 'main'; files = @(@{ path = $sharedPath }) },
+    @{ number = 109; headRefName = 'stacked-feature'; baseRefName = 'feature'; files = @(@{ path = $sharedPath }) }
+) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $stackedJson -Encoding UTF8
+$r = Invoke-Check $stackedJson 'HEAD' 108
+Assert ($r.code -eq 0) 'the current PR and an intentionally stacked PR do not self-block'
+
 $r = Invoke-Check $cleanJson 'c5b7fdd'
 Assert ($r.code -eq 2) 'a branch behind origin/main exits two'
 Assert ($r.text -match 'BLOCKED') 'a stale branch reports blocked'

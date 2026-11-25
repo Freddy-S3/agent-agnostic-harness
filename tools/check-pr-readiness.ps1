@@ -21,7 +21,8 @@
   Optional JSON file used by tests or offline callers instead of querying gh.
 
 .PARAMETER CurrentPullRequestNumber
-  Optional current PR number. Callers use this to avoid comparing a pull request with itself.
+  Optional current PR number. Callers use this to avoid comparing a pull request with itself
+  or with an intentionally stacked pull request based on the current head.
 
 .PARAMETER ProfessionalMode
   Enforce the professional review guard when CurrentPullRequestNumber is supplied.
@@ -109,19 +110,25 @@ try {
     $openPullRequests = @()
     if ($OpenPullRequestsJson) {
         $jsonPath = (Resolve-Path -LiteralPath $OpenPullRequestsJson).Path
-        $openPullRequests = @(Get-Content -LiteralPath $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json)
+        $openPullRequests = @((Get-Content -LiteralPath $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json) | ForEach-Object { $_ })
     } else {
-        $listed = Invoke-Tool 'gh' @('pr', 'list', '--state', 'open', '--json', 'number,headRefName')
-        $openPullRequests = @($listed | ConvertFrom-Json)
+        $listed = Invoke-Tool 'gh' @('pr', 'list', '--state', 'open', '--json', 'number,headRefName,baseRefName')
+        $openPullRequests = @(($listed | ConvertFrom-Json) | ForEach-Object { $_ })
     }
 
+    $currentPullRequest = $null
+    $currentHeadRefName = ''
     $autoMergeEnabled = $false
-    if ($ProfessionalMode -and $CurrentPullRequestNumber -gt 0) {
+    if ($CurrentPullRequestNumber -gt 0) {
         if ($OpenPullRequestsJson) {
-            $currentPullRequest = @($openPullRequests | Where-Object { [int]$_.number -eq $CurrentPullRequestNumber } | Select-Object -First 1)
-            $autoMergeEnabled = $null -ne $currentPullRequest.autoMergeRequest
+            $currentPullRequest = $openPullRequests | Where-Object { [int]$_.number -eq $CurrentPullRequestNumber } | Select-Object -First 1
         } else {
-            $currentPullRequest = Invoke-Tool 'gh' @('pr', 'view', [string]$CurrentPullRequestNumber, '--json', 'autoMergeRequest') | ConvertFrom-Json
+            $currentPullRequest = Invoke-Tool 'gh' @('pr', 'view', [string]$CurrentPullRequestNumber, '--json', 'autoMergeRequest,headRefName,baseRefName') | ConvertFrom-Json
+        }
+        if ($currentPullRequest) {
+            $currentHeadRefName = [string]$currentPullRequest.headRefName
+        }
+        if ($ProfessionalMode -and $currentPullRequest) {
             $autoMergeEnabled = $null -ne $currentPullRequest.autoMergeRequest
         }
     }
@@ -130,6 +137,7 @@ try {
     foreach ($pr in $openPullRequests) {
         if (-not $pr) { continue }
         if ($CurrentPullRequestNumber -gt 0 -and [int]$pr.number -eq $CurrentPullRequestNumber) { continue }
+        if ($currentHeadRefName -and [string]$pr.baseRefName -eq $currentHeadRefName) { continue }
         if ([string]$pr.headRefName -eq $HeadBranch) { continue }
         $files = @()
         if ($OpenPullRequestsJson) {
