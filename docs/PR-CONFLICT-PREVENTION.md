@@ -14,7 +14,9 @@ Before opening or updating a pull request, fetch the base branch and run `tools/
 
 The check blocks stale branches, reports exact path overlaps with other open pull requests, and blocks generated coordination files.
 
-When a current PR number is supplied, it also blocks enabled auto-merge so professional review cannot be bypassed by repository state.
+Professional-mode callers pass `-ProfessionalMode -CurrentPullRequestNumber <number>` to block enabled auto-merge before human review.
+
+Personal-mode callers omit `-ProfessionalMode`, so GitHub auto-merge remains available for fast, automated work.
 
 The `Pull request readiness` check runs the same gate against every proposed head with read-only permissions.
 
