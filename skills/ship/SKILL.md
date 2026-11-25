@@ -57,6 +57,7 @@ planning_window: none | <duration>
 context: none | requested | updated
 timing: <phase elapsed times and worker counts>
 phase_packet: acceptance | changed paths | risk markers | validation lanes | open questions
+verification_map: none | feature -> entry point -> action -> expected state -> evidence
 objective: <one sentence>
 acceptance: <observable definition of done>
 decisions: <settled choices>
@@ -246,6 +247,9 @@ The completion predicate is: affected files and why, observable done condition, 
 Stop when that predicate is satisfied.
 Surface any blockers as part of the Gate 1 output.
 
+For UI or workflow-visible work, include a compact verification map in the plan: feature, entry point, user action, expected state, and proof artifact.
+Reuse an existing map when one is present; do not replace it with a vague claim that the page or workflow was checked.
+
 When a parallel wave runs, show compact status so the user can see the swarm without exposing hidden reasoning:
 
 ```
@@ -270,6 +274,7 @@ Mode:       <auto | fast | standard | deep> (resolved: <fast | standard | deep>)
 Planning:   <no window | <duration> met | <duration> expired>
 Timing:     preflight <duration> | plan <duration> | tool calls <N> | workers <N>
 Packet:     acceptance | changed paths | risk markers | validation lanes | open questions
+Verification: <none | feature map rows and proof artifacts>
 Reference:  <file being modeled after>
 Type:       feature | bugfix | refactor
 
@@ -339,7 +344,12 @@ Reuse an already-running service and installed dependencies when they are known 
 Fix compilation or test failures automatically without pausing when the correction is mechanical, then rerun only the affected lane before repeating the full validation packet.
 Output one compact line per lane and a final `Validation: ✓` or `Validation: ✗ <error summary>` result.
 
-When the change touches a UI that has an E2E suite, also run the browser validation path:
+When changed paths touch HTML, CSS, client-side JavaScript, or another user-facing UI, invoke `/browsertest` even when the project has no existing E2E suite.
+Drive each applicable verification-map row through the running application and capture the proof artifact required by the map.
+Do not call UI verification complete from a build, unit test, or markup inspection alone.
+If no runnable browser path is available, report `Browser verification blocked: <reason>` and leave UI verification incomplete.
+
+When the changed UI has an E2E suite, run the browser validation path:
 
 1. Reuse the application artifact from the validation wave; if no compatible artifact exists, build it once.
 2. If a saved authenticated session and the required target URL env var are both present, run the stable E2E project against the saved session, skipping the interactive setup dependency (e.g. `playwright test --config <config> --project=<project> --no-deps --retries=0`).
@@ -358,11 +368,20 @@ Make the complete `/codereview` verdict and its findings visible inside Gate 2.
 When the change has multiple material risk markers, run up to three independent read-only review lenses in parallel - behavior and spec fidelity, integration and security, and tests and operability - then give their reports to one synthesis owner.
 Do not launch review lenses merely to increase the worker count, and do not let them edit the worktree.
 The synthesis owner must reconcile duplicate findings against the settled diff and required checks before presenting Gate 2.
+Professional `/ship` runs require a live manual hand-test surface at Gate 2 whenever the task has a runnable local UI, service, preview, or other local surface.
+Start that surface in a persistent session before presenting Gate 2.
+Verify its exact address or command and keep it running while Gate 2 waits for the user's `lgtm`, `fork`, `pause`, or other reply.
+Include `Hand-test URL: <url>` or `Hand-test command: <command>` in Gate 2 so the user can exercise the result before approving the review.
+Do not report only automated test results when a manual hand-test surface exists.
+If startup fails, report `Manual hand test: blocked - <actual error>` and do not offer `lgtm` until the user explicitly accepts the limitation.
+For changes with no runnable local surface, report `Manual hand test: not applicable - <reason>`.
+Stop the local process only after the gate resolves or the task ends, and record cleanup in the ledger.
 
 ```
 ════════════════════════════════════════════════
  GATE 2 - CODE REVIEW  (reply to continue)
 ════════════════════════════════════════════════
+Hand-test surface: <URL, command, or not applicable with reason>
 <complete /codereview verdict and findings>
 BLOCKs: N  |  NITs: N  |  SUGGESTs: N
 ════════════════════════════════════════════════

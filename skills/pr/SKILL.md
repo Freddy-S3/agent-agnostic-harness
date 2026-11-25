@@ -38,6 +38,10 @@ Run these checks first and resolve what they surface.
 5. `gh pr list --head <branch> --state open` shows whether a PR already exists.
 	A merged or closed PR does not count; its branch can still carry newer commits that need a fresh one.
 	Confirm with `git log --oneline origin/<default>..HEAD` before concluding nothing is outstanding.
+6. Fetch the current base and run `tools/check-pr-readiness.ps1`.
+	A stale branch must be rebased or updated before opening or updating the PR.
+	An overlap with another open PR requires an explicit workflow decision: update the existing PR for the same task, stack dependent work, or serialize independent work that shares a hotspot.
+	The check also blocks `docs/CHAT-HANDOFF.md`, which is generated coordination state rather than feature content.
 
 ## Branch
 
@@ -61,6 +65,9 @@ gh pr list --head <branch> --state open
 ```
 
 When a PR already exists, push the new commits and update the body rather than opening a duplicate.
+
+Before staging a feature PR, leave generated coordination paths out of the commit.
+Keep `docs/CHAT-HANDOFF.md` local to the coordination checkout, or update it separately from the feature branch.
 
 ## Body
 
@@ -106,6 +113,8 @@ for a CI gate.
 
 After `gh pr create`, report the returned URL on its own line.
 When the push or the create fails, show the error and the concrete recovery step rather than retrying blindly.
+
+For an existing PR, verify the pushed head and mergeability with `gh pr view <number> --json headRefOid,mergeable,mergeStateStatus`.
 
 ## Mode
 

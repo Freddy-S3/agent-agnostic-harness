@@ -38,6 +38,13 @@ py -m pip install playwright
 py -m playwright install chromium
 ```
 
+## Feature map
+
+For a non-trivial UI change, start from a compact feature map with one row per user-visible flow: feature, entry point, user action, expected state, and proof artifact.
+Reuse the project's existing map when available; otherwise keep the map with the test or verification report rather than inventing a broad path from memory.
+Exercise each applicable row in the running application and attach the screenshot, video, structured state, or test result that proves the expected state.
+The map is a test input and shared vocabulary, not a replacement for assertions.
+
 ## The test
 
 Write it as a script in the project, not as ad-hoc tool calls.
