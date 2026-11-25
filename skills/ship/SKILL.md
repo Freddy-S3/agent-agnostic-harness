@@ -11,6 +11,13 @@ Execute all 6 phases automatically.
 Only stop at Gate 1, Gate 2, and Gate 3 when reflection has proposed updates.
 Never ask the user to invoke a sub-skill manually.
 
+## Gate presentation contract
+
+Render the complete gate in the user-visible reply.
+Fill the gate template with the concrete task state, evidence, findings, and decisions for the current run; do not replace it with a short summary or a one-line request for the gate keyword.
+A concise summary may precede or follow the full gate, but the full gate is mandatory.
+Use `none` or `not applicable` for fields that do not apply, and include the complete reply options and fork line after the gate.
+
 ## Invocation
 
 ```
@@ -322,6 +329,7 @@ Reply "proceed" to implement and update `docs/PROJECT-CONTEXT.md` | "continue pl
 ```
 
 Stop with the complete Gate 1 block as the standalone user-facing response before waiting for `proceed`.
+The Gate 1 block above is a rendering contract: replace every placeholder with the current run's actual values before presenting it.
 
 ---
 
@@ -428,6 +436,7 @@ If BLOCKs > 0, fix each `[BLOCK]` and rerun review | "fork" to reset context bef
 ```
 
 Stop with the complete Gate 2 block as the standalone user-facing response before waiting for `lgtm`.
+The Gate 2 block must include the complete review verdict and every finding, even when all counts are zero; a one-line `Gate 2 is ready` prompt is not sufficient.
 
 Before Gate 2 approval, fix every `[BLOCK]` and rerun the complete review.
 Only offer `lgtm` when `BLOCKs: 0`.
@@ -463,6 +472,7 @@ Reply "done" to apply all | adjust any item | "skip" to discard updates and fini
 ```
 
 Stop with the complete Gate 3 block as the standalone user-facing response before waiting for `done`.
+The Gate 3 block must list every proposed harness update and every intentionally unrecorded item before requesting `done` or `skip`.
 
 After `done`, apply all updates and delete a completed task's handoff.
 After `skip`, discard the proposed updates and delete a completed task's handoff.
