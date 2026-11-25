@@ -55,6 +55,8 @@ After a failure, Ship retries only the invalidated lane and reuses evidence that
 These accelerators apply in both modes; planning windows remain optional and never lower the professional quality floor.
 For UI or workflow-visible work, Ship carries a compact verification map from user action to expected state and proof artifact.
 Runtime verification uses `/browsertest` even when a project has no pre-existing E2E suite; a build or markup inspection alone is not UI evidence.
+In professional `/ship` runs, Gate 2 keeps a runnable local surface alive and includes a verified `Hand-test URL` or `Hand-test command` before waiting for `lgtm`.
+If no runnable surface exists or startup is blocked, Gate 2 states that explicitly instead of presenting automated results as a substitute for hand testing.
 When a recurring correction is mechanically checkable, `/closing` promotes it to a test, lint rule, validator, or API constraint instead of growing prose by default.
 
 Use `fork` at a gate to start a fresh chat from a saved handoff when the conversation becomes long.

@@ -368,11 +368,20 @@ Make the complete `/codereview` verdict and its findings visible inside Gate 2.
 When the change has multiple material risk markers, run up to three independent read-only review lenses in parallel - behavior and spec fidelity, integration and security, and tests and operability - then give their reports to one synthesis owner.
 Do not launch review lenses merely to increase the worker count, and do not let them edit the worktree.
 The synthesis owner must reconcile duplicate findings against the settled diff and required checks before presenting Gate 2.
+Professional `/ship` runs require a live manual hand-test surface at Gate 2 whenever the task has a runnable local UI, service, preview, or other local surface.
+Start that surface in a persistent session before presenting Gate 2.
+Verify its exact address or command and keep it running while Gate 2 waits for the user's `lgtm`, `fork`, `pause`, or other reply.
+Include `Hand-test URL: <url>` or `Hand-test command: <command>` in Gate 2 so the user can exercise the result before approving the review.
+Do not report only automated test results when a manual hand-test surface exists.
+If startup fails, report `Manual hand test: blocked - <actual error>` and do not offer `lgtm` until the user explicitly accepts the limitation.
+For changes with no runnable local surface, report `Manual hand test: not applicable - <reason>`.
+Stop the local process only after the gate resolves or the task ends, and record cleanup in the ledger.
 
 ```
 ════════════════════════════════════════════════
  GATE 2 - CODE REVIEW  (reply to continue)
 ════════════════════════════════════════════════
+Hand-test surface: <URL, command, or not applicable with reason>
 <complete /codereview verdict and findings>
 BLOCKs: N  |  NITs: N  |  SUGGESTs: N
 ════════════════════════════════════════════════
