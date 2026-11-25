@@ -21,16 +21,26 @@
   Optional JSON file used by tests or offline callers instead of querying gh.
 
 .PARAMETER CurrentPullRequestNumber
-  Optional current PR number. CI uses this to avoid comparing a pull request with itself.
+  Optional current PR number. Callers use this to avoid comparing a pull request with itself
+  or with an intentionally stacked pull request based on the current head.
+
+.PARAMETER ProfessionalMode
+  Enforce the professional review guard when CurrentPullRequestNumber is supplied.
+  Personal-mode callers omit this switch so GitHub auto-merge remains available.
 
 .PARAMETER Json
   Emit one JSON result instead of the human-readable report.
+
+.PARAMETER BranchOnly
+  Ignore unstaged and staged working-tree paths. Useful for checking a committed branch while
+  unrelated local coordination state is present.
 
 .EXIT CODES
   0  Ready.
   2  Branch is behind the remote base branch.
   3  Changed paths overlap another open pull request.
   4  A generated coordination path is in the branch or the check could not run.
+  5  The current pull request has auto-merge enabled.
 #>
 [CmdletBinding()]
 param(
@@ -39,6 +49,8 @@ param(
     [string] $HeadBranch,
     [string] $OpenPullRequestsJson,
     [int] $CurrentPullRequestNumber,
+    [switch] $ProfessionalMode,
+    [switch] $BranchOnly,
     [switch] $Json
 )
 
@@ -80,12 +92,16 @@ try {
 
     $branchOutput = Invoke-Git @('diff', '--name-only', "origin/$BaseBranch...$HeadBranch")
     $branchPaths = @($branchOutput -split '\r?\n')
-    $workingOutput = Invoke-Git @('diff', '--name-only')
-    $cachedOutput = Invoke-Git @('diff', '--cached', '--name-only')
-    $workingPaths = @(
-        ($workingOutput -split '\r?\n')
-        ($cachedOutput -split '\r?\n')
-    )
+    $workingPaths = @()
+    $cachedPaths = @()
+    if (-not $BranchOnly) {
+        $workingOutput = Invoke-Git @('diff', '--name-only')
+        $cachedOutput = Invoke-Git @('diff', '--cached', '--name-only')
+        $workingPaths = @(
+            ($workingOutput -split '\r?\n')
+        )
+        $cachedPaths = @($cachedOutput -split '\r?\n')
+    }
     $changedPaths = @($branchPaths + $workingPaths |
         Where-Object { $_.Trim() } |
         ForEach-Object { Normalize-Path $_ } |
@@ -94,16 +110,67 @@ try {
     $openPullRequests = @()
     if ($OpenPullRequestsJson) {
         $jsonPath = (Resolve-Path -LiteralPath $OpenPullRequestsJson).Path
-        $openPullRequests = @(Get-Content -LiteralPath $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json)
+        $openPullRequests = @((Get-Content -LiteralPath $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json) | ForEach-Object { $_ })
     } else {
-        $listed = Invoke-Tool 'gh' @('pr', 'list', '--state', 'open', '--json', 'number,headRefName')
-        $openPullRequests = @($listed | ConvertFrom-Json)
+        $listed = Invoke-Tool 'gh' @('pr', 'list', '--state', 'open', '--json', 'number,headRefName,baseRefName')
+        $openPullRequests = @(($listed | ConvertFrom-Json) | ForEach-Object { $_ })
     }
 
+    $currentPullRequest = $null
+    $currentHeadRefName = ''
+    $autoMergeEnabled = $false
+    if ($CurrentPullRequestNumber -gt 0) {
+        if ($OpenPullRequestsJson) {
+            $currentPullRequest = $openPullRequests | Where-Object { [int]$_.number -eq $CurrentPullRequestNumber } | Select-Object -First 1
+        } else {
+            $currentPullRequest = Invoke-Tool 'gh' @('pr', 'view', [string]$CurrentPullRequestNumber, '--json', 'autoMergeRequest,headRefName,baseRefName') | ConvertFrom-Json
+        }
+        if ($currentPullRequest) {
+            $currentHeadRefName = [string]$currentPullRequest.headRefName
+        }
+        if ($ProfessionalMode -and $currentPullRequest) {
+            $autoMergeEnabled = $null -ne $currentPullRequest.autoMergeRequest
+        }
+    }
+
+    $stackedPullRequestNumbers = @()
+    $descendantBranches = @()
+    if ($currentHeadRefName) {
+        $descendantBranches += $currentHeadRefName
+        $expanded = $true
+        while ($expanded) {
+            $expanded = $false
+            foreach ($stackedPr in $openPullRequests) {
+                if ($CurrentPullRequestNumber -gt 0 -and [int]$stackedPr.number -eq $CurrentPullRequestNumber) { continue }
+                $stackedBase = [string]$stackedPr.baseRefName
+                $stackedHead = [string]$stackedPr.headRefName
+                if ($stackedBase -and $descendantBranches -contains $stackedBase -and $stackedHead -and $descendantBranches -notcontains $stackedHead) {
+                    $descendantBranches += $stackedHead
+                    $stackedPullRequestNumbers += [int]$stackedPr.number
+                    $expanded = $true
+                }
+            }
+        }
+    }
+
+    $ancestorBranch = [string]$currentPullRequest.baseRefName
+    while ($ancestorBranch) {
+        $parentPr = $openPullRequests |
+            Where-Object {
+                [string]$_.headRefName -eq $ancestorBranch -and
+                ($CurrentPullRequestNumber -le 0 -or [int]$_.number -ne $CurrentPullRequestNumber)
+            } |
+            Select-Object -First 1
+        if (-not $parentPr) { break }
+        $stackedPullRequestNumbers += [int]$parentPr.number
+        $ancestorBranch = [string]$parentPr.baseRefName
+    }
+    $stackedPullRequestNumbers = @($stackedPullRequestNumbers | Sort-Object -Unique)
     $overlaps = @()
     foreach ($pr in $openPullRequests) {
         if (-not $pr) { continue }
         if ($CurrentPullRequestNumber -gt 0 -and [int]$pr.number -eq $CurrentPullRequestNumber) { continue }
+        if ($stackedPullRequestNumbers -contains [int]$pr.number) { continue }
         if ([string]$pr.headRefName -eq $HeadBranch) { continue }
         $files = @()
         if ($OpenPullRequestsJson) {
@@ -126,13 +193,18 @@ try {
     }
 
     $generatedPaths = @('docs/CHAT-HANDOFF.md')
-    $generatedChanges = @($changedPaths | Where-Object { $generatedPaths -contains $_ })
+    $prContentPaths = @($branchPaths + $cachedPaths |
+        Where-Object { $_.Trim() } |
+        ForEach-Object { Normalize-Path $_ } |
+        Sort-Object -Unique)
+    $generatedChanges = @($prContentPaths | Where-Object { $generatedPaths -contains $_ })
     $result = [pscustomobject]@{
-        Ready = ($behind -eq 0 -and $overlaps.Count -eq 0 -and $generatedChanges.Count -eq 0)
+        Ready = ($behind -eq 0 -and $overlaps.Count -eq 0 -and $generatedChanges.Count -eq 0 -and -not $autoMergeEnabled)
         BaseBranch = $BaseBranch
         HeadBranch = $HeadBranch
         Behind = $behind
         Ahead = $ahead
+        AutoMergeEnabled = $autoMergeEnabled
         ChangedPaths = $changedPaths
         Overlaps = $overlaps
         GeneratedChanges = $generatedChanges
@@ -154,6 +226,9 @@ try {
         if ($generatedChanges.Count -gt 0) {
             Write-Host "  BLOCKED: generated coordination paths must not be included: $($generatedChanges -join ', ')" -ForegroundColor Red
         }
+        if ($autoMergeEnabled) {
+            Write-Host '  BLOCKED: auto-merge is enabled for the current PR; disable it before continuing professional review.' -ForegroundColor Red
+        }
         if ($result.Ready) {
             Write-Host '  READY: no stale-base, open-PR overlap, or generated-file issue found.' -ForegroundColor Green
         }
@@ -162,6 +237,7 @@ try {
     if ($generatedChanges.Count -gt 0) { exit 4 }
     if ($behind -gt 0) { exit 2 }
     if ($overlaps.Count -gt 0) { exit 3 }
+    if ($ProfessionalMode -and $autoMergeEnabled) { exit 5 }
     exit 0
 } catch {
     if ($Json) {

@@ -19,6 +19,7 @@
         ],
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": false,
+        "require_extra_approval_for_unattributed_changes": false,
         "require_last_push_approval": false,
         "required_approving_review_count": 0,
         "required_review_thread_resolution": true
@@ -30,7 +31,7 @@
         "do_not_enforce_on_create": false,
         "required_status_checks": [
           {
-            "context": "Pull request readiness / check"
+            "context": "check"
           }
         ],
         "strict_required_status_checks_policy": true

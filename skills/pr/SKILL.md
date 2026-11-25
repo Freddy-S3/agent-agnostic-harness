@@ -38,10 +38,13 @@ Run these checks first and resolve what they surface.
 5. `gh pr list --head <branch> --state open` shows whether a PR already exists.
 	A merged or closed PR does not count; its branch can still carry newer commits that need a fresh one.
 	Confirm with `git log --oneline origin/<default>..HEAD` before concluding nothing is outstanding.
-6. Fetch the current base and run `tools/check-pr-readiness.ps1`.
+6. Fetch the current base and run `tools/check-pr-readiness.ps1` with the mode-appropriate flags.
 	A stale branch must be rebased or updated before opening or updating the PR.
 	An overlap with another open PR requires an explicit workflow decision: update the existing PR for the same task, stack dependent work, or serialize independent work that shares a hotspot.
 	The check also blocks `docs/CHAT-HANDOFF.md`, which is generated coordination state rather than feature content.
+7. In professional mode, inspect `gh pr view <number> --json autoMergeRequest` and pass both `-ProfessionalMode` and `-CurrentPullRequestNumber <number>` to the readiness check.
+	If `autoMergeRequest` is non-null, stop and report that auto-merge must be disabled before professional review continues.
+	In personal mode, omit `-ProfessionalMode`; an enabled auto-merge request remains allowed.
 
 ## Branch
 
@@ -114,9 +117,9 @@ for a CI gate.
 After `gh pr create`, report the returned URL on its own line.
 When the push or the create fails, show the error and the concrete recovery step rather than retrying blindly.
 
-For an existing PR, verify the pushed head and mergeability with `gh pr view <number> --json headRefOid,mergeable,mergeStateStatus`.
+For an existing PR, verify the pushed head, mergeability, and auto-merge state with `gh pr view <number> --json headRefOid,mergeable,mergeStateStatus,autoMergeRequest`.
 
 ## Mode
 
-In personal mode this runs end to end without asking for approval.
-In delivery mode, show the proposed title and body before creating, and honor any tracker rules the repository carries.
+In personal mode this runs end to end without asking for approval, and it leaves GitHub auto-merge available.
+In delivery mode, show the proposed title and body before creating, enforce the professional auto-merge guard, and honor any tracker rules the repository carries.

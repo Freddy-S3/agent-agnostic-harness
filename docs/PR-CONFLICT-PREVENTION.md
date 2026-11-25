@@ -14,6 +14,10 @@ Before opening or updating a pull request, fetch the base branch and run `tools/
 
 The check blocks stale branches, reports exact path overlaps with other open pull requests, and blocks generated coordination files.
 
+Professional-mode callers pass `-ProfessionalMode -CurrentPullRequestNumber <number>` to block enabled auto-merge before human review.
+
+Personal-mode callers omit `-ProfessionalMode`, so GitHub auto-merge remains available for fast, automated work.
+
 The `Pull request readiness` check runs the same gate against every proposed head with read-only permissions.
 
 `docs/CHAT-HANDOFF.md` is generated coordination state.
@@ -26,8 +30,12 @@ If GitHub cannot update a branch without a semantic conflict, the workflow repor
 
 The `Queue factory boundary` workflow also runs for merge-group refs so required checks can participate in a merge queue.
 
-The merge queue remains the final serialization point for changes that have passed review and required checks.
+When GitHub supports it for this repository, the merge queue remains the final serialization point for changes that have passed review and required checks.
 
-The versioned ruleset at `config/github/main-ruleset.json` keeps `main` pull-request-only, requires the readiness check, prevents force pushes, and serializes one squash merge at a time.
+The desired versioned ruleset at `config/github/main-ruleset.json` keeps `main` pull-request-only, requires the readiness check, prevents force pushes, and serializes one squash merge at a time.
 
 It intentionally does not require a GitHub approval count because the professional `/ship` review gate is the human approval boundary for this single-owner repository.
+
+GitHub rejected the merge-queue rule for this public personal repository through the available ruleset API.
+
+The compatible live fallback is versioned at `config/github/main-protection-ruleset.json` and keeps pull requests, readiness, squash-only merges, and no force pushes enforced.

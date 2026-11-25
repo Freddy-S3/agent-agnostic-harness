@@ -48,6 +48,20 @@ jobs:
                   expected_head_sha: pullRequest.head.sha,
                 });
                 core.info(`Requested a base update for PR #${number}.`);
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: number,
+                    name: 
+'
+needs-rebase
+'
+,
+                  });
+                } catch (labelError) {
+                  if (labelError.status !== 404) throw labelError;
+                }
               } catch (error) {
                 if (![409, 422].includes(error.status)) throw error;
 
