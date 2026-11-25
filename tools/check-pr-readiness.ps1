@@ -21,8 +21,12 @@
   Optional JSON file used by tests or offline callers instead of querying gh.
 
 .PARAMETER CurrentPullRequestNumber
-  Optional current PR number. CI uses this to avoid comparing a pull request with itself.
-  When supplied, the check also blocks an enabled auto-merge request.
+  Optional current PR number. Callers use this to avoid comparing a pull request with itself
+  or with an intentionally stacked pull request based on the current head.
+
+.PARAMETER ProfessionalMode
+  Enforce the professional review guard when CurrentPullRequestNumber is supplied.
+  Personal-mode callers omit this switch so GitHub auto-merge remains available.
 
 .PARAMETER Json
   Emit one JSON result instead of the human-readable report.
@@ -45,6 +49,7 @@ param(
     [string] $HeadBranch,
     [string] $OpenPullRequestsJson,
     [int] $CurrentPullRequestNumber,
+    [switch] $ProfessionalMode,
     [switch] $BranchOnly,
     [switch] $Json
 )
@@ -105,27 +110,67 @@ try {
     $openPullRequests = @()
     if ($OpenPullRequestsJson) {
         $jsonPath = (Resolve-Path -LiteralPath $OpenPullRequestsJson).Path
-        $openPullRequests = @(Get-Content -LiteralPath $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json)
+        $openPullRequests = @((Get-Content -LiteralPath $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json) | ForEach-Object { $_ })
     } else {
-        $listed = Invoke-Tool 'gh' @('pr', 'list', '--state', 'open', '--json', 'number,headRefName')
-        $openPullRequests = @($listed | ConvertFrom-Json)
+        $listed = Invoke-Tool 'gh' @('pr', 'list', '--state', 'open', '--json', 'number,headRefName,baseRefName')
+        $openPullRequests = @(($listed | ConvertFrom-Json) | ForEach-Object { $_ })
     }
 
+    $currentPullRequest = $null
+    $currentHeadRefName = ''
     $autoMergeEnabled = $false
     if ($CurrentPullRequestNumber -gt 0) {
         if ($OpenPullRequestsJson) {
-            $currentPullRequest = @($openPullRequests | Where-Object { [int]$_.number -eq $CurrentPullRequestNumber } | Select-Object -First 1)
-            $autoMergeEnabled = $null -ne $currentPullRequest.autoMergeRequest
+            $currentPullRequest = $openPullRequests | Where-Object { [int]$_.number -eq $CurrentPullRequestNumber } | Select-Object -First 1
         } else {
-            $currentPullRequest = Invoke-Tool 'gh' @('pr', 'view', [string]$CurrentPullRequestNumber, '--json', 'autoMergeRequest') | ConvertFrom-Json
+            $currentPullRequest = Invoke-Tool 'gh' @('pr', 'view', [string]$CurrentPullRequestNumber, '--json', 'autoMergeRequest,headRefName,baseRefName') | ConvertFrom-Json
+        }
+        if ($currentPullRequest) {
+            $currentHeadRefName = [string]$currentPullRequest.headRefName
+        }
+        if ($ProfessionalMode -and $currentPullRequest) {
             $autoMergeEnabled = $null -ne $currentPullRequest.autoMergeRequest
         }
     }
 
+    $stackedPullRequestNumbers = @()
+    $descendantBranches = @()
+    if ($currentHeadRefName) {
+        $descendantBranches += $currentHeadRefName
+        $expanded = $true
+        while ($expanded) {
+            $expanded = $false
+            foreach ($stackedPr in $openPullRequests) {
+                if ($CurrentPullRequestNumber -gt 0 -and [int]$stackedPr.number -eq $CurrentPullRequestNumber) { continue }
+                $stackedBase = [string]$stackedPr.baseRefName
+                $stackedHead = [string]$stackedPr.headRefName
+                if ($stackedBase -and $descendantBranches -contains $stackedBase -and $stackedHead -and $descendantBranches -notcontains $stackedHead) {
+                    $descendantBranches += $stackedHead
+                    $stackedPullRequestNumbers += [int]$stackedPr.number
+                    $expanded = $true
+                }
+            }
+        }
+    }
+
+    $ancestorBranch = [string]$currentPullRequest.baseRefName
+    while ($ancestorBranch) {
+        $parentPr = $openPullRequests |
+            Where-Object {
+                [string]$_.headRefName -eq $ancestorBranch -and
+                ($CurrentPullRequestNumber -le 0 -or [int]$_.number -ne $CurrentPullRequestNumber)
+            } |
+            Select-Object -First 1
+        if (-not $parentPr) { break }
+        $stackedPullRequestNumbers += [int]$parentPr.number
+        $ancestorBranch = [string]$parentPr.baseRefName
+    }
+    $stackedPullRequestNumbers = @($stackedPullRequestNumbers | Sort-Object -Unique)
     $overlaps = @()
     foreach ($pr in $openPullRequests) {
         if (-not $pr) { continue }
         if ($CurrentPullRequestNumber -gt 0 -and [int]$pr.number -eq $CurrentPullRequestNumber) { continue }
+        if ($stackedBaseBranches -contains [string]$pr.baseRefName) { continue }
         if ([string]$pr.headRefName -eq $HeadBranch) { continue }
         $files = @()
         if ($OpenPullRequestsJson) {
@@ -192,7 +237,7 @@ try {
     if ($generatedChanges.Count -gt 0) { exit 4 }
     if ($behind -gt 0) { exit 2 }
     if ($overlaps.Count -gt 0) { exit 3 }
-    if ($autoMergeEnabled) { exit 5 }
+    if ($ProfessionalMode -and $autoMergeEnabled) { exit 5 }
     exit 0
 } catch {
     if ($Json) {
