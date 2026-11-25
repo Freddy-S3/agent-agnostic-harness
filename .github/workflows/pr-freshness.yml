@@ -1,0 +1,96 @@
+name: Pull request freshness
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  update-branches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Update clean pull request branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- pr-freshness-workflow -->';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const eventPullRequest = context.payload.pull_request;
+            const pullRequests = eventPullRequest
+              ? [eventPullRequest]
+              : await github.paginate(github.rest.pulls.list, {
+                  owner,
+                  repo,
+                  state: 'open',
+                  per_page: 100,
+                });
+
+            for (const pullRequest of pullRequests) {
+              const number = pullRequest.number;
+              try {
+                await github.rest.pulls.updateBranch({
+                  owner,
+                  repo,
+                  pull_number: number,
+                  expected_head_sha: pullRequest.head.sha,
+                });
+                core.info(`Requested a base update for PR #${number}.`);
+              } catch (error) {
+                if (![409, 422].includes(error.status)) throw error;
+
+                const labels = await github.paginate(github.rest.issues.listLabelsOnIssue, {
+                  owner,
+                  repo,
+                  issue_number: number,
+                  per_page: 100,
+                });
+                if (!labels.some((label) => label.name === 'needs-rebase')) {
+                  try {
+                    await github.rest.issues.createLabel({
+                      owner,
+                      repo,
+                      name: 'needs-rebase',
+                      color: 'b60205',
+                      description: 'Branch needs a human-resolved rebase before merge.',
+                    });
+                  } catch (labelError) {
+                    if (labelError.status !== 422) throw labelError;
+                  }
+                }
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: number,
+                  labels: ['needs-rebase'],
+                });
+
+                const comments = await github.paginate(github.rest.issues.listComments, {
+                  owner,
+                  repo,
+                  issue_number: number,
+                  per_page: 100,
+                });
+                if (!comments.some((comment) => comment.body && comment.body.includes(marker))) {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: number,
+                    body: `${marker}\nThis branch is behind the base and GitHub could not update it without a semantic conflict. Rebase it onto the current base, rerun the local readiness check, and push the resolved branch before requesting merge.`,
+                  });
+                }
+                core.warning(`PR #${number} needs a human-resolved rebase.`);
+              }
+            }

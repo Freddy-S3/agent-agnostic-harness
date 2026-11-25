@@ -1,0 +1,29 @@
+name: Pull request readiness
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the proposed head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Fetch the current base
+        run: git fetch --no-tags origin main:refs/remotes/origin/main
+      - name: Check branch freshness and path overlap
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pwsh -NoProfile -File tools/check-pr-readiness.ps1 -RepoRoot . -BaseBranch main -HeadBranch "${{ github.event.pull_request.head.sha }}" -CurrentPullRequestNumber ${{ github.event.pull_request.number }}
