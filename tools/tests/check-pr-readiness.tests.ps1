@@ -60,10 +60,11 @@ Assert ($r.text -match [regex]::Escape($sharedPath)) 'the overlapping path is re
 $stackedJson = Join-Path $jsonRoot 'stacked.json'
 @(
     @{ number = 108; headRefName = 'feature'; baseRefName = 'main'; files = @(@{ path = $sharedPath }) },
-    @{ number = 109; headRefName = 'stacked-feature'; baseRefName = 'feature'; files = @(@{ path = $sharedPath }) }
+    @{ number = 109; headRefName = 'stacked-feature'; baseRefName = 'feature'; files = @(@{ path = $sharedPath }) },
+    @{ number = 110; headRefName = 'deeply-stacked-feature'; baseRefName = 'stacked-feature'; files = @(@{ path =  }) }
 ) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $stackedJson -Encoding UTF8
 $r = Invoke-Check $stackedJson 'HEAD' 108
-Assert ($r.code -eq 0) 'the current PR and an intentionally stacked PR do not self-block'
+Assert ($r.code -eq 0) 'the current PR and transitively stacked PRs do not self-block'
 
 $r = Invoke-Check $cleanJson 'c5b7fdd'
 Assert ($r.code -eq 2) 'a branch behind origin/main exits two'
