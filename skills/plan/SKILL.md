@@ -14,6 +14,7 @@ This skill front-loads the thinking so implementation becomes mechanical.
 When `/plan` is invoked by `/ship`, `/ship` supplies the preflight packet containing the handoff result, ticket result, branch/worktree readiness, scoped instructions, project-context findings, planning mode, and optional planning window.
 Start at the selected planning mode and do not repeat the handoff, Jira, branch, or project-context checks.
 Return a compact implementation packet containing acceptance criteria, touched paths, risk markers, validation lanes, settled decisions, and open questions so later phases can reuse evidence without repeating discovery.
+When invoked by `/ship`, treat Ship Gate 1 as the plan confirmation and do not add a second approval prompt.
 When invoked directly, run Phase 0 as written below.
 
 ## Phase 0: Check for Existing Handoff and Jira Context
