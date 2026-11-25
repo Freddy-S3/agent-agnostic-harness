@@ -50,6 +50,9 @@ Use `/ship --plan-within 5m <task>` when a professional task needs an explicit p
 Every human gate is emitted as a standalone visible response containing its heading, decision data, findings, and reply options.
 Elapsed-time and worker-count telemetry appears separately and never replaces or hides the gate text.
 Reply `proceed` at Gate 1; every approved implementation also creates or updates `docs/PROJECT-CONTEXT.md` for faster future sessions.
+In professional mode, Ship checks the target with `tools/check-repository.ps1` before branch/worktree setup.
+It reports the resolved Git root, detects nested repositories, and shows `missing - initialization required` at Gate 1 when a downloaded or generated folder has no Git metadata.
+After `proceed`, it may initialize Git metadata explicitly; personal mode skips this check and does not initialize Git implicitly.
 Ship carries a compact phase packet from planning through review: acceptance criteria, changed paths, risk markers, validation lanes, evidence, and open questions.
 Independent validation lanes may run together, while shared-file edits and synthesis stay single-owner.
 After a failure, Ship retries only the invalidated lane and reuses evidence that still matches the settled worktree.
@@ -229,6 +232,7 @@ It selects the workflow, explains the relevant skill stack, and adds the coverag
   Junctions read live and self-heal; copies do not, and a junction into a worktree left on a merged branch resolves perfectly while serving code that no longer exists - both survive an install that reports success.
   Classes A-D are checked on this machine and `-Fix` regenerates what this repo generates. Class E is the Cowork cache under `%APPDATA%\Claude\local-agent-mode-sessions\skills-plugin\`, which does refresh - but from the claude.ai account rather than from this repository, so a skill that went stale in the account is faithfully re-materialised stale. It is checked and reported, never auto-fixed, because a local rewrite is overwritten on the next materialisation.
   `install.ps1` runs it with `-Fix` at the end of every install.
+- `tools/check-repository.ps1` - resolves the actual Git root for professional Ship runs, distinguishes a plain folder from a nested repository, and makes initialization an explicit post-Gate-1 action.
 - Clickable skill cards - `instructions/WIDGETS.md` defines how `/status-report` and `/queue` render their reports as cards inside the Claude desktop app, with buttons for approve/reject and run/skip/requeue.
 
   These two overlap deliberately and should not be merged.
