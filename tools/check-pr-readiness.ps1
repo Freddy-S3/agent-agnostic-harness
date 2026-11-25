@@ -150,7 +150,8 @@ try {
         }
     }
 
-    $overlaps = @()    foreach ($pr in $openPullRequests) {
+    $overlaps = @()
+    foreach ($pr in $openPullRequests) {
         if (-not $pr) { continue }
         if ($CurrentPullRequestNumber -gt 0 -and [int]$pr.number -eq $CurrentPullRequestNumber) { continue }
         if ($stackedBaseBranches -contains [string]$pr.baseRefName) { continue }
