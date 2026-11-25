@@ -24,13 +24,14 @@ if (-not (Test-Path -LiteralPath $check)) { throw "check-pr-readiness.ps1 not fo
 $jsonRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("pr-readiness-tests-" + [guid]::NewGuid().ToString('n').Substring(0, 8))
 New-Item -ItemType Directory -Force -Path $jsonRoot | Out-Null
 
-function Invoke-Check([string] $pullRequestJson, [string] $headBranch = 'HEAD', [int] $currentPullRequestNumber = 0, [bool] $branchOnly = $true) {
+function Invoke-Check([string] $pullRequestJson, [string] $headBranch = 'HEAD', [int] $currentPullRequestNumber = 0, [bool] $branchOnly = $true, [bool] $professionalMode = $false) {
     $out = New-TemporaryFile
     $err = New-TemporaryFile
     try {
         $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $check, '-RepoRoot', $repoRoot, '-HeadBranch', $headBranch, '-OpenPullRequestsJson', $pullRequestJson)
         if ($branchOnly) { $args += '-BranchOnly' }
         if ($currentPullRequestNumber -gt 0) { $args += @('-CurrentPullRequestNumber', $currentPullRequestNumber) }
+        if ($professionalMode) { $args += '-ProfessionalMode' }
         $p = Start-Process -FilePath 'powershell' -ArgumentList $args -RedirectStandardOutput $out.FullName -RedirectStandardError $err.FullName -NoNewWindow -PassThru -Wait
         $text = (Get-Content -LiteralPath $out.FullName -Raw -ErrorAction SilentlyContinue) + "`n" + (Get-Content -LiteralPath $err.FullName -Raw -ErrorAction SilentlyContinue)
         return @{ code = $p.ExitCode; text = $text }
@@ -63,13 +64,16 @@ Assert ($r.text -match 'BLOCKED') 'a stale branch reports blocked'
 $autoMergeJson = Join-Path $jsonRoot 'auto-merge.json'
 @(@{ number = 108; headRefName = 'feature'; autoMergeRequest = @{ mergeMethod = 'SQUASH' }; files = @() }) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $autoMergeJson -Encoding UTF8
 $r = Invoke-Check $autoMergeJson 'HEAD' 108
-Assert ($r.code -eq 5) 'an enabled auto-merge request exits five'
-Assert ($r.text -match 'auto-merge is enabled') 'an enabled auto-merge request is reported'
+Assert ($r.code -eq 0) 'personal mode leaves an enabled auto-merge request allowed'
+$r = Invoke-Check $autoMergeJson 'HEAD' 108 $true $true
+Assert ($r.code -eq 5) 'professional mode blocks an enabled auto-merge request'
+Assert ($r.text -match 'auto-merge is enabled') 'professional mode reports the auto-merge block'
 
 $source = Get-Content -LiteralPath $check -Raw -Encoding UTF8
 Assert ($source -match 'docs/CHAT-HANDOFF\.md') 'generated coordination paths are part of the readiness gate'
 Assert ($source -match 'exit 3') 'overlap has a distinct non-zero exit code'
 Assert ($source -match 'exit 5') 'auto-merge has a distinct non-zero exit code'
+Assert ($source -match 'ProfessionalMode') 'auto-merge enforcement is explicitly mode-scoped'
 
 Remove-Item -LiteralPath $jsonRoot -Recurse -Force -ErrorAction SilentlyContinue
 

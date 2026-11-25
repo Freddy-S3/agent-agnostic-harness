@@ -21,8 +21,11 @@
   Optional JSON file used by tests or offline callers instead of querying gh.
 
 .PARAMETER CurrentPullRequestNumber
-  Optional current PR number. CI uses this to avoid comparing a pull request with itself.
-  When supplied, the check also blocks an enabled auto-merge request.
+  Optional current PR number. Callers use this to avoid comparing a pull request with itself.
+
+.PARAMETER ProfessionalMode
+  Enforce the professional review guard when CurrentPullRequestNumber is supplied.
+  Personal-mode callers omit this switch so GitHub auto-merge remains available.
 
 .PARAMETER Json
   Emit one JSON result instead of the human-readable report.
@@ -45,6 +48,7 @@ param(
     [string] $HeadBranch,
     [string] $OpenPullRequestsJson,
     [int] $CurrentPullRequestNumber,
+    [switch] $ProfessionalMode,
     [switch] $BranchOnly,
     [switch] $Json
 )
@@ -112,7 +116,7 @@ try {
     }
 
     $autoMergeEnabled = $false
-    if ($CurrentPullRequestNumber -gt 0) {
+    if ($ProfessionalMode -and $CurrentPullRequestNumber -gt 0) {
         if ($OpenPullRequestsJson) {
             $currentPullRequest = @($openPullRequests | Where-Object { [int]$_.number -eq $CurrentPullRequestNumber } | Select-Object -First 1)
             $autoMergeEnabled = $null -ne $currentPullRequest.autoMergeRequest
@@ -192,7 +196,7 @@ try {
     if ($generatedChanges.Count -gt 0) { exit 4 }
     if ($behind -gt 0) { exit 2 }
     if ($overlaps.Count -gt 0) { exit 3 }
-    if ($autoMergeEnabled) { exit 5 }
+    if ($ProfessionalMode -and $autoMergeEnabled) { exit 5 }
     exit 0
 } catch {
     if ($Json) {
