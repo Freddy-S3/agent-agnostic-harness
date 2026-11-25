@@ -24,11 +24,13 @@ if (-not (Test-Path -LiteralPath $check)) { throw "check-pr-readiness.ps1 not fo
 $jsonRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("pr-readiness-tests-" + [guid]::NewGuid().ToString('n').Substring(0, 8))
 New-Item -ItemType Directory -Force -Path $jsonRoot | Out-Null
 
-function Invoke-Check([string] $pullRequestJson, [string] $headBranch = 'HEAD') {
+function Invoke-Check([string] $pullRequestJson, [string] $headBranch = 'HEAD', [int] $currentPullRequestNumber = 0, [bool] $branchOnly = $true) {
     $out = New-TemporaryFile
     $err = New-TemporaryFile
     try {
         $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $check, '-RepoRoot', $repoRoot, '-HeadBranch', $headBranch, '-OpenPullRequestsJson', $pullRequestJson)
+        if ($branchOnly) { $args += '-BranchOnly' }
+        if ($currentPullRequestNumber -gt 0) { $args += @('-CurrentPullRequestNumber', $currentPullRequestNumber) }
         $p = Start-Process -FilePath 'powershell' -ArgumentList $args -RedirectStandardOutput $out.FullName -RedirectStandardError $err.FullName -NoNewWindow -PassThru -Wait
         $text = (Get-Content -LiteralPath $out.FullName -Raw -ErrorAction SilentlyContinue) + "`n" + (Get-Content -LiteralPath $err.FullName -Raw -ErrorAction SilentlyContinue)
         return @{ code = $p.ExitCode; text = $text }
@@ -43,6 +45,9 @@ $r = Invoke-Check $cleanJson
 Assert ($r.code -eq 0) 'a fresh branch with no overlap exits zero'
 Assert ($r.text -match 'READY') 'a fresh branch reports ready'
 
+$r = Invoke-Check $cleanJson 'HEAD' 0 $false
+Assert ($r.code -eq 0) 'unstaged generated coordination output does not block a PR check'
+
 $sharedPath = (& git.exe -C $repoRoot diff --name-only origin/main...HEAD | Select-Object -First 1).Trim()
 $overlapJson = Join-Path $jsonRoot 'overlap.json'
 @(@{ number = 42; headRefName = 'other-feature'; files = @(@{ path = $sharedPath }) }) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $overlapJson -Encoding UTF8
@@ -55,9 +60,16 @@ $r = Invoke-Check $cleanJson 'c5b7fdd'
 Assert ($r.code -eq 2) 'a branch behind origin/main exits two'
 Assert ($r.text -match 'BLOCKED') 'a stale branch reports blocked'
 
+$autoMergeJson = Join-Path $jsonRoot 'auto-merge.json'
+@(@{ number = 108; headRefName = 'feature'; autoMergeRequest = @{ mergeMethod = 'SQUASH' }; files = @() }) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $autoMergeJson -Encoding UTF8
+$r = Invoke-Check $autoMergeJson 'HEAD' 108
+Assert ($r.code -eq 5) 'an enabled auto-merge request exits five'
+Assert ($r.text -match 'auto-merge is enabled') 'an enabled auto-merge request is reported'
+
 $source = Get-Content -LiteralPath $check -Raw -Encoding UTF8
 Assert ($source -match 'docs/CHAT-HANDOFF\.md') 'generated coordination paths are part of the readiness gate'
 Assert ($source -match 'exit 3') 'overlap has a distinct non-zero exit code'
+Assert ($source -match 'exit 5') 'auto-merge has a distinct non-zero exit code'
 
 Remove-Item -LiteralPath $jsonRoot -Recurse -Force -ErrorAction SilentlyContinue
 

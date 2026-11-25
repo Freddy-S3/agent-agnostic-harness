@@ -42,6 +42,8 @@ Run these checks first and resolve what they surface.
 	A stale branch must be rebased or updated before opening or updating the PR.
 	An overlap with another open PR requires an explicit workflow decision: update the existing PR for the same task, stack dependent work, or serialize independent work that shares a hotspot.
 	The check also blocks `docs/CHAT-HANDOFF.md`, which is generated coordination state rather than feature content.
+7. For an existing PR, inspect `gh pr view <number> --json autoMergeRequest` and pass `-CurrentPullRequestNumber <number>` to the readiness check.
+	If `autoMergeRequest` is non-null, stop and report that auto-merge must be disabled before professional review continues.
 
 ## Branch
 
@@ -114,7 +116,7 @@ for a CI gate.
 After `gh pr create`, report the returned URL on its own line.
 When the push or the create fails, show the error and the concrete recovery step rather than retrying blindly.
 
-For an existing PR, verify the pushed head and mergeability with `gh pr view <number> --json headRefOid,mergeable,mergeStateStatus`.
+For an existing PR, verify the pushed head, mergeability, and auto-merge state with `gh pr view <number> --json headRefOid,mergeable,mergeStateStatus,autoMergeRequest`.
 
 ## Mode
 
