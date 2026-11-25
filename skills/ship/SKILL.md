@@ -32,6 +32,14 @@ When the host supports scoped agent modes, invoking `/ship` from a project-speci
 Token cost accumulates with conversation length. Each presented gate is a valid fork point.
 The live ledger below - not the chat history - is what the next conversation needs.
 
+## Human-visible gates
+
+Gate 1, Gate 2, and Gate 3 are standalone user-facing messages.
+Emit the complete gate heading, decision data, findings, and reply options directly in the response that stops for approval.
+Do not place the gate only in progress commentary, a tool result, a collapsed work-duration section, or a hidden handoff.
+Elapsed-time, worker-count, and telemetry summaries come after the gate block and never replace it.
+Use the exact gate templates below so a host can render the approval boundary without relying on surrounding narration.
+
 **At every gate**, append after the reply options:
 `→ Reply "fork" to start a new chat with "/ship continue <task-id>" — resets token count, the ledger preserves full state.`
 `→ Reply "REALIGN" to reread the ledger and continue from its recorded state.`
@@ -54,7 +62,7 @@ phase: plan | implement | synthesize | review | reflect
 gate: none | 1 | 2 | 3
 plan_mode: requested auto | fast | standard | deep; resolved fast | standard | deep
 planning_window: none | <duration>
-context: none | requested | updated
+context: pending | updated
 timing: <phase elapsed times and worker counts>
 phase_packet: acceptance | changed paths | risk markers | validation lanes | open questions
 verification_map: none | feature -> entry point -> action -> expected state -> evidence
@@ -229,7 +237,7 @@ The preflight packet passed to `/plan` includes the ledger path, task mode, plan
 
 The preflight packet is the first phase handoff and the source of truth for later phases.
 Carry forward only its compact facts - acceptance criteria, touched paths, risk markers, validation lanes, settled decisions, and open questions - instead of replaying the transcript or rediscovering completed checks.
-Read an existing project-context file during preflight when it is present; only refresh or create it when requested with `proceed + context` or when the evidence shows it is stale.
+Read an existing project-context file during preflight when it is present; refresh or create it after every approved implementation when the task produces stable project facts.
 
 ---
 
@@ -294,8 +302,10 @@ Blockers (resolve before I start):
 
 Scope estimate: ~<N> lines changed across <N> files
 ════════════════════════════════════════════════
-Reply "proceed" to implement | "proceed + context" to also create or update `docs/PROJECT-CONTEXT.md` | "continue planning" to extend an expired planning window | adjust any item | "fork" to reset context (handoff preserves state)
+Reply "proceed" to implement and update `docs/PROJECT-CONTEXT.md` | "continue planning" to extend an expired planning window | adjust any item | "fork" to reset context (handoff preserves state)
 ```
+
+Stop with the complete Gate 1 block as the standalone user-facing response before waiting for `proceed`.
 
 ---
 
@@ -320,7 +330,7 @@ Use the Gate 1 plan to form an implementation packet with three optional lanes: 
 Run only lanes with disjoint write ownership and a clear completion predicate; keep shared-file edits and integration wiring with one owner.
 If a worker fails, preserve the completed lanes and retry only the failed or stale lane rather than restarting the whole phase.
 
-If the user replies `proceed + context`, schedule one optional context worker after the implementation changes are available and before final synthesis/review.
+After every `proceed`, schedule one context worker after the implementation changes are available and before final synthesis/review.
 The worker reads the settled diff, existing context file if present, and `docs/PROJECT-CONTEXT-TEMPLATE.md` when creating a new file.
 It may write only `docs/PROJECT-CONTEXT.md`, must preserve existing factual entries and settled decisions, and must not copy chat history or speculative implementation details.
 Use an isolated worktree and claim for the context writer when the host supports it; otherwise serialize the write after the main implementation and say so.
@@ -332,11 +342,22 @@ Do not create a parallel wave merely because tasks are independent.
 Do not run parallel workers that edit the same file or depend on each other's uncommitted changes.
 If a blocking decision arises mid-implementation that was not in Gate 1, surface it immediately as an inline question and wait for a one-line answer before continuing.
 
+### Factory handoff contract
+
+Every worker and phase handoff is a result artifact, not only a prose report.
+Write the result with `tools/validate-factory-result.ps1` before treating the lane as complete.
+Capture observable worker events in JSONL and run `tools/check-factory-progress.ps1`; a nonzero result marks the lane stalled or repeating.
+Carry an explicit status, evidence with source and freshness, next action for incomplete work, progress signals, resource usage, and side-effect confirmation.
+Treat `unknown`, `stale`, `partial`, and `blocked` as real outcomes that require reconciliation or a named next action.
+Retry only from evidence; an external effect needs an idempotency key and read-back confirmation before a completed result is allowed.
+If a result is invalid, preserve other completed lanes and retry only the invalidated lane.
+
 ---
 
 ### Phase 4: Synthesize (automatic - no gate)
 
 After implementation settles, form a validation packet from the changed paths, risk markers, and acceptance criteria.
+When a project has a factory manifest, replay its representative cases with `tools/evaluate-factory.ps1` and retain the JSON report as validation evidence.
 Run independent checks in one bounded validation wave when their tools do not share a server, generated output, or mutable fixture: build, lint or static checks, focused tests, and browser or integration checks.
 Keep dependent checks sequential, wait for every lane, and synthesize one evidence record.
 Always retain the required broad check for the project; impact-based selection narrows the first signal but never replaces a required full suite when one exists.
@@ -389,6 +410,8 @@ If BLOCKs: 0, reply "lgtm" to accept | list items to fix | "fork" to reset conte
 If BLOCKs > 0, fix each `[BLOCK]` and rerun review | "fork" to reset context before review
 ```
 
+Stop with the complete Gate 2 block as the standalone user-facing response before waiting for `lgtm`.
+
 Before Gate 2 approval, fix every `[BLOCK]` and rerun the complete review.
 Only offer `lgtm` when `BLOCKs: 0`.
 After Gate 2 approval: auto-fix all `[NIT]` items and rerun focused validation.
@@ -422,6 +445,8 @@ Not capturing (and why):
 Reply "done" to apply all | adjust any item | "skip" to discard updates and finish
 ```
 
+Stop with the complete Gate 3 block as the standalone user-facing response before waiting for `done`.
+
 After `done`, apply all updates and delete a completed task's handoff.
 After `skip`, discard the proposed updates and delete a completed task's handoff.
 Either path completes the session.
@@ -432,8 +457,7 @@ Either path completes the session.
 
 | Reply | Effect |
 |---|---|
-| `proceed` | Approve Gate 1, start implementing |
-| `proceed + context` | Approve Gate 1, start implementing, and create or update `docs/PROJECT-CONTEXT.md` after implementation state is available |
+| `proceed` | Approve Gate 1, start implementing, and create or update `docs/PROJECT-CONTEXT.md` after implementation state is available |
 | `lgtm` | Approve Gate 2, continue to Phase 6 |
 | `done` | Approve Gate 3, apply harness updates |
 | `pause` | At any gate - write handoff artifact, stop (resumable next session) |
