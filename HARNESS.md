@@ -47,8 +47,9 @@ Planning has no default time limit.
 At `/ship` startup, a compact planning setup prompt asks for `auto`, `fast`, `standard`, or `deep`, plus an optional planning window; reply `default` to continue with auto mode and no time limit.
 You can skip that prompt with explicit flags such as `/ship --plan-mode deep --plan-within 10m <task>`.
 Use `/ship --plan-within 5m <task>` when a professional task needs an explicit planning window; the plan reports whether the window was met or expired without weakening required checks.
-Gate 1 also reports compact preflight/planning elapsed time and worker counts so slow phases can be diagnosed instead of guessed at.
-At Gate 1, reply `proceed + context` when the repository should also receive or update `docs/PROJECT-CONTEXT.md` for faster future sessions.
+Every human gate is emitted as a standalone visible response containing its heading, decision data, findings, and reply options.
+Elapsed-time and worker-count telemetry appears separately and never replaces or hides the gate text.
+Reply `proceed` at Gate 1; every approved implementation also creates or updates `docs/PROJECT-CONTEXT.md` for faster future sessions.
 Ship carries a compact phase packet from planning through review: acceptance criteria, changed paths, risk markers, validation lanes, evidence, and open questions.
 Independent validation lanes may run together, while shared-file edits and synthesis stay single-owner.
 After a failure, Ship retries only the invalidated lane and reuses evidence that still matches the settled worktree.
@@ -221,6 +222,11 @@ It selects the workflow, explains the relevant skill stack, and adds the coverag
 - `tools/queue-runner.ps1` - the one-item software-factory boundary.
   It selects one routed repository, writes a checkpoint before risky work, resumes an interrupted item, and requires bounded verification plus a PR handoff before marking code done.
   `tools/tests/queue-runner.tests.ps1` constructs the fan-out selection, pause/resume, route refusal, and finish-gate cases.
+- `tools/validate-factory-result.ps1`, `tools/check-factory-progress.ps1`, and `tools/evaluate-factory.ps1` - the evidence contract, independent progress detector, and replay loop for factory runs.
+  The validator rejects ambiguous outcomes, stale or missing evidence, unconfirmed side effects, stalled progress, and over-budget fan-out.
+  The progress detector fails a JSONL event log when idle or repeated signatures exceed their threshold.
+  The evaluator replays representative manifest cases and records outcome, latency, bounded output, and optional token, turn, or cost metrics.
+  Start from [`docs/SOFTWARE-FACTORY.md`](docs/SOFTWARE-FACTORY.md) and [`templates/software-factory/factory.manifest.json`](templates/software-factory/factory.manifest.json).
 - `tools/check-skill-caches.ps1` - enumerates every cached, copied, or linked view of the skills and instructions and fails loudly on drift.
   Junctions read live and self-heal; copies do not, and a junction into a worktree left on a merged branch resolves perfectly while serving code that no longer exists - both survive an install that reports success.
   Classes A-D are checked on this machine and `-Fix` regenerates what this repo generates. Class E is the Cowork cache under `%APPDATA%\Claude\local-agent-mode-sessions\skills-plugin\`, which does refresh - but from the claude.ai account rather than from this repository, so a skill that went stale in the account is faithfully re-materialised stale. It is checked and reported, never auto-fixed, because a local rewrite is overwritten on the next materialisation.
