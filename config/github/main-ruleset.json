@@ -1,7 +1,6 @@
 {
   "name": "Main merge queue",
   "target": "branch",
-  "source": "main",
   "enforcement": "active",
   "conditions": {
     "ref_name": {
