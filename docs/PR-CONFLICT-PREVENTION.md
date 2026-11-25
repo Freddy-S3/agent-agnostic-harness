@@ -26,7 +26,7 @@ If GitHub cannot update a branch without a semantic conflict, the workflow repor
 
 The `Queue factory boundary` workflow also runs for merge-group refs so required checks can participate in a merge queue.
 
-The merge queue remains the final serialization point for changes that have passed review and required checks.
+When GitHub supports it for this repository, the merge queue remains the final serialization point for changes that have passed review and required checks.
 
 The desired versioned ruleset at `config/github/main-ruleset.json` keeps `main` pull-request-only, requires the readiness check, prevents force pushes, and serializes one squash merge at a time.
 
