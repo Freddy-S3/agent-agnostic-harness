@@ -66,6 +66,15 @@ $stackedJson = Join-Path $jsonRoot 'stacked.json'
 $r = Invoke-Check $stackedJson 'HEAD' 108
 Assert ($r.code -eq 0) 'the current PR and transitively stacked PRs do not self-block'
 
+$ancestorJson = Join-Path $jsonRoot 'ancestor.json'
+@(
+    @{ number = 108; headRefName = 'feature'; baseRefName = 'main'; files = @(@{ path = $sharedPath }) },
+    @{ number = 109; headRefName = 'stacked-feature'; baseRefName = 'feature'; files = @(@{ path = $sharedPath }) },
+    @{ number = 110; headRefName = 'deeply-stacked-feature'; baseRefName = 'stacked-feature'; files = @(@{ path = $sharedPath }) }
+) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $ancestorJson -Encoding UTF8
+$r = Invoke-Check $ancestorJson 'HEAD' 109
+Assert ($r.code -eq 0) 'a stacked PR and its parent/descendant chain do not self-block'
+
 $r = Invoke-Check $cleanJson 'c5b7fdd'
 Assert ($r.code -eq 2) 'a branch behind origin/main exits two'
 Assert ($r.text -match 'BLOCKED') 'a stale branch reports blocked'
