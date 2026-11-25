@@ -56,6 +56,7 @@ plan_mode: requested auto | fast | standard | deep; resolved fast | standard | d
 planning_window: none | <duration>
 context: none | requested | updated
 timing: <phase elapsed times and worker counts>
+phase_packet: acceptance | changed paths | risk markers | validation lanes | open questions
 objective: <one sentence>
 acceptance: <observable definition of done>
 decisions: <settled choices>
@@ -175,6 +176,10 @@ When `--plan-within <duration>` is supplied, record it in the ledger and show wh
 On expiry, stop opening new discovery branches, synthesize the evidence already gathered, and list any unverified areas or blockers.
 The user may reply `continue planning` to extend the window before implementation.
 
+Professional mode keeps the required quality checks and uses concurrency, caching, and targeted validation to reduce elapsed time.
+Personal mode may use the same accelerators, but never receives an implied planning deadline.
+An optional window is a deadline for reporting evidence, not permission to skip ticket, security, test, or review obligations.
+
 ### Compact planning setup
 
 Show this one-line reminder before the question:
@@ -221,6 +226,10 @@ The ad hoc ledger is created at startup like a tracker-backed one, not only when
 The preflight packet passed to `/plan` includes the ledger path, task mode, planning window, ticket result, branch/worktree readiness, scoped instruction paths, and any existing `docs/PROJECT-CONTEXT.md` findings.
 `/plan` must not repeat these checks when invoked by `/ship`.
 
+The preflight packet is the first phase handoff and the source of truth for later phases.
+Carry forward only its compact facts - acceptance criteria, touched paths, risk markers, validation lanes, settled decisions, and open questions - instead of replaying the transcript or rediscovering completed checks.
+Read an existing project-context file during preflight when it is present; only refresh or create it when requested with `proceed + context` or when the evidence shows it is stale.
+
 ---
 
 ### Phase 1-2: Plan (automatic → outputs Gate 1)
@@ -246,6 +255,9 @@ When a parallel wave runs, show compact status so the user can see the swarm wit
 
 If the host cannot delegate, state `Parallel delegation unavailable` and continue sequentially.
 
+Choose a parallel wave only when the expected wall-time saving exceeds worker startup and merge overhead.
+The default preflight wave may combine independent reads such as ticket retrieval, project-context lookup, code mapping, and baseline validation; branch/worktree writes remain serialized.
+
 ```
 ════════════════════════════════════════════════
  GATE 1 - PLAN  (reply to continue)
@@ -257,6 +269,7 @@ Jira:       <fetched | unavailable; ticketless | not requested | blocked>
 Mode:       <auto | fast | standard | deep> (resolved: <fast | standard | deep>)
 Planning:   <no window | <duration> met | <duration> expired>
 Timing:     preflight <duration> | plan <duration> | tool calls <N> | workers <N>
+Packet:     acceptance | changed paths | risk markers | validation lanes | open questions
 Reference:  <file being modeled after>
 Type:       feature | bugfix | refactor
 
@@ -298,6 +311,10 @@ Implement the plan as dependency-ordered waves:
 At each implementation wave, emit one compact start line and one completion line with the worker count.
 For example: `[parallel] Wave 1 started: service | tests` and `[parallel] Wave 1 complete: 2 workers returned`.
 
+Use the Gate 1 plan to form an implementation packet with three optional lanes: the owning implementation slice, disjoint test or fixture work, and documentation or context work.
+Run only lanes with disjoint write ownership and a clear completion predicate; keep shared-file edits and integration wiring with one owner.
+If a worker fails, preserve the completed lanes and retry only the failed or stale lane rather than restarting the whole phase.
+
 If the user replies `proceed + context`, schedule one optional context worker after the implementation changes are available and before final synthesis/review.
 The worker reads the settled diff, existing context file if present, and `docs/PROJECT-CONTEXT-TEMPLATE.md` when creating a new file.
 It may write only `docs/PROJECT-CONTEXT.md`, must preserve existing factual entries and settled decisions, and must not copy chat history or speculative implementation details.
@@ -314,13 +331,17 @@ If a blocking decision arises mid-implementation that was not in Gate 1, surface
 
 ### Phase 4: Synthesize (automatic - no gate)
 
-Run `dotnet build` (C#) or `npm run build` (Vue/TS) depending on what changed.
-Fix any compilation errors automatically without pausing.
-Output: `Build: ✓ (or ✗ <error summary>)`
+After implementation settles, form a validation packet from the changed paths, risk markers, and acceptance criteria.
+Run independent checks in one bounded validation wave when their tools do not share a server, generated output, or mutable fixture: build, lint or static checks, focused tests, and browser or integration checks.
+Keep dependent checks sequential, wait for every lane, and synthesize one evidence record.
+Always retain the required broad check for the project; impact-based selection narrows the first signal but never replaces a required full suite when one exists.
+Reuse an already-running service and installed dependencies when they are known to match the settled worktree instead of restarting them for every lane.
+Fix compilation or test failures automatically without pausing when the correction is mechanical, then rerun only the affected lane before repeating the full validation packet.
+Output one compact line per lane and a final `Validation: ✓` or `Validation: ✗ <error summary>` result.
 
 When the change touches a UI that has an E2E suite, also run the browser validation path:
 
-1. Build the application artifact the E2E suite loads.
+1. Reuse the application artifact from the validation wave; if no compatible artifact exists, build it once.
 2. If a saved authenticated session and the required target URL env var are both present, run the stable E2E project against the saved session, skipping the interactive setup dependency (e.g. `playwright test --config <config> --project=<project> --no-deps --retries=0`).
 3. If the saved session is missing or expired, report `E2E blocked: interactive re-authentication required` and identify the auth-refresh command as the recovery step. Never write a fake token, copy a token into application storage, or bypass the authenticated assertion.
 4. Treat a passing page-load check plus the authenticated view assertion as the browser validation result. Do not expose token or cookie values in logs.
@@ -333,6 +354,10 @@ Run an **adversarial** review of the complete diff using `/codereview`.
 `/codereview` owns the reviewer mindset, review checklist, finding labels, Standards and Spec-Fidelity axes, smell baseline, and debugging-change filter.
 `/ship` owns the gate presentation, approval timing, and the post-approval remediation sequence below.
 Make the complete `/codereview` verdict and its findings visible inside Gate 2.
+
+When the change has multiple material risk markers, run up to three independent read-only review lenses in parallel - behavior and spec fidelity, integration and security, and tests and operability - then give their reports to one synthesis owner.
+Do not launch review lenses merely to increase the worker count, and do not let them edit the worktree.
+The synthesis owner must reconcile duplicate findings against the settled diff and required checks before presenting Gate 2.
 
 ```
 ════════════════════════════════════════════════
@@ -349,6 +374,7 @@ Before Gate 2 approval, fix every `[BLOCK]` and rerun the complete review.
 Only offer `lgtm` when `BLOCKs: 0`.
 After Gate 2 approval: auto-fix all `[NIT]` items and rerun focused validation.
 Do not auto-fix anything labeled [SUGGEST] — those need intent.
+For post-review fixes, reuse the validation packet and rerun only lanes invalidated by the changed paths before the final required check.
 
 ---
 

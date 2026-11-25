@@ -49,6 +49,10 @@ You can skip that prompt with explicit flags such as `/ship --plan-mode deep --p
 Use `/ship --plan-within 5m <task>` when a professional task needs an explicit planning window; the plan reports whether the window was met or expired without weakening required checks.
 Gate 1 also reports compact preflight/planning elapsed time and worker counts so slow phases can be diagnosed instead of guessed at.
 At Gate 1, reply `proceed + context` when the repository should also receive or update `docs/PROJECT-CONTEXT.md` for faster future sessions.
+Ship carries a compact phase packet from planning through review: acceptance criteria, changed paths, risk markers, validation lanes, evidence, and open questions.
+Independent validation lanes may run together, while shared-file edits and synthesis stay single-owner.
+After a failure, Ship retries only the invalidated lane and reuses evidence that still matches the settled worktree.
+These accelerators apply in both modes; planning windows remain optional and never lower the professional quality floor.
 
 Use `fork` at a gate to start a fresh chat from a saved handoff when the conversation becomes long.
 Use `pause` to save the task for a later session.
