@@ -30,6 +30,12 @@ Assert ($ship -match 'Elapsed-time.*never replace') 'telemetry cannot replace ga
 Assert ($ship -match 'After every `proceed`, schedule one context worker') 'proceed always schedules context capture'
 Assert ($ship -notmatch 'proceed \+ context') 'ship no longer exposes the optional context shortcut'
 Assert ($harness -notmatch 'proceed \+ context') 'harness guide no longer exposes the optional context shortcut'
+Assert ($ship -match 'tools/check-repository\.ps1 -Path <target>') 'professional Ship checks the target repository'
+Assert ($ship -match 'Personal mode skips this preflight') 'personal mode skips repository initialization'
+Assert ($ship -match 'Repository: <resolved Git root and commit state') 'Gate 1 shows repository state'
+Assert ($ship -match 'missing - initialization required') 'missing repositories are visible at Gate 1'
+Assert ($ship -match 'tools/check-repository\.ps1 -Path <target> -Initialize') 'initialization happens only after proceed'
+Assert ($harness -match 'tools/check-repository\.ps1') 'harness guide documents repository preflight'
 
 if ($script:Failures -gt 0) {
     Write-Host ("check-ship-contract.tests: {0} assertion(s) failed out of {1}" -f $script:Failures, $script:Ran) -ForegroundColor Red

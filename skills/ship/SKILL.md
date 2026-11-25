@@ -73,6 +73,7 @@ context: pending | updated
 timing: <phase elapsed times and worker counts>
 phase_packet: acceptance | changed paths | risk markers | validation lanes | open questions
 verification_map: none | feature -> entry point -> action -> expected state -> evidence
+repository: <resolved root and commit state | missing - initialization required | ambiguous>
 objective: <one sentence>
 acceptance: <observable definition of done>
 decisions: <settled choices>
@@ -246,6 +247,20 @@ The preflight packet is the first phase handoff and the source of truth for late
 Carry forward only its compact facts - acceptance criteria, touched paths, risk markers, validation lanes, settled decisions, and open questions - instead of replaying the transcript or rediscovering completed checks.
 Read an existing project-context file during preflight when it is present; refresh or create it after every approved implementation when the task produces stable project facts.
 
+### Pre-flight: Professional repository check (automatic - delivery mode only)
+
+Before branch or worktree preparation, run `tools/check-repository.ps1 -Path <target>`.
+The checker resolves the actual Git root, reports whether it has a commit, identifies a unique nested repository, and refuses ambiguous roots.
+
+- **Found:** carry the resolved root and `hasCommit` result in the preflight packet and use that root for branch/worktree setup.
+- **Unique nested candidate:** use the candidate only when it is the project the task names; otherwise surface the candidate paths as a Gate 1 blocker instead of initializing the parent.
+- **Missing:** report `Repository: missing - initialization required` at Gate 1 and include the exact initialization step in the approved implementation plan.
+  After `proceed`, run `tools/check-repository.ps1 -Path <target> -Initialize`; this creates only Git metadata, never a remote or an invented baseline commit.
+  If the repository has no commit yet, keep the work on its local branch until the first deliberate baseline commit exists; do not create a detached worktree from an unborn repository.
+- **Invalid or ambiguous:** stop before branch/worktree writes and ask for the repository root or a repair decision.
+
+Personal mode skips this preflight and does not initialize Git implicitly.
+
 ---
 
 ### Phase 1-2: Plan (automatic → outputs Gate 1)
@@ -285,6 +300,7 @@ Task:       <task name>
 Premise:    <what must be true for this to be worth doing> - <verified how, or "assumed">
 Ticket:     <Jira key> | none (ticketless)
 Jira:       <fetched | unavailable; ticketless | not requested | blocked>
+Repository: <resolved Git root and commit state | missing - initialization required | ambiguous>
 Mode:       <auto | fast | standard | deep> (resolved: <fast | standard | deep>)
 Planning:   <no window | <duration> met | <duration> expired>
 Timing:     preflight <duration> | plan <duration> | tool calls <N> | workers <N>
@@ -320,6 +336,7 @@ The Gate 1 block above is a rendering contract: replace every placeholder with t
 ### Phase 3: Implement (automatic after Gate 1 approval)
 
 Load NEWFEATURE or DEBUGGING skill based on task type.
+If the professional Gate 1 packet reported `missing - initialization required`, initialize the approved target before any branch/worktree write and record the returned repository root in the phase handoff.
 Implement the plan as dependency-ordered waves:
 1. Keep the default path sequential with one task owner and one active writing agent per worktree.
 2. For an approved parallel wave, launch only independently bounded work, cap the wave at three agents, and give each writer an isolated worktree.
