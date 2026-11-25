@@ -133,23 +133,39 @@ try {
         }
     }
 
-    $stackedBaseBranches = @()
+    $stackedPullRequestNumbers = @()
+    $descendantBranches = @()
     if ($currentHeadRefName) {
-        $stackedBaseBranches += $currentHeadRefName
+        $descendantBranches += $currentHeadRefName
         $expanded = $true
         while ($expanded) {
             $expanded = $false
             foreach ($stackedPr in $openPullRequests) {
+                if ($CurrentPullRequestNumber -gt 0 -and [int]$stackedPr.number -eq $CurrentPullRequestNumber) { continue }
                 $stackedBase = [string]$stackedPr.baseRefName
                 $stackedHead = [string]$stackedPr.headRefName
-                if ($stackedBase -and $stackedBaseBranches -contains $stackedBase -and $stackedHead -and $stackedBaseBranches -notcontains $stackedHead) {
-                    $stackedBaseBranches += $stackedHead
+                if ($stackedBase -and $descendantBranches -contains $stackedBase -and $stackedHead -and $descendantBranches -notcontains $stackedHead) {
+                    $descendantBranches += $stackedHead
+                    $stackedPullRequestNumbers += [int]$stackedPr.number
                     $expanded = $true
                 }
             }
         }
     }
 
+    $ancestorBranch = [string]$currentPullRequest.baseRefName
+    while ($ancestorBranch) {
+        $parentPr = $openPullRequests |
+            Where-Object {
+                [string]$_.headRefName -eq $ancestorBranch -and
+                ($CurrentPullRequestNumber -le 0 -or [int]$_.number -ne $CurrentPullRequestNumber)
+            } |
+            Select-Object -First 1
+        if (-not $parentPr) { break }
+        $stackedPullRequestNumbers += [int]$parentPr.number
+        $ancestorBranch = [string]$parentPr.baseRefName
+    }
+    $stackedPullRequestNumbers = @($stackedPullRequestNumbers | Sort-Object -Unique)
     $overlaps = @()
     foreach ($pr in $openPullRequests) {
         if (-not $pr) { continue }
