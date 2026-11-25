@@ -133,11 +133,27 @@ try {
         }
     }
 
-    $overlaps = @()
-    foreach ($pr in $openPullRequests) {
+    $stackedBaseBranches = @()
+    if ($currentHeadRefName) {
+        $stackedBaseBranches += $currentHeadRefName
+        $expanded = $true
+        while ($expanded) {
+            $expanded = $false
+            foreach ($stackedPr in $openPullRequests) {
+                $stackedBase = [string]$stackedPr.baseRefName
+                $stackedHead = [string]$stackedPr.headRefName
+                if ($stackedBase -and $stackedBaseBranches -contains $stackedBase -and $stackedHead -and $stackedBaseBranches -notcontains $stackedHead) {
+                    $stackedBaseBranches += $stackedHead
+                    $expanded = $true
+                }
+            }
+        }
+    }
+
+    $overlaps = @()    foreach ($pr in $openPullRequests) {
         if (-not $pr) { continue }
         if ($CurrentPullRequestNumber -gt 0 -and [int]$pr.number -eq $CurrentPullRequestNumber) { continue }
-        if ($currentHeadRefName -and [string]$pr.baseRefName -eq $currentHeadRefName) { continue }
+        if ($stackedBaseBranches -contains [string]$pr.baseRefName) { continue }
         if ([string]$pr.headRefName -eq $HeadBranch) { continue }
         $files = @()
         if ($OpenPullRequestsJson) {
