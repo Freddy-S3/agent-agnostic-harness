@@ -13,6 +13,8 @@ This skill front-loads the thinking so implementation becomes mechanical.
 
 When `/plan` is invoked by `/ship`, `/ship` supplies the preflight packet containing the handoff result, ticket result, branch/worktree readiness, scoped instructions, project-context findings, planning mode, and optional planning window.
 Start at the selected planning mode and do not repeat the handoff, Jira, branch, or project-context checks.
+Return a compact implementation packet containing acceptance criteria, touched paths, risk markers, validation lanes, settled decisions, and open questions so later phases can reuse evidence without repeating discovery.
+When invoked by `/ship`, treat Ship Gate 1 as the plan confirmation and do not add a second approval prompt.
 When invoked directly, run Phase 0 as written below.
 
 ## Phase 0: Check for Existing Handoff and Jira Context
@@ -28,6 +30,9 @@ Before exploring, do two things in parallel:
    Retrieve the full ticket and all comments through the tracker MCP, and treat the description and comments as the authoritative definition of done.
 
 ## Phase 1: Orient
+
+When the selected mode is **auto**, choose the smallest mode below that preserves correctness.
+When the caller explicitly selected Fast, Standard, or Deep, honor that selection unless new evidence makes it unsafe, then promote to the next mode and explain why.
 
 Select the smallest mode that preserves correctness:
 
@@ -59,6 +64,7 @@ For Standard and Deep work, fan out independent read-only exploration when it ma
 Typical workers are code-map, test/validation, project-context, and ticket retrieval when a key is supplied.
 Use no more than three workers in one wave, start the wave together, wait for every report, and serialize all writes.
 Emit compact start and completion status; if the host cannot delegate, state `Parallel delegation unavailable` and continue sequentially.
+Do not start a wave when worker startup and merge overhead are likely to exceed the saved time.
 
 Break Standard and Deep work into sub-tasks labeled by dependency type:
 - **Parallel** - no shared dependency, can be done simultaneously (e.g., "write DTO" and "write interface")
@@ -74,6 +80,8 @@ Promote it when the affected file count, risk, or ambiguity grows.
 
 If the caller supplies a planning window, honor it as an explicit time target without skipping required security, ticket, or scoped-instruction checks.
 When the window expires, stop new discovery, report the evidence gaps, and wait for `continue planning` or the user's adjustment.
+
+Include the risk markers and validation lanes in the plan so implementation, synthesis, and review can run only the work that the settled scope invalidates.
 
 ## Phase 3: Gate
 
