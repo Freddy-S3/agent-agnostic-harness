@@ -6,6 +6,7 @@ on:
       - opened
       - synchronize
       - reopened
+  merge_group:
 
 permissions:
   contents: read
@@ -19,11 +20,14 @@ jobs:
       - name: Check out the proposed head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - name: Fetch the current base
         run: git fetch --no-tags origin main:refs/remotes/origin/main
       - name: Check branch freshness and path overlap
         env:
           GH_TOKEN: ${{ github.token }}
-        run: pwsh -NoProfile -File tools/check-pr-readiness.ps1 -RepoRoot . -BaseBranch main -HeadBranch "${{ github.event.pull_request.head.sha }}" -CurrentPullRequestNumber ${{ github.event.pull_request.number }}
+        run: >-
+          pwsh -NoProfile -File tools/check-pr-readiness.ps1 -RepoRoot . -BaseBranch main
+          -HeadBranch "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+          -CurrentPullRequestNumber ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}

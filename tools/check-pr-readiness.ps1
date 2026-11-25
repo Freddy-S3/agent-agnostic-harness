@@ -47,8 +47,14 @@ if (-not $RepoRoot) { $RepoRoot = Split-Path -Parent (Split-Path -Parent $PSComm
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 
 function Invoke-Tool([string] $FilePath, [string[]] $Arguments) {
-    $output = @(& $FilePath @Arguments 2>&1)
-    $code = $LASTEXITCODE
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = @(& $FilePath @Arguments 2>&1)
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
     if ($code -ne 0) {
         throw "$FilePath $($Arguments -join ' ') failed with exit code ${code}: $($output -join ' ')"
     }

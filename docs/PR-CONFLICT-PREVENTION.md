@@ -28,6 +28,6 @@ The `Queue factory boundary` workflow also runs for merge-group refs so required
 
 The merge queue remains the final serialization point for changes that have passed review and required checks.
 
-The versioned ruleset at `config/github/main-ruleset.json` keeps `main` pull-request-only, requires the queue factory check, prevents force pushes, and serializes one squash merge at a time.
+The versioned ruleset at `config/github/main-ruleset.json` keeps `main` pull-request-only, requires the readiness check, prevents force pushes, and serializes one squash merge at a time.
 
 It intentionally does not require a GitHub approval count because the professional `/ship` review gate is the human approval boundary for this single-owner repository.
