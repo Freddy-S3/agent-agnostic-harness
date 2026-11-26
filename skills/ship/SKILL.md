@@ -234,7 +234,11 @@ For repository changes, the pull request target is always the repository default
 If dependent work was developed on feature branches, publish the complete intended change set in one pull request to the default branch.
 At closeout, verify `gh pr view <number> --json baseRefName` reports that default branch and keep the task open until the current head's required checks pass.
 Never count a merge into a feature branch as delivery to the default branch.
-Ship opens or updates pull requests through `/pr` but never merges them.
+Ship opens or updates pull requests through `/pr`.
+Casual runs that inherit personal mode merge after checks pass.
+For a professional Ship run, record the reviewed PR head in the ledger at Gate 2 and wait for Faruk's explicit `lgtm` before merging it.
+After approval, use the `/pr` completion step for that head.
+If a later change moves the head, return to Gate 2 for fresh approval before merging.
 
 ### Automatic coordination closeout
 
