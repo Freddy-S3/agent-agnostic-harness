@@ -18,7 +18,7 @@ The check blocks non-default targets, stale branches, path overlaps with other o
 
 Professional-mode callers pass `-ProfessionalMode -CurrentPullRequestNumber <number>` to block enabled auto-merge before human review.
 
-Personal-mode callers omit `-ProfessionalMode`, so GitHub auto-merge remains available for fast, automated work.
+Personal mode merges automatically after checks pass. Professional Ship waits for explicit approval of the reviewed commit. Both use the same default branch and revision checks.
 
 The `Pull request readiness` workflow checks the actual PR base against the repository default and runs the same readiness gate against every proposed head with read-only permissions.
 

@@ -66,7 +66,7 @@ For UI or workflow-visible work, Ship carries a compact verification map from us
 Runtime verification uses `/browsertest` even when a project has no pre-existing E2E suite; a build or markup inspection alone is not UI evidence.
 In professional `/ship` runs, Gate 2 keeps a runnable local surface alive and includes a verified `Hand-test URL` or `Hand-test command` before waiting for `lgtm`.
 If no runnable surface exists or startup is blocked, Gate 2 states that explicitly instead of presenting automated results as a substitute for hand testing.
-Professional-mode pull request checks opt into an auto-merge guard before human review; personal-mode pull request work leaves GitHub auto-merge available.
+Casual runs merge pull requests automatically after checks pass, including when the harness selects Ship internally. A human-typed Ship waits for your `lgtm` on the reviewed revision before merging.
 Every pull request targets the repository default branch, and the readiness workflow rejects feature-branch bases.
 The `/pr` workflow refuses non-default bases, and `mainline-target` visibly fails if a PR is retargeted to a feature branch.
 GitHub protection is configured on the default branch; a manual merge into an unprotected feature branch remains possible outside the harness workflow.

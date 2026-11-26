@@ -12,10 +12,7 @@ Report the URL.
 
 ## Standing rule
 
-Never merge the pull request. Not with `gh pr merge`, not by any other route.
-Opening the PR is the deliverable; merging it is Faruk's call, because the gh CLI authenticates as his own account and a PR "merged by Freddy-S3" that this skill also opened is not a review by anyone.
-An audit across every repo this harness has touched (`agent-agnostic-harness`, `Portfolio-Website`, `unattended-runs`, `petal-and-polish`, `hoshi-candle-co`) found every PR merged by the same account that authored it, with zero review comments on any of them — the "a human reviews it" convention was never actually enforced, only asserted.
-If a PR sits open waiting on Faruk, say so in the report; do not close the loop for him.
+Use the active Ship route to decide when a pull request can merge.
 
 A branch must never carry commits without an open pull request.
 As soon as one commit exists that is not on the default branch, there is a PR for it.
@@ -132,5 +129,13 @@ For an existing PR, verify the pushed head, mergeability, and auto-merge state w
 
 ## Mode
 
-In personal mode this runs end to end without asking for approval, and it leaves GitHub auto-merge available.
+In personal mode, including casual runs that select Ship automatically, merge after checks pass without an approval prompt.
 In delivery mode, show the proposed title and body before creating, enforce the professional auto-merge guard, and honor any tracker rules the repository carries.
+For professional Ship, leave the PR open until Faruk replies `lgtm` for the reviewed head.
+For other delivery workflows, leave the merge to Faruk unless he explicitly authorizes it.
+
+Use `pwsh -NoProfile -File tools/complete-pr.ps1 -Repository <owner/repo> -Number <number> -Mode <personal|delivery> -ExpectedHead <verified-sha>`.
+In delivery mode, add `-ApprovedHead <approved-sha>` from the ledger only after explicit approval for that revision.
+Use `-Method <squash|merge|rebase>` if the repository specifies a different method from squash.
+If the head changes, verify the new checks and obtain fresh approval in delivery mode.
+A failed or pending check keeps the task open.
