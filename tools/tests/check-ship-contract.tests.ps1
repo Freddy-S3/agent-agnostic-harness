@@ -29,7 +29,8 @@ Assert (($ship -split 'Stop with the complete Gate 1 block').Count -eq 2) 'Gate 
 Assert (($ship -split 'Stop with the complete Gate 2 block').Count -eq 2) 'Gate 2 is required as a standalone response'
 Assert (($ship -split 'Stop with the complete Gate 3 block').Count -eq 2) 'Gate 3 is required as a standalone response'
 Assert ($ship -match 'Elapsed-time.*never replace') 'telemetry cannot replace gate text'
-Assert ($ship -match 'After every `proceed`, schedule one context worker') 'proceed always schedules context capture'
+Assert ($ship -match 'After every `proceed`, always schedule one context worker') 'proceed always schedules context capture'
+Assert ($ship -match 'After every approved implementation, always run the context worker') 'every approved implementation reviews and refreshes project context'
 Assert ($ship -notmatch 'proceed \+ context') 'ship no longer exposes the optional context shortcut'
 Assert ($harness -notmatch 'proceed \+ context') 'harness guide no longer exposes the optional context shortcut'
 Assert ($ship -match 'Planning reminder: default = auto \+ no time limit') 'Ship displays the quick mode and timing reminder'
@@ -47,6 +48,7 @@ Assert ($router -match 'selected automatically by `/faruk`.*preserves the existi
 Assert ($ship -match 'human-typed `/ship <task>` selects professional delivery mode') 'Ship records direct invocation behavior'
 Assert ($ship -match 'automatically for an ordinary request.*inherit the current') 'Ship records automatic invocation behavior'
 Assert ($ship -match 'pull request target is always the repository default branch') 'Ship requires PRs to target the repository default branch'
+Assert ($ship -match 'At closeout, verify `gh pr view <number> --json baseRefName` reports that default branch') 'Ship verifies the actual GitHub PR base at closeout'
 Assert ($ship -match 'Never count a merge into a feature branch as delivery') 'Ship does not count feature-branch merges as completion'
 Assert ($harness -match 'When you type `/ship` yourself.*professional delivery mode') 'harness guide explains direct Ship mode'
 

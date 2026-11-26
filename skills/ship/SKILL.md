@@ -264,7 +264,9 @@ The preflight packet passed to `/plan` includes the ledger path, task mode, plan
 
 The preflight packet is the first phase handoff and the source of truth for later phases.
 Carry forward only its compact facts - acceptance criteria, touched paths, risk markers, validation lanes, settled decisions, and open questions - instead of replaying the transcript or rediscovering completed checks.
-Read an existing project-context file during preflight when it is present; refresh or create it after every approved implementation when the task produces stable project facts.
+Read an existing project-context file during preflight when it is present.
+After every approved implementation, always run the context worker to update or create `docs/PROJECT-CONTEXT.md` with stable project facts and settled decisions.
+If there are no new stable facts or decisions, the worker must report that it reviewed the file and found nothing to add; it must not skip the context review.
 
 ### Pre-flight: Professional repository check (automatic - delivery mode only)
 
@@ -374,7 +376,7 @@ Use the Gate 1 plan to form an implementation packet with three optional lanes: 
 Run only lanes with disjoint write ownership and a clear completion predicate; keep shared-file edits and integration wiring with one owner.
 If a worker fails, preserve the completed lanes and retry only the failed or stale lane rather than restarting the whole phase.
 
-After every `proceed`, schedule one context worker after the implementation changes are available and before final synthesis/review.
+After every `proceed`, always schedule one context worker after the implementation changes are available and before final synthesis/review, even when no stable context changes are expected.
 The worker reads the settled diff, existing context file if present, and `docs/PROJECT-CONTEXT-TEMPLATE.md` when creating a new file.
 It may write only `docs/PROJECT-CONTEXT.md`, must preserve existing factual entries and settled decisions, and must not copy chat history or speculative implementation details.
 Use an isolated worktree and claim for the context writer when the host supports it; otherwise serialize the write after the main implementation and say so.

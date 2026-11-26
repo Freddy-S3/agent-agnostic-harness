@@ -26,9 +26,10 @@ This repository is the portable agent-agnostic harness used by Codex, Claude Cod
 
 - `/ship` Gate 1, Gate 2, and Gate 3 are standalone user-visible approval messages.
 - Elapsed-time and worker telemetry never replaces or hides human-gate text.
-- `proceed` always creates or updates `docs/PROJECT-CONTEXT.md` after implementation state is available.
+- After every `proceed`, `/ship` always schedules a context worker to review and update `docs/PROJECT-CONTEXT.md`; no new stable facts does not skip the review.
 - Every pull request targets the repository default branch; dependent changes are promoted together instead of merged into a feature-branch parent.
 - `/pr` refuses non-default PR bases, and the `mainline-target` status fails when a PR targets a feature branch.
+- The default-target check also runs for merge-queue events and validates the merge group's actual `base_ref`.
 - GitHub protection is configured on `main`; an unprotected feature-branch PR can still be manually merged outside the harness workflow.
 - Factory results use explicit statuses, source-fresh evidence, progress signals, resource budgets, and side-effect confirmation.
 - JSONL progress logs are checked independently for idle and repeated-signature loops before a worker lane is accepted.
