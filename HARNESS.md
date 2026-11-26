@@ -43,11 +43,11 @@ For a nontrivial task, the checkpoints are:
 | Review  | `lgtm`    | Accept a zero-blocker review and continue to reflection.                          |
 | Reflect | `done`    | Apply proposed harness updates and finish.                                        |
 
-Planning has no default time limit.
-At `/ship` startup, a compact planning setup prompt asks for `auto`, `fast`, `standard`, or `deep`, plus an optional planning window; reply `default` to continue with auto mode and no time limit.
-You can skip that prompt with explicit flags such as `/ship --plan-mode deep --plan-within 10m <task>`.
+Planning defaults to auto mode with no time limit, and Ship starts without asking you to confirm them.
+Pass `--plan-mode fast|standard|deep` or `--plan-within <duration>` only when you want to override those defaults.
 Use `/ship --plan-within 5m <task>` when a professional task needs an explicit planning window; the plan reports whether the window was met or expired without weakening required checks.
-Gate 1 also reports compact preflight/planning elapsed time and worker counts so slow phases can be diagnosed instead of guessed at.
+Gate 1 reports compact preflight/planning elapsed time and worker counts.
+For a gate-free personal run, measured elapsed time and any repeated environment failures are retained in the task closeout when the run was unusually slow.
 At Gate 1, reply `proceed + context` when the repository should also receive or update `docs/PROJECT-CONTEXT.md` for faster future sessions.
 Ship carries a compact phase packet from planning through review: acceptance criteria, changed paths, risk markers, validation lanes, evidence, and open questions.
 Independent validation lanes may run together, while shared-file edits and synthesis stay single-owner.
