@@ -38,8 +38,10 @@ Run these checks first and resolve what they surface.
 5. `gh pr list --head <branch> --state open` shows whether a PR already exists.
 	A merged or closed PR does not count; its branch can still carry newer commits that need a fresh one.
 	Confirm with `git log --oneline origin/<default>..HEAD` before concluding nothing is outstanding.
-6. Fetch the current base and run `tools/check-pr-readiness.ps1` with the mode-appropriate flags.
+6. Resolve the intended PR target branch, fetch it, and run `tools/check-pr-readiness.ps1 -BaseBranch <target-base>` with the mode-appropriate flags.
 	A stale branch must be rebased or updated before opening or updating the PR.
+	For a stacked PR, use the parent branch named by the PR's `baseRefName`; do not substitute `main`.
+	The GitHub readiness workflow must use the same target branch.
 	An overlap with another open PR requires an explicit workflow decision: update the existing PR for the same task, stack dependent work, or serialize independent work that shares a hotspot.
 	The check also blocks `docs/CHAT-HANDOFF.md`, which is generated coordination state rather than feature content.
 7. In professional mode, inspect `gh pr view <number> --json autoMergeRequest` and pass both `-ProfessionalMode` and `-CurrentPullRequestNumber <number>` to the readiness check.
@@ -114,7 +116,12 @@ for a CI gate.
 
 ## Verify
 
-After `gh pr create`, report the returned URL on its own line.
+After creating or updating a PR, query `gh pr checks <number> --watch` or an equivalent check-status command and confirm the results belong to the current `headRefOid`.
+Keep the task in progress while checks are pending.
+When a check fails, inspect its annotations and failed job logs, identify whether the cause is code, workflow policy, or infrastructure, then fix the in-scope cause, push, and verify the new head's checks.
+If a failure cannot be fixed in scope, report the exact check and evidence as blocked; do not present the PR as ready or the task as complete.
+Treat `mergeable` as Git conflict state only; verify CI results separately.
+After checks are resolved, report the PR URL on its own line.
 When the push or the create fails, show the error and the concrete recovery step rather than retrying blindly.
 
 For an existing PR, verify the pushed head, mergeability, and auto-merge state with `gh pr view <number> --json headRefOid,mergeable,mergeStateStatus,autoMergeRequest`.
