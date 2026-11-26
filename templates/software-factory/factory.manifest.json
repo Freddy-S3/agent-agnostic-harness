@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "name": "project-software-factory",
+  "description": "Versioned routing, execution, evidence, and evaluation contract for one project factory.",
+  "intake": {
+    "sources": ["queue", "issue-tracker", "operator"],
+    "triageOwner": "human-or-ship"
+  },
+  "phases": [
+    { "id": "triage", "owner": "ship", "humanGate": false },
+    { "id": "plan", "owner": "ship", "humanGate": true },
+    { "id": "implement", "owner": "ship", "humanGate": false },
+    { "id": "verify", "owner": "ship", "humanGate": false },
+    { "id": "review", "owner": "human", "humanGate": true },
+    { "id": "reflect", "owner": "human", "humanGate": true }
+  ],
+  "workers": {
+    "maxConcurrent": 3,
+    "sharedResourceBudget": 3,
+    "retryPolicy": "evidence-driven"
+  },
+  "evidence": {
+    "requiredKinds": ["test", "artifact", "observation"],
+    "resultContract": "tools/validate-factory-result.ps1",
+    "progressChecker": "tools/check-factory-progress.ps1"
+  },
+  "progress": {
+    "eventLog": ".software-factory/runs/<run-id>/events.jsonl",
+    "maxIdleEvents": 3,
+    "maxRepeatedEvents": 3
+  },
+  "evaluation": {
+    "manifestRunner": "tools/evaluate-factory.ps1",
+    "cases": [
+      {
+        "id": "focused-checks",
+        "origin": "replace with a representative task or incident",
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/tests/validate-factory-result.tests.ps1",
+        "expectExit": 0,
+        "maxDurationMs": 120000
+      }
+    ]
+  }
+}

@@ -38,11 +38,12 @@ Run these checks first and resolve what they surface.
 5. `gh pr list --head <branch> --state open` shows whether a PR already exists.
 	A merged or closed PR does not count; its branch can still carry newer commits that need a fresh one.
 	Confirm with `git log --oneline origin/<default>..HEAD` before concluding nothing is outstanding.
-6. Resolve the intended PR target branch, fetch it, and run `tools/check-pr-readiness.ps1 -BaseBranch <target-base>` with the mode-appropriate flags.
-	A stale branch must be rebased or updated before opening or updating the PR.
-	For a stacked PR, use the parent branch named by the PR's `baseRefName`; do not substitute `main`.
-	The GitHub readiness workflow must use the same target branch.
-	An overlap with another open PR requires an explicit workflow decision: update the existing PR for the same task, stack dependent work, or serialize independent work that shares a hotspot.
+6. Resolve the repository default branch with `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`, fetch it, and run `tools/check-pr-readiness.ps1 -BaseBranch <default-branch> -DefaultBranch <default-branch>` with the mode-appropriate flags.
+	The pull request base must be the repository default branch; never target a feature branch.
+	If dependent work is already committed on a feature branch, promote the complete intended change set together in one PR to the default branch.
+	A stale branch must be rebased or updated onto the default branch before opening or updating the PR.
+	The GitHub readiness workflow must verify the PR's actual base against the repository default branch.
+	An overlap with another open PR requires an explicit workflow decision: update the existing PR for the same task or serialize independent work that shares a hotspot.
 	The check also blocks `docs/CHAT-HANDOFF.md`, which is generated coordination state rather than feature content.
 7. In professional mode, inspect `gh pr view <number> --json autoMergeRequest` and pass both `-ProfessionalMode` and `-CurrentPullRequestNumber <number>` to the readiness check.
 	If `autoMergeRequest` is non-null, stop and report that auto-merge must be disabled before professional review continues.
@@ -56,6 +57,9 @@ If the current branch is the default, create one named `<type>/<slug>` where `ty
 If the current branch already carries unrelated commits, check whether the new work actually depends on them.
 When it does, keep one branch and describe every commit in the PR body.
 When it does not, branch fresh from the base and move only the relevant change across.
+
+The PR base is always the repository default branch, including when the work was developed on dependent feature branches.
+Do not merge or report the task complete while its changes exist only on a non-default branch.
 
 ## Commit
 

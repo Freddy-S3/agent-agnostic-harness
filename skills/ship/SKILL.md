@@ -24,6 +24,10 @@ Use `none` or `not applicable` for fields that do not apply, and include the com
 /ship [--plan-mode <auto|fast|standard|deep>] [--plan-within <duration>] <task description>
 ```
 
+A human-typed `/ship <task>` selects professional delivery mode: set `mode: delivery` and `director: /ship` before preflight, regardless of the working directory or ordinary personal default.
+When a router or the harness selects `/ship` automatically for an ordinary request, inherit the current `mode` and `director`; an automatic Ship run under personal mode remains gate-free.
+The direct command is the user's delivery-mode switch; `/freddy` remains the delivery router when the user does not type `/ship`.
+
 `--plan-mode` is optional and defaults to `auto`.
 `auto` selects the smallest planning mode that preserves correctness; `fast`, `standard`, and `deep` explicitly select a mode.
 `--plan-within <duration>` is optional and has no default.
@@ -38,6 +42,14 @@ When the host supports scoped agent modes, invoking `/ship` from a project-speci
 
 Token cost accumulates with conversation length. Each presented gate is a valid fork point.
 The live ledger below - not the chat history - is what the next conversation needs.
+
+## Human-visible gates
+
+Gate 1, Gate 2, and Gate 3 are standalone user-facing messages.
+Emit the complete gate heading, decision data, findings, and reply options directly in the response that stops for approval.
+Do not place the gate only in progress commentary, a tool result, a collapsed work-duration section, or a hidden handoff.
+Elapsed-time, worker-count, and telemetry summaries come after the gate block and never replace it.
+Use the exact gate templates below so a host can render the approval boundary without relying on surrounding narration.
 
 **At every gate**, append after the reply options:
 `→ Reply "fork" to start a new chat with "/ship continue <task-id>" — resets token count, the ledger preserves full state.`
@@ -55,16 +67,17 @@ Keep one ledger per active task and never overwrite an unrelated active one.
 ```text
 status: active | paused
 mode: personal | delivery
-director: /freddy | /faruk | none
+director: /freddy | /faruk | /ship | none
 owner: /ship
 phase: plan | implement | synthesize | review | reflect
 gate: none | 1 | 2 | 3
 plan_mode: requested auto | fast | standard | deep; resolved fast | standard | deep
 planning_window: none | <duration>
-context: none | requested | updated
+context: pending | updated
 timing: <phase elapsed times and worker counts>
 phase_packet: acceptance | changed paths | risk markers | validation lanes | open questions
 verification_map: none | feature -> entry point -> action -> expected state -> evidence
+repository: <resolved root and commit state | missing - initialization required | ambiguous>
 objective: <one sentence>
 acceptance: <observable definition of done>
 decisions: <settled choices>
@@ -138,7 +151,7 @@ Use phase boundaries (Gate 1, Gate 2, conditional Gate 3, or the automatic phase
 - **Handoff / fork** — only when something is actually leaving this session: a fresh chat, a new harness, a colleague, or a paused/side task branched mid-phase. This is the existing gate-reply `fork` behavior above — write/refresh the handoff artifact, then resume with `/ship continue <ticket-id>`.
 - **Subagent delegation** — the remaining work is scoped tightly enough to run unattended (a parallel-wave worker, a focused review or build check). Hand it only its sub-task, the handoff artifact, and the reference file path; take back a compact report. If the delegation is not independent, keep it sequential.
 
-**Orchestration vs. discipline:** `/ship` is user- and model-invocable: a human can start it with the slash command, and the harness starts it automatically for file-changing work. It owns Gate 1, Gate 2, the conditional Gate 3, and the fork wording above. The phases it drives (PLAN, NEWFEATURE/DEBUGGING, CLOSING) are model-invoked reusable disciplines: each can also fire on its own outside `/ship` when a task only needs that one piece. Driving them through `/ship` does not change their own internal judgment — it only means the gates and handoff/fork decisions in this file are `/ship`'s to make, not theirs.
+**Orchestration vs. discipline:** `/ship` is user- and model-invocable: a human can start it with the slash command, and the harness starts it automatically for file-changing work. A human-typed command selects delivery mode; an automatic selection inherits the active route. It owns Gate 1, Gate 2, the conditional Gate 3, and the fork wording above. The phases it drives (PLAN, NEWFEATURE/DEBUGGING, CLOSING) are model-invoked reusable disciplines: each can also fire on its own outside `/ship` when a task only needs that one piece. Driving them through `/ship` does not change their own internal judgment — it only means the gates and handoff/fork decisions in this file are `/ship`'s to make, not theirs.
 
 ### Scoped Project Context
 
@@ -208,6 +221,14 @@ This is a planning-preference intake, not an approval gate.
 
 ## Execution Sequence
 
+### Mainline delivery invariant
+
+For repository changes, the pull request target is always the repository default branch.
+If dependent work was developed on feature branches, publish the complete intended change set in one pull request to the default branch.
+At closeout, verify `gh pr view <number> --json baseRefName` reports that default branch and keep the task open until the current head's required checks pass.
+Never count a merge into a feature branch as delivery to the default branch.
+Ship opens or updates pull requests through `/pr` but never merges them.
+
 ### Automatic coordination closeout
 
 Every substantial outcome routed through `/ship` includes `/closing` automatically after verification.
@@ -236,7 +257,21 @@ The preflight packet passed to `/plan` includes the ledger path, task mode, plan
 
 The preflight packet is the first phase handoff and the source of truth for later phases.
 Carry forward only its compact facts - acceptance criteria, touched paths, risk markers, validation lanes, settled decisions, and open questions - instead of replaying the transcript or rediscovering completed checks.
-Read an existing project-context file during preflight when it is present; only refresh or create it when requested with `proceed + context` or when the evidence shows it is stale.
+Read an existing project-context file during preflight when it is present; refresh or create it after every approved implementation when the task produces stable project facts.
+
+### Pre-flight: Professional repository check (automatic - delivery mode only)
+
+Before branch or worktree preparation, run `tools/check-repository.ps1 -Path <target>`.
+The checker resolves the actual Git root, reports whether it has a commit, identifies a unique nested repository, and refuses ambiguous roots.
+
+- **Found:** carry the resolved root and `hasCommit` result in the preflight packet and use that root for branch/worktree setup.
+- **Unique nested candidate:** use the candidate only when it is the project the task names; otherwise surface the candidate paths as a Gate 1 blocker instead of initializing the parent.
+- **Missing:** report `Repository: missing - initialization required` at Gate 1 and include the exact initialization step in the approved implementation plan.
+  After `proceed`, run `tools/check-repository.ps1 -Path <target> -Initialize`; this creates only Git metadata, never a remote or an invented baseline commit.
+  If the repository has no commit yet, keep the work on its local branch until the first deliberate baseline commit exists; do not create a detached worktree from an unborn repository.
+- **Invalid or ambiguous:** stop before branch/worktree writes and ask for the repository root or a repair decision.
+
+Personal mode skips this preflight and does not initialize Git implicitly.
 
 ---
 
@@ -277,6 +312,7 @@ Task:       <task name>
 Premise:    <what must be true for this to be worth doing> - <verified how, or "assumed">
 Ticket:     <Jira key> | none (ticketless)
 Jira:       <fetched | unavailable; ticketless | not requested | blocked>
+Repository: <resolved Git root and commit state | missing - initialization required | ambiguous>
 Mode:       <auto | fast | standard | deep> (resolved: <fast | standard | deep>)
 Planning:   <no window | <duration> met | <duration> expired>
 Timing:     preflight <duration> | plan <duration> | tool calls <N> | workers <N>
@@ -301,9 +337,10 @@ Blockers (resolve before I start):
 
 Scope estimate: ~<N> lines changed across <N> files
 ════════════════════════════════════════════════
-Reply "proceed" to implement | "proceed + context" to also create or update `docs/PROJECT-CONTEXT.md` | "continue planning" to extend an expired planning window | adjust any item | "fork" to reset context (handoff preserves state)
+Reply "proceed" to implement and update `docs/PROJECT-CONTEXT.md` | "continue planning" to extend an expired planning window | adjust any item | "fork" to reset context (handoff preserves state)
 ```
 
+Stop with the complete Gate 1 block as the standalone user-facing response before waiting for `proceed`.
 The Gate 1 block above is a rendering contract: replace every placeholder with the current run's actual values before presenting it.
 
 ---
@@ -311,6 +348,7 @@ The Gate 1 block above is a rendering contract: replace every placeholder with t
 ### Phase 3: Implement (automatic after Gate 1 approval)
 
 Load NEWFEATURE or DEBUGGING skill based on task type.
+If the professional Gate 1 packet reported `missing - initialization required`, initialize the approved target before any branch/worktree write and record the returned repository root in the phase handoff.
 Implement the plan as dependency-ordered waves:
 1. Keep the default path sequential with one task owner and one active writing agent per worktree.
 2. For an approved parallel wave, launch only independently bounded work, cap the wave at three agents, and give each writer an isolated worktree.
@@ -329,7 +367,7 @@ Use the Gate 1 plan to form an implementation packet with three optional lanes: 
 Run only lanes with disjoint write ownership and a clear completion predicate; keep shared-file edits and integration wiring with one owner.
 If a worker fails, preserve the completed lanes and retry only the failed or stale lane rather than restarting the whole phase.
 
-If the user replies `proceed + context`, schedule one optional context worker after the implementation changes are available and before final synthesis/review.
+After every `proceed`, schedule one context worker after the implementation changes are available and before final synthesis/review.
 The worker reads the settled diff, existing context file if present, and `docs/PROJECT-CONTEXT-TEMPLATE.md` when creating a new file.
 It may write only `docs/PROJECT-CONTEXT.md`, must preserve existing factual entries and settled decisions, and must not copy chat history or speculative implementation details.
 Use an isolated worktree and claim for the context writer when the host supports it; otherwise serialize the write after the main implementation and say so.
@@ -341,11 +379,22 @@ Do not create a parallel wave merely because tasks are independent.
 Do not run parallel workers that edit the same file or depend on each other's uncommitted changes.
 If a blocking decision arises mid-implementation that was not in Gate 1, surface it immediately as an inline question and wait for a one-line answer before continuing.
 
+### Factory handoff contract
+
+Every worker and phase handoff is a result artifact, not only a prose report.
+Write the result with `tools/validate-factory-result.ps1` before treating the lane as complete.
+Capture observable worker events in JSONL and run `tools/check-factory-progress.ps1`; a nonzero result marks the lane stalled or repeating.
+Carry an explicit status, evidence with source and freshness, next action for incomplete work, progress signals, resource usage, and side-effect confirmation.
+Treat `unknown`, `stale`, `partial`, and `blocked` as real outcomes that require reconciliation or a named next action.
+Retry only from evidence; an external effect needs an idempotency key and read-back confirmation before a completed result is allowed.
+If a result is invalid, preserve other completed lanes and retry only the invalidated lane.
+
 ---
 
 ### Phase 4: Synthesize (automatic - no gate)
 
 After implementation settles, form a validation packet from the changed paths, risk markers, and acceptance criteria.
+When a project has a factory manifest, replay its representative cases with `tools/evaluate-factory.ps1` and retain the JSON report as validation evidence.
 Run independent checks in one bounded validation wave when their tools do not share a server, generated output, or mutable fixture: build, lint or static checks, focused tests, and browser or integration checks.
 Keep dependent checks sequential, wait for every lane, and synthesize one evidence record.
 Always retain the required broad check for the project; impact-based selection narrows the first signal but never replaces a required full suite when one exists.
@@ -398,6 +447,7 @@ If BLOCKs: 0, reply "lgtm" to accept | list items to fix | "fork" to reset conte
 If BLOCKs > 0, fix each `[BLOCK]` and rerun review | "fork" to reset context before review
 ```
 
+Stop with the complete Gate 2 block as the standalone user-facing response before waiting for `lgtm`.
 The Gate 2 block must include the complete review verdict and every finding, even when all counts are zero; a one-line `Gate 2 is ready` prompt is not sufficient.
 
 Before Gate 2 approval, fix every `[BLOCK]` and rerun the complete review.
@@ -433,6 +483,7 @@ Not capturing (and why):
 Reply "done" to apply all | adjust any item | "skip" to discard updates and finish
 ```
 
+Stop with the complete Gate 3 block as the standalone user-facing response before waiting for `done`.
 The Gate 3 block must list every proposed harness update and every intentionally unrecorded item before requesting `done` or `skip`.
 
 After `done`, apply all updates and delete a completed task's handoff.
@@ -445,8 +496,7 @@ Either path completes the session.
 
 | Reply | Effect |
 |---|---|
-| `proceed` | Approve Gate 1, start implementing |
-| `proceed + context` | Approve Gate 1, start implementing, and create or update `docs/PROJECT-CONTEXT.md` after implementation state is available |
+| `proceed` | Approve Gate 1, start implementing, and create or update `docs/PROJECT-CONTEXT.md` after implementation state is available |
 | `lgtm` | Approve Gate 2, continue to Phase 6 |
 | `done` | Approve Gate 3, apply harness updates |
 | `pause` | At any gate - write handoff artifact, stop (resumable next session) |

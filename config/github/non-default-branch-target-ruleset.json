@@ -1,0 +1,32 @@
+{
+  "name": "Non-default branches require mainline-target PRs",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "~ALL"
+      ],
+      "exclude": [
+        "refs/heads/main"
+      ]
+    }
+  },
+  "rules": [
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          {
+            "context": "check"
+          },
+          {
+            "context": "mainline-target"
+          }
+        ],
+        "strict_required_status_checks_policy": false
+      }
+    }
+  ]
+}

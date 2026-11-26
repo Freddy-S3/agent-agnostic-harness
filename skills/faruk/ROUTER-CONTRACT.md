@@ -20,6 +20,12 @@ Keep personal posture in `SKILL.md` beside this file, delivery posture in `../fr
 8. Run the cheapest discriminating validation that supports the claimed result.
 9. Evaluate task outcome, evidence, scope, and reusable harness learning before reporting completion.
 
+## Explicit Ship invocation
+
+A human-typed `/ship <task>` starts a delivery-mode route with `director: /ship`, regardless of directory or surrounding personal defaults.
+When `/ship` is selected automatically by `/faruk` or another personal-mode route, it preserves the existing `director` and `mode` instead of promoting the task to delivery.
+An explicit `/freddy` remains the delivery router for tasks that do not start with a direct `/ship` command.
+
 ## Native skill loading
 
 The installed skill catalog is authoritative and progressive-disclosure context.
@@ -28,7 +34,7 @@ Do not invoke another user-invocable router as a nested step.
 
 ## Sticky route
 
-The ledger carries `director: /freddy | /faruk`, `mode: delivery | personal`, and the selected `owner`.
+The ledger carries `director: /freddy | /faruk | /ship`, `mode: delivery | personal`, and the selected `owner`.
 `REALIGN` rereads the ledger and continues under its recorded director and owner without re-planning or re-routing.
 Release the route only when the task completes, pauses, forks, explicitly reroutes, or starts a separate task.
 In personal mode, an existing ledger must not pull a follow-up into delivery gates.
