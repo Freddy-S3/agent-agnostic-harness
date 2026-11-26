@@ -234,6 +234,7 @@ It selects the workflow, explains the relevant skill stack, and adds the coverag
   It selects one routed repository, writes a checkpoint before risky work, resumes an interrupted item, and requires bounded verification plus a PR handoff before marking code done.
   `tools/tests/queue-runner.tests.ps1` constructs the fan-out selection, pause/resume, route refusal, and finish-gate cases.
 - `tools/validate-factory-result.ps1`, `tools/check-factory-progress.ps1`, and `tools/evaluate-factory.ps1` - the evidence contract, independent progress detector, and replay loop for factory runs.
+- `/replay [case-id]` - run a project's factory replay from chat. Closing runs it for factory or replay case changes when current evidence is missing.
   The validator rejects ambiguous outcomes, stale or missing evidence, unconfirmed side effects, stalled progress, and over-budget fan-out.
   The progress detector fails a JSONL event log when idle or repeated signatures exceed their threshold.
   The evaluator replays representative manifest cases and records outcome, latency, bounded output, and optional token, turn, or cost metrics.

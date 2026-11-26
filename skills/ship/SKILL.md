@@ -407,7 +407,7 @@ If a result is invalid, preserve other completed lanes and retry only the invali
 ### Phase 4: Synthesize (automatic - no gate)
 
 After implementation settles, form a validation packet from the changed paths, risk markers, and acceptance criteria.
-When a project has a factory manifest, replay its representative cases with `tools/evaluate-factory.ps1` and retain the JSON report as validation evidence.
+When a project has a factory manifest, invoke `/replay` for its representative cases and record the JSON report and tested changes in the ledger so Closing can reuse the result.
 Run independent checks in one bounded validation wave when their tools do not share a server, generated output, or mutable fixture: build, lint or static checks, focused tests, and browser or integration checks.
 Keep dependent checks sequential, wait for every lane, and synthesize one evidence record.
 Always retain the required broad check for the project; impact-based selection narrows the first signal but never replaces a required full suite when one exists.

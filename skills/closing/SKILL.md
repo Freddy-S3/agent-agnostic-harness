@@ -103,6 +103,12 @@ The standing rule is to fix these inline when they happen; reaching `/closing` s
 For factory changes, tie each proposed harness improvement to a replay case, its observed failure, and the measured before-and-after result when available.
 Keep benchmark claims provisional when the case set or run count is too small to support a general conclusion.
 
+When changed or proposed files affect factory behavior or its replay cases, invoke `/replay` as part of closing.
+Reuse a recorded replay if it covers the same cases and evaluates the same effective changes, including any uncommitted edits.
+Otherwise run relevant cases against the available change and record the result and report path before handing off.
+If a draft has not been applied yet, capture baseline evidence when useful and record what still needs replay after application.
+If no trusted manifest or relevant case is available, record why replay could not run.
+
 ## Where To Write
 
 | Signal type | Target file |
