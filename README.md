@@ -6,6 +6,8 @@ Agent-agnostic means the workflows are not tied to one vendor's assistant. A ski
 
 This repository is the single source of truth. You write a skill once, in one format, and `install.ps1` projects it into whatever layout a given host expects. Nothing here is host-specific except the installer.
 
+For pull request checks and branch protection, see [PR conflict prevention](docs/PR-CONFLICT-PREVENTION.md).
+
 ## Contents
 
 | Path | What it holds |
