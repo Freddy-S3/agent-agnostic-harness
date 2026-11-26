@@ -59,6 +59,8 @@ In professional mode, Ship checks the target with `tools/check-repository.ps1` b
 It reports the resolved Git root, detects nested repositories, and shows `missing - initialization required` at Gate 1 when a downloaded or generated folder has no Git metadata.
 After `proceed`, it may initialize Git metadata explicitly; personal mode skips this check and does not initialize Git implicitly.
 Ship carries a compact phase packet from planning through review: acceptance criteria, changed paths, risk markers, validation lanes, evidence, and open questions.
+In both modes, [Ship rubber duck](skills/ship-rubber-duck/SKILL.md) challenges the plan before implementation and checks the diff and its evidence before the review verdict.
+Both results travel with the task ledger across pauses and resumes.
 Independent validation lanes may run together, while shared-file edits and synthesis stay single-owner.
 After a failure, Ship retries only the invalidated lane and reuses evidence that still matches the settled worktree.
 These accelerators apply in both modes; planning windows remain optional and never lower the professional quality floor.

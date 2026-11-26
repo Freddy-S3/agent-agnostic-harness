@@ -76,6 +76,7 @@ planning_window: none | <duration>
 context: pending | updated
 timing: <phase elapsed times and worker counts>
 phase_packet: acceptance | changed paths | risk markers | validation lanes | open questions
+rubber_duck: <planning and review results with input revision, challenge, evidence, and disposition>
 verification_map: none | feature -> entry point -> action -> expected state -> evidence
 repository: <resolved root and commit state | missing - initialization required | ambiguous>
 objective: <one sentence>
@@ -305,6 +306,10 @@ Surface any blockers as part of the Gate 1 output.
 For UI or workflow-visible work, include a compact verification map in the plan: feature, entry point, user action, expected state, and proof artifact.
 Reuse an existing map when one is present; do not replace it with a vague claim that the page or workflow was checked.
 
+Before presenting Gate 1 or handing a personal-mode plan to implementation, run [Ship rubber duck](../ship-rubber-duck/SKILL.md) in planning mode.
+Record its result in the ledger, address requested revisions, and carry any blocker into the existing blocker path.
+This step applies to every planning mode and after resuming an expired planning window.
+
 When a parallel wave runs, show compact status so the user can see the swarm without exposing hidden reasoning:
 
 ```
@@ -331,6 +336,7 @@ Planning:   <no window | <duration> met | <duration> expired>
 Timing:     preflight <duration> | plan <duration> | tool calls <N> | workers <N>
 Packet:     acceptance | changed paths | risk markers | validation lanes | open questions
 Verification: <none | feature map rows and proof artifacts>
+Rubber duck: <planning challenge, evidence, and disposition>
 Reference:  <file being modeled after>
 Type:       feature | bugfix | refactor
 
@@ -360,6 +366,8 @@ The Gate 1 block above is a rendering contract: replace every placeholder with t
 
 ### Phase 3: Implement (automatic after Gate 1 approval)
 
+Require a clear planning rubber-duck result for the current plan before implementation, including on resume and in personal mode.
+Return to Phase 1-2 if the result is missing, stale, or unresolved.
 Load NEWFEATURE or DEBUGGING skill based on task type.
 If the professional Gate 1 packet reported `missing - initialization required`, initialize the approved target before any branch/worktree write and record the returned repository root in the phase handoff.
 Implement the plan as dependency-ordered waves:
@@ -431,7 +439,7 @@ When the changed UI has an E2E suite, run the browser validation path:
 
 ### Phase 5: Evaluate (automatic → outputs Gate 2)
 
-Run an **adversarial** review of the complete diff using `/codereview`.
+Run an **adversarial** review of the complete diff using `/codereview` and hold its findings for synthesis before publishing a verdict.
 `/codereview` owns the reviewer mindset, review checklist, finding labels, Standards and Spec-Fidelity axes, smell baseline, and debugging-change filter.
 `/ship` owns the gate presentation, approval timing, and the post-approval remediation sequence below.
 Make the complete `/codereview` verdict and its findings visible inside Gate 2.
@@ -439,6 +447,11 @@ Make the complete `/codereview` verdict and its findings visible inside Gate 2.
 When the change has multiple material risk markers, run up to three independent read-only review lenses in parallel - behavior and spec fidelity, integration and security, and tests and operability - then give their reports to one synthesis owner.
 Do not launch review lenses merely to increase the worker count, and do not let them edit the worktree.
 The synthesis owner must reconcile duplicate findings against the settled diff and required checks before presenting Gate 2.
+Before finalizing the `/codereview` verdict, run [Ship rubber duck](../ship-rubber-duck/SKILL.md) in review mode against the settled diff and validation evidence.
+Record its result in the ledger and reconcile material findings into the existing `/codereview` verdict and remediation path.
+Treat unresolved material findings as review blockers.
+Require a current review rubber-duck result to publish a verdict or leave Evaluate, including after a review rerun or resume.
+Personal mode and the trivial/config-only `skip review` shortcut still require the check.
 Professional `/ship` runs require a live manual hand-test surface at Gate 2 whenever the task has a runnable local UI, service, preview, or other local surface.
 Start that surface in a persistent session before presenting Gate 2.
 Verify its exact address or command and keep it running while Gate 2 waits for the user's `lgtm`, `fork`, `pause`, or other reply.
@@ -453,6 +466,7 @@ Stop the local process only after the gate resolves or the task ends, and record
  GATE 2 - CODE REVIEW  (reply to continue)
 ════════════════════════════════════════════════
 Hand-test surface: <URL, command, or not applicable with reason>
+Rubber duck: <review challenge, evidence, and disposition>
 <complete /codereview verdict and findings>
 BLOCKs: N  |  NITs: N  |  SUGGESTs: N
 ════════════════════════════════════════════════
@@ -468,6 +482,7 @@ Only offer `lgtm` when `BLOCKs: 0`.
 After Gate 2 approval: auto-fix all `[NIT]` items and rerun focused validation.
 Do not auto-fix anything labeled [SUGGEST] — those need intent.
 For post-review fixes, reuse the validation packet and rerun only lanes invalidated by the changed paths before the final required check.
+Refresh the review rubber-duck result against any changed diff or evidence before leaving Evaluate.
 
 ---
 
@@ -514,7 +529,7 @@ Either path completes the session.
 | `done` | Approve Gate 3, apply harness updates |
 | `pause` | At any gate - write handoff artifact, stop (resumable next session) |
 | `continue planning` | Extend an expired optional planning window and resume Phase 1-2 |
-| `skip review` | Skip Gate 2 entirely - only for trivial/config-only changes |
+| `skip review` | Skip Gate 2 for trivial/config-only changes after the review rubber-duck check |
 | `skip reflect` | Skip Phase 6, delete the completed task handoff, and finish - not recommended, harness degrades over time |
 
 Any other reply at a gate is treated as an adjustment to the current phase.
