@@ -74,6 +74,7 @@ $ErrorActionPreference = 'Stop'
 $EXIT_CONFLICT = 3
 $EXIT_USAGE = 4
 $EXIT_DIRTY = 5
+$hasClaimNote = $PSBoundParameters.ContainsKey('Note')
 
 Import-Module (Join-Path $PSScriptRoot 'dirty-worktree.psm1') -Force
 
@@ -105,9 +106,10 @@ function Get-ClaimFile($resolved, $registry) {
     return Join-Path $registry "$($resolved.Kind)-$($hash.Substring(0,16)).json"
 }
 
-function Read-Claim($file) {
-    if (-not (Test-Path $file)) { return $null }
-    try { return Get-Content $file -Raw | ConvertFrom-Json } catch { return $null }
+function Read-Claim($file, [switch]$Strict) {
+    if (-not (Test-Path -LiteralPath $file)) { return $null }
+    try { return Get-Content -LiteralPath $file -Raw | ConvertFrom-Json }
+    catch { if ($Strict) { throw }; return $null }
 }
 
 function Test-Stale($claim, $staleMinutes) {
@@ -119,7 +121,7 @@ function Test-Stale($claim, $staleMinutes) {
 
 function Write-Claim($file, $resolved, $takeoverOf) {
     $now = (Get-Date).ToUniversalTime().ToString('o')
-    $existing = Read-Claim $file
+    $existing = Read-Claim $file -Strict
     $claim = [ordered]@{
         kind        = $resolved.Kind
         key         = $resolved.Key
@@ -128,10 +130,17 @@ function Write-Claim($file, $resolved, $takeoverOf) {
         started     = if ($existing -and $existing.session -eq $Session) { $existing.started } else { $now }
         heartbeat   = $now
         branch      = if ($resolved.Kind -eq 'tree') { Get-BranchOf $resolved.Key } else { $null }
-        note        = $Note
+        note        = if ($hasClaimNote) { $Note } elseif ($existing.session -eq $Session) { $existing.note } else { $null }
         takeover_of = $takeoverOf
     }
-    $claim | ConvertTo-Json -Depth 4 | Set-Content -Path $file -Encoding utf8
+    $pending = "$file.$PID.tmp"
+    try {
+        [IO.File]::WriteAllText($pending, ($claim | ConvertTo-Json -Depth 4))
+        if ([IO.File]::Exists($file)) { [IO.File]::Replace($pending, $file, [NullString]::Value) }
+        else { [IO.File]::Move($pending, $file) }
+    } finally {
+        if ([IO.File]::Exists($pending)) { [IO.File]::Delete($pending) }
+    }
     return $claim
 }
 
@@ -171,6 +180,7 @@ function Show-Claim($claim, $staleMinutes) {
     $state = if (Test-Stale $claim $staleMinutes) { 'STALE' } else { 'live' }
     "{0,-8} {1,-6} {2}`n         session={3} branch={4} heartbeat={5}" -f `
         $claim.kind, $state, $claim.key, $claim.session, $claim.branch, $claim.heartbeat
+    if ($claim.note) { "         note=$($claim.note)" }
 }
 
 if ($Action -eq 'list') {
@@ -192,7 +202,21 @@ if (-not $Session -and $Action -ne 'check') {
 try { $resolved = Resolve-Key } catch { Write-Error $_; exit $EXIT_USAGE }
 $registry = Get-Registry
 $file = Get-ClaimFile $resolved $registry
-$existing = Read-Claim $file
+
+# Each key has a stable lock file. Hold it until the command exits.
+# Removing the lock file could let peers lock different files for the same key.
+$guard = $null
+for ($attempt = 0; $attempt -lt 20 -and -not $guard; $attempt++) {
+    try { $guard = [IO.File]::Open("$file.lock", 'OpenOrCreate', 'ReadWrite', 'None') }
+    catch [IO.IOException] { Start-Sleep -Milliseconds 50 }
+}
+if (-not $guard) {
+    Write-Output "BUSY: could not lock $($resolved.Key); recheck its claim before writing."
+    exit $EXIT_CONFLICT
+}
+
+try {
+$existing = Read-Claim $file -Strict
 $stale = Test-Stale $existing $StaleMinutes
 
 switch ($Action) {
@@ -234,7 +258,8 @@ switch ($Action) {
             if ($resolved.Kind -eq 'tree') {
                 Write-Output 'Do not write in this tree. Create your own worktree with tools/worktree-add.ps1 and claim that path instead.'
             } else {
-                Write-Output 'Do not regenerate this cascade. Wait for release, or claim a different cascade.'
+                if ($existing.note) { Write-Output "Owner handoff: $($existing.note)" }
+                Write-Output 'Hand compatible work to the owner or continue on disjoint scope.'
             }
             exit $EXIT_CONFLICT
         }
@@ -281,4 +306,7 @@ switch ($Action) {
         Write-Output "released: $($resolved.Key)"
         exit 0
     }
+}
+} finally {
+    $guard.Dispose()
 }

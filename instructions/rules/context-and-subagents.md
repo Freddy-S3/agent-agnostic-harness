@@ -31,6 +31,30 @@ Default to one agent and one active writing agent per worktree; spawn only for i
 
 **Agent-agnostic operation is the default.** Keep durable instructions, decisions, workflows, and source-of-truth records in repository files or other portable harness artifacts, not only in a host-specific memory, Project, or chat. Codex, Claude Code, ChatGPT, and other hosts must be able to resume the same work from the repository, queue, tracker, and pull request. When a host-specific feature improves convenience, treat it as an optional view over the portable records rather than the only place the context exists.
 
+## Own shared changes before writing
+
+When work reaches a shared workflow, shared output, or repository setting, check active claims and open PRs for the repository before the first edit.
+Compare the planned paths and behavior with the open PRs; use the connected repository tool when the CLI is unavailable.
+Recheck when scope expands and before publishing a PR.
+
+Reserve each shared resource with `tools/claim.ps1 acquire -Cascade <host/owner/repo/resource> -Session <run-id> -Note "<scope, destination branch or PR, handoff location>"`.
+Use stable resource names across worktrees: use `ship-workflow` for Ship routing, startup, and project-context behavior, `claim-registry` for claim code and policy, and `github-rules` for live repository rules.
+Also reserve planned shared file paths using normalized repository-relative paths so differently named tasks can still detect a collision.
+Acquire keys in sorted order and release keys acquired for the attempt if any key conflicts.
+Refresh the lease at phase boundaries, update its note when a PR opens, and release it after the work or handoff is recorded.
+A tree claim still protects the checkout separately.
+
+On a live conflict or overlapping PR, route compatible changes to its owner as one patch or commit with the base, verification, and any differing requirement.
+Use the owner location in the claim note or the existing PR to resolve the destination without a user prompt.
+Continue independent work in parallel.
+The owner alone updates that branch and PR, reconciles settled decisions, and records any superseding PR before closing a duplicate.
+Check that the PR is still open and that its head is the expected revision before updating it.
+If the owner is unavailable, leave the patch in the task handoff; recover stale claims through their recorded intent before taking over.
+When the registry is not shared across hosts, check remote PRs and any available task records; do not treat a local lease as cross-host exclusion.
+
+Before activating a live GitHub ruleset change, hold the `github-rules` lease, check for active PR work, and prove ordinary feature-branch pushes still work using a disposable branch in a separate test repository with equivalent rules.
+If that rehearsal is unavailable, keep the change in review and leave the live ruleset as-is.
+
 ## Self-Improvement
 
 Update the relevant native instruction or skill immediately when the user corrects style, architecture, or approach; when a task reveals missing reusable context; or when a skill is ambiguous.
