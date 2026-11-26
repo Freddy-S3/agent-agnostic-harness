@@ -81,6 +81,13 @@ At startup and each phase transition, capture the available wall-clock timestamp
 At Gate 1, report compact planning telemetry: preflight elapsed, planning elapsed, tool-call count, number of workers launched, and whether any delegation or timing measurement was unavailable.
 Store the same summary in the ledger's `timing` field so a later run can distinguish model deliberation, tool latency, and worker startup overhead without replaying the whole conversation.
 
+For gate-free personal runs, record the same phase timestamps and elapsed durations in the ledger even though there is no Gate 1 report.
+
+When the user reports an unexpectedly slow run, or environment failures require multiple recovery attempts, preserve a concise retrospective before deleting the completed ledger: task scope, measured elapsed time if available, failed paths, and the successful fallback.
+Do not estimate missing timings.
+Append one dated, non-sensitive line to `status/TRACKER.md` using the established format after reading `instructions/rules/queue-and-persistence.md`; if that write is unavailable, state the exact failure and retain the retrospective in the final report.
+Do not record routine successful runs.
+
 ### Write-Ahead Entries
 
 Death is unannounced, so the ledger records what is **about to** happen, not only what did.
@@ -188,21 +195,11 @@ Professional mode keeps the required quality checks and uses concurrency, cachin
 Personal mode may use the same accelerators, but never receives an implied planning deadline.
 An optional window is a deadline for reporting evidence, not permission to skip ticket, security, test, or review obligations.
 
-### Compact planning setup
+### Planning defaults
 
-Show this one-line reminder before the question:
-`Planning reminder: default = auto + no time limit | fast | standard | deep | <mode> <duration>`
-
-If the task text did not already provide `--plan-mode` or `--plan-within`, ask one short intake question before the full preflight:
-
-```
-Planning setup? Reply `default` for auto mode with no time limit, or send `<mode>` / `<mode> <duration>`.
-```
-
-Accept `default`, `fast`, `standard`, `deep`, `fast 2m`, `standard 5m`, or `deep 10m`.
-Record the answer in the ledger and continue immediately.
-Do not ask again when the task text or command already supplied either value; display the resolved mode and window instead.
-This is a planning-preference intake, not an approval gate.
+When neither planning flag is supplied, use `auto` with no planning window and continue without an intake prompt.
+The user can override those defaults with `--plan-mode` and `--plan-within`.
+Ask only when the task itself contains an unresolved choice that materially changes scope; do not ask the user to confirm defaults.
 
 ---
 
