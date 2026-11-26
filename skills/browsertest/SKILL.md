@@ -38,6 +38,20 @@ py -m pip install playwright
 py -m playwright install chromium
 ```
 
+## Host preflight and one fallback
+
+Before a browser run, check once that the configured Playwright browser is installed and that the app URL is reachable from the same runner.
+Use the project's configured browser and E2E command first.
+
+If Playwright reports that its bundled browser executable is missing, check for an installed stable Chrome and retry the focused browser check once through Playwright's `channel: "chrome"` option.
+For Python Playwright use `playwright.chromium.launch(channel="chrome")`; for Node Playwright use `chromium.launch({ channel: "chrome" })`.
+Do not install a browser or cycle through unrelated engines when network access is unavailable.
+
+If the browser launches but cannot reach a local app URL, make one connectivity check from that same runner.
+When the host blocks the local server but a built artifact is available, use the artifact with same-origin route handlers for UI fixtures only; say that live-server/API access was not verified.
+Do not retry the same failed URL or browser launch.
+If both the configured browser and this single fallback fail, report the exact error and leave browser verification incomplete.
+
 ## Feature map
 
 For a non-trivial UI change, start from a compact feature map with one row per user-visible flow: feature, entry point, user action, expected state, and proof artifact.

@@ -100,6 +100,9 @@ Close them out.
 Ranks with corrections for signal. Each one names a blind spot no mechanism was watching, so capture the missing check rather than the fact it uncovered.
 The standing rule is to fix these inline when they happen; reaching `/closing` still holding one means the fix was skipped, not deferred.
 
+For factory changes, tie each proposed harness improvement to a replay case, its observed failure, and the measured before-and-after result when available.
+Keep benchmark claims provisional when the case set or run count is too small to support a general conclusion.
+
 ## Where To Write
 
 | Signal type | Target file |
