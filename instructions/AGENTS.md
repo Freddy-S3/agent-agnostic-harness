@@ -41,7 +41,7 @@ Verify with the cheapest check that would actually catch the problem, and prefer
 Do not open a ceremony the task does not need.
 
 **Delivery mode** is the enterprise-grade posture, and `/freddy` is its router.
-It applies to ticket-backed work, shared repositories, and anything Freddy explicitly labels as delivery or invokes `/freddy` for.
+It applies to ticket-backed work, shared repositories, anything Freddy explicitly labels as delivery or invokes `/freddy` for, and any `/ship` command typed directly by the human.
 It restores the full six-phase loop, the `/ship` gates, the tracker rules below, and the adversarial diff review.
 
 `/sleep` is personal mode with the interruption budget at zero, for unattended overnight runs.
@@ -51,7 +51,8 @@ It never asks anything and trades approval gates for recoverability; see its ski
 
 
 The invoked command wins over the directory.
-`/freddy` runs delivery mode even in a personal repository; `/faruk` runs personal mode even outside one.
+`/freddy` runs delivery mode even in a personal repository; `/faruk` runs personal mode even outside one; a human-typed `/ship` also runs delivery mode wherever it is invoked.
+When a router or the harness selects `/ship` automatically for an ordinary task, `/ship` inherits the current route instead of changing it; under personal mode, that automatic Ship run stays gate-free.
 When neither is invoked and the mode is ambiguous, assume personal mode and say so in one line.
 When personal-mode work turns out to be high-stakes or genuinely irreversible, say so and recommend `/freddy` rather than quietly switching.
 
@@ -84,7 +85,8 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 
 - In delivery mode, every `/ship` gate requires the user's explicit reply before advancing, regardless of model.
 - Use `proceed` at Plan, `lgtm` at Review, and `done` at Reflect.
-- In personal mode, run `/ship` gate-free: state the plan in a few lines, implement, verify, and report. Stop for a reply only when a choice is genuinely irreversible.
+- A human-typed `/ship` is delivery mode even when the surrounding directory or default would otherwise be personal.
+- In personal mode, an automatically selected `/ship` runs gate-free: state the plan in a few lines, implement, verify, and report. Stop for a reply only when a choice is genuinely irreversible.
 
 ## General Guidelines
 

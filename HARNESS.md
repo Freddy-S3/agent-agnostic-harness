@@ -21,6 +21,8 @@ Run `node tools/integration-demo/demo.mjs` to show the demo and `node --test too
 ## Start Here
 
 Use `/ship <task>` for a substantial change.
+When you type `/ship` yourself, it selects professional delivery mode with the three human gates and the professional repository preflight.
+For an ordinary request without a manually typed `/ship`, the harness may select Ship automatically while preserving personal mode and its gate-free posture.
 For example:
 
 ```text
@@ -143,7 +145,7 @@ Validate both routers against these scenarios whenever the shared routing contra
 | ------------------------------------------------------------------------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | You want the harness to choose, explain, and execute the right workflow  | `/freddy`                    | Selects the smallest effective skill stack, completes the task, and reports a compact skill/evaluation trace.     |
 | You want the same routing with minimal interruption for personal work   | `/faruk`                     | Applies the shared router contract in personal mode, bypassing delivery gates while preserving owner workflows and validation. |
-| A substantial feature, fix, refactor, or configuration change            | `/ship`                      | Runs the six-phase delivery loop with planning, validation, review, and reflection.                               |
+| A substantial feature, fix, refactor, or configuration change            | `/ship`                      | A manually typed command runs the six-phase delivery loop in professional mode; automatic selection preserves the current mode. |
 | A task needs a design and file-level plan                                | `/plan`                      | Finds the owning code, a reference sibling, and a dependency-ordered plan.                                        |
 | A large, unclear effort spans several agent sessions                     | `/wayfinder`                 | Maps decision tickets, the current frontier, unresolved fog, and explicit scope boundaries.                       |
 | Settled discussion needs an agent-ready specification                    | `/to-spec`                   | Drafts a behavior- and seam-oriented specification before a confirmed tracker publish.                            |
