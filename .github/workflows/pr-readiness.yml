@@ -18,14 +18,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      PR_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.event.repository.default_branch || 'main' }}
-      PR_DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
+      PR_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+      PR_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
     steps:
       - name: Check out the proposed head
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+      - name: Resolve actual base branch
+        shell: bash
+        run: |
+          base="$PR_BASE_REF"
+          if [[ "$GITHUB_EVENT_NAME" == "merge_group" ]]; then
+            case "$base" in
+              refs/heads/*) base="${base#refs/heads/}" ;;
+              *) echo "::error::Merge group base ref is missing or invalid: $base" >&2; exit 1 ;;
+            esac
+          fi
+          if [[ -z "$base" ]]; then
+            echo "::error::The pull request base branch is empty" >&2
+            exit 1
+          fi
+          echo "PR_BASE_BRANCH=$base" >> "$GITHUB_ENV"
+      - name: Check actual target in the required job
+        run: pwsh -NoProfile -File tools/check-pr-target.ps1 -BaseBranch "$PR_BASE_BRANCH" -DefaultBranch "$PR_DEFAULT_BRANCH"
       - name: Fetch the current base
         run: git fetch --no-tags origin "$PR_BASE_BRANCH:refs/remotes/origin/$PR_BASE_BRANCH"
       - name: Check readiness workflow contract
@@ -47,6 +64,7 @@ jobs:
       - name: Check router contract
         run: pwsh -NoProfile -File tools/check-router-contract.ps1
       - name: Check branch freshness and path overlap
+        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
@@ -55,17 +73,26 @@ jobs:
           -CurrentPullRequestNumber ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
 
   mainline-target:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Check out the proposed head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
       - name: Require the repository default branch as PR base
+        shell: bash
         env:
-          PR_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          PR_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
           PR_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: pwsh -NoProfile -File tools/check-pr-target.ps1 -BaseBranch "$PR_BASE_BRANCH" -DefaultBranch "$PR_DEFAULT_BRANCH"
+        run: |
+          base="$PR_BASE_REF"
+          if [[ "$GITHUB_EVENT_NAME" == "merge_group" ]]; then
+            case "$base" in
+              refs/heads/*) base="${base#refs/heads/}" ;;
+              *) echo "::error::Merge group base ref is missing or invalid: $base" >&2; exit 1 ;;
+            esac
+          fi
+          pwsh -NoProfile -File tools/check-pr-target.ps1 -BaseBranch "$base" -DefaultBranch "$PR_DEFAULT_BRANCH"

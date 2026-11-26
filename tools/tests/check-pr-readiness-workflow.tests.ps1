@@ -22,7 +22,8 @@ $prSkill = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'skills\pr\SKILL.m
 
 Write-Host 'check-pr-readiness-workflow.tests' -ForegroundColor Cyan
 
-Assert ($workflow -match 'PR_BASE_BRANCH:\s*\$\{\{\s*github\.event_name\s*==\s*''pull_request''\s*&&\s*github\.event\.pull_request\.base\.ref\s*\|\|\s*github\.event\.repository\.default_branch') 'pull request runs select their actual base and other events use the repository default'
+Assert ($workflow -match '(?s)  check:.*?PR_BASE_REF:\s*\$\{\{\s*github\.event_name\s*==\s*''pull_request''\s*&&\s*github\.event\.pull_request\.base\.ref\s*\|\|\s*github\.event\.merge_group\.base_ref\s*\}\}.*?Check actual target in the required job\s+run: pwsh -NoProfile -File tools/check-pr-target\.ps1 -BaseBranch "\$PR_BASE_BRANCH" -DefaultBranch "\$PR_DEFAULT_BRANCH"') 'the required job enforces the actual target for both events without a default fallback'
+Assert ($workflow -match 'Resolve actual base branch[\s\S]*refs/heads/\*\) base="\$\{base#refs/heads/\}"[\s\S]*PR_BASE_BRANCH=\$base') 'merge-group base refs are normalized before fetching the real target branch'
 Assert ($workflow -match 'PR_DEFAULT_BRANCH:\s*\$\{\{\s*github\.event\.repository\.default_branch') 'the workflow resolves the repository default branch dynamically'
 Assert ($workflow -match 'git fetch --no-tags origin "\$PR_BASE_BRANCH:refs/remotes/origin/\$PR_BASE_BRANCH"') 'the selected base branch is fetched'
 Assert ($workflow -match '-BaseBranch "\$PR_BASE_BRANCH" -DefaultBranch "\$PR_DEFAULT_BRANCH"') 'the readiness checker receives both the actual and default branches'
@@ -31,7 +32,10 @@ Assert ($workflow -match 'tools/tests/check-pr-readiness-workflow\.tests\.ps1') 
 Assert ($workflow -match 'tools/tests/check-pr-readiness\.tests\.ps1') 'the workflow runs PR readiness regression tests'
 Assert ($workflow -match 'tools/tests/validate-factory-result\.tests\.ps1') 'the required readiness job runs factory contract tests'
 Assert ($workflow -match 'mainline-target:') 'a stable mainline-target status check exists for branch rulesets'
+Assert ($workflow -match "if: github\.event_name == 'pull_request' \|\| github\.event_name == 'merge_group'") 'the mainline target check runs for pull requests and merge groups'
 Assert ($workflow -match 'tools/check-pr-target\.ps1') 'the mainline-target job checks the PR base'
+Assert ($workflow -match 'PR_BASE_REF:\s*\$\{\{\s*github\.event_name\s*==\s*''pull_request''\s*&&\s*github\.event\.pull_request\.base\.ref\s*\|\|\s*github\.event\.merge_group\.base_ref') 'the target job uses merge-group base_ref instead of assuming main'
+Assert ($workflow -match 'Check branch freshness and path overlap\s+if: github\.event_name == ''pull_request''') 'overlap checks are skipped for synthetic merge-group commits'
 Assert ($workflow -match '- edited') 'editing a PR base reruns readiness'
 Assert ($prSkill -match '-BaseBranch <default-branch> -DefaultBranch <default-branch>') 'the PR skill checks against the repository default branch'
 Assert ($prSkill -match 'pull request base must be the repository default branch') 'the PR skill forbids feature-branch targets'
