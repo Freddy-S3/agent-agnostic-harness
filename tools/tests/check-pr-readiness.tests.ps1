@@ -20,24 +20,28 @@ $toolsDir = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $repoRoot = Split-Path -Parent $toolsDir
 $check = Join-Path $toolsDir 'check-pr-readiness.ps1'
 if (-not (Test-Path -LiteralPath $check)) { throw "check-pr-readiness.ps1 not found at $check" }
+$shellName = if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' }
+$shellPath = Join-Path $PSHOME $shellName
 
 $jsonRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("pr-readiness-tests-" + [guid]::NewGuid().ToString('n').Substring(0, 8))
 New-Item -ItemType Directory -Force -Path $jsonRoot | Out-Null
 
-function Invoke-Check([string] $pullRequestJson, [string] $headBranch = 'HEAD', [int] $currentPullRequestNumber = 0, [bool] $branchOnly = $true, [bool] $professionalMode = $false) {
-    $out = New-TemporaryFile
-    $err = New-TemporaryFile
-    try {
-        $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $check, '-RepoRoot', $repoRoot, '-HeadBranch', $headBranch, '-OpenPullRequestsJson', $pullRequestJson)
-        if ($branchOnly) { $args += '-BranchOnly' }
-        if ($currentPullRequestNumber -gt 0) { $args += @('-CurrentPullRequestNumber', $currentPullRequestNumber) }
-        if ($professionalMode) { $args += '-ProfessionalMode' }
-        $p = Start-Process -FilePath 'powershell' -ArgumentList $args -RedirectStandardOutput $out.FullName -RedirectStandardError $err.FullName -NoNewWindow -PassThru -Wait
-        $text = (Get-Content -LiteralPath $out.FullName -Raw -ErrorAction SilentlyContinue) + "`n" + (Get-Content -LiteralPath $err.FullName -Raw -ErrorAction SilentlyContinue)
-        return @{ code = $p.ExitCode; text = $text }
-    } finally {
-        foreach ($f in $out, $err) { Remove-Item -LiteralPath $f.FullName -Force -ErrorAction SilentlyContinue }
-    }
+function Invoke-Check([string] $pullRequestJson, [string] $headBranch = 'HEAD', [int] $currentPullRequestNumber = 0, [bool] $branchOnly = $true, [bool] $professionalMode = $false, [string] $baseBranch = 'main', [string] $defaultBranch = 'main') {
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $shellPath
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $processArguments = @('-NoProfile', '-File', $check, '-RepoRoot', $repoRoot, '-BaseBranch', $baseBranch, '-DefaultBranch', $defaultBranch, '-HeadBranch', $headBranch, '-OpenPullRequestsJson', $pullRequestJson)
+    if ($branchOnly) { $processArguments += '-BranchOnly' }
+    if ($currentPullRequestNumber -gt 0) { $processArguments += @('-CurrentPullRequestNumber', $currentPullRequestNumber) }
+    if ($professionalMode) { $processArguments += '-ProfessionalMode' }
+    foreach ($argument in $processArguments) { $startInfo.ArgumentList.Add([string]$argument) }
+    $process = [System.Diagnostics.Process]::Start($startInfo)
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+    return @{ code = $process.ExitCode; text = "$stdout`n$stderr" }
 }
 
 $cleanJson = Join-Path $jsonRoot 'clean.json'
@@ -49,7 +53,7 @@ Assert ($r.text -match 'READY') 'a fresh branch reports ready'
 $r = Invoke-Check $cleanJson 'HEAD' 0 $false
 Assert ($r.code -eq 0) 'unstaged generated coordination output does not block a PR check'
 
-$sharedPath = (& git.exe -C $repoRoot diff --name-only origin/main...HEAD | Select-Object -First 1).Trim()
+$sharedPath = (& git -C $repoRoot diff --name-only origin/main...HEAD | Select-Object -First 1).Trim()
 $overlapJson = Join-Path $jsonRoot 'overlap.json'
 @(@{ number = 42; headRefName = 'other-feature'; files = @(@{ path = $sharedPath }) }) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $overlapJson -Encoding UTF8
 $r = Invoke-Check $overlapJson
@@ -57,23 +61,14 @@ Assert ($r.code -eq 3) 'an open PR path overlap exits three'
 Assert ($r.text -match 'PR #42') 'the overlapping PR number is reported'
 Assert ($r.text -match [regex]::Escape($sharedPath)) 'the overlapping path is reported'
 
-$stackedJson = Join-Path $jsonRoot 'stacked.json'
-@(
-    @{ number = 108; headRefName = 'feature'; baseRefName = 'main'; files = @(@{ path = $sharedPath }) },
-    @{ number = 109; headRefName = 'stacked-feature'; baseRefName = 'feature'; files = @(@{ path = $sharedPath }) },
-    @{ number = 110; headRefName = 'deeply-stacked-feature'; baseRefName = 'stacked-feature'; files = @(@{ path = $sharedPath }) }
-) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $stackedJson -Encoding UTF8
-$r = Invoke-Check $stackedJson 'HEAD' 108
-Assert ($r.code -eq 0) 'the current PR and transitively stacked PRs do not self-block'
-
-$ancestorJson = Join-Path $jsonRoot 'ancestor.json'
-@(
-    @{ number = 108; headRefName = 'feature'; baseRefName = 'main'; files = @(@{ path = $sharedPath }) },
-    @{ number = 109; headRefName = 'stacked-feature'; baseRefName = 'feature'; files = @(@{ path = $sharedPath }) },
-    @{ number = 110; headRefName = 'deeply-stacked-feature'; baseRefName = 'stacked-feature'; files = @(@{ path = $sharedPath }) }
-) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $ancestorJson -Encoding UTF8
-$r = Invoke-Check $ancestorJson 'HEAD' 109
-Assert ($r.code -eq 0) 'a stacked PR and its parent/descendant chain do not self-block'
+$nonDefaultJson = Join-Path $jsonRoot 'non-default-base.json'
+@(@{ number = 109; headRefName = 'stacked-feature'; baseRefName = 'feature'; files = @() }) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $nonDefaultJson -Encoding UTF8
+$r = Invoke-Check $nonDefaultJson 'HEAD' 109 $true $false 'feature' 'main'
+Assert ($r.code -eq 6) 'a pull request targeting a feature branch is blocked before branch comparison'
+$r = Invoke-Check $nonDefaultJson 'HEAD' 109 $true $false 'main' 'main'
+Assert ($r.code -eq 6) 'the supplied base must match the PR actual base even when it is the default branch'
+$r = Invoke-Check $cleanJson 'HEAD' 0 $true $false 'main' 'master'
+Assert ($r.code -eq 6) 'the configured repository default branch is honored instead of assuming main'
 
 $r = Invoke-Check $cleanJson 'c5b7fdd'
 Assert ($r.code -eq 2) 'a branch behind origin/main exits two'
@@ -90,6 +85,7 @@ Assert ($r.text -match 'auto-merge is enabled') 'professional mode reports the a
 $source = Get-Content -LiteralPath $check -Raw -Encoding UTF8
 Assert ($source -match 'docs/CHAT-HANDOFF\.md') 'generated coordination paths are part of the readiness gate'
 Assert ($source -match 'exit 3') 'overlap has a distinct non-zero exit code'
+Assert ($source -match 'exit 6') 'a non-default target has a distinct non-zero exit code'
 Assert ($source -match 'exit 5') 'auto-merge has a distinct non-zero exit code'
 Assert ($source -match 'ProfessionalMode') 'auto-merge enforcement is explicitly mode-scoped'
 

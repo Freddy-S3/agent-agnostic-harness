@@ -41,7 +41,7 @@ Verify with the cheapest check that would actually catch the problem, and prefer
 Do not open a ceremony the task does not need.
 
 **Delivery mode** is the enterprise-grade posture, and `/freddy` is its router.
-It applies to ticket-backed work, shared repositories, and anything Freddy explicitly labels as delivery or invokes `/freddy` for.
+It applies to ticket-backed work, shared repositories, anything Freddy explicitly labels as delivery or invokes `/freddy` for, and any `/ship` command typed directly by the human.
 It restores the full six-phase loop, the `/ship` gates, the tracker rules below, and the adversarial diff review.
 
 `/sleep` is personal mode with the interruption budget at zero, for unattended overnight runs.
@@ -51,7 +51,8 @@ It never asks anything and trades approval gates for recoverability; see its ski
 
 
 The invoked command wins over the directory.
-`/freddy` runs delivery mode even in a personal repository; `/faruk` runs personal mode even outside one.
+`/freddy` runs delivery mode even in a personal repository; `/faruk` runs personal mode even outside one; a human-typed `/ship` also runs delivery mode wherever it is invoked.
+When a router or the harness selects `/ship` automatically for an ordinary task, `/ship` inherits the current route instead of changing it; under personal mode, that automatic Ship run stays gate-free.
 When neither is invoked and the mode is ambiguous, assume personal mode and say so in one line.
 When personal-mode work turns out to be high-stakes or genuinely irreversible, say so and recommend `/freddy` rather than quietly switching.
 
@@ -84,13 +85,15 @@ In personal mode, run `/closing` only when the session actually produced a reusa
 
 - In delivery mode, every `/ship` gate requires the user's explicit reply before advancing, regardless of model.
 - Use `proceed` at Plan, `lgtm` at Review, and `done` at Reflect.
-- In personal mode, run `/ship` gate-free: state the plan in a few lines, implement, verify, and report. Stop for a reply only when a choice is genuinely irreversible.
+- A human-typed `/ship` is delivery mode even when the surrounding directory or default would otherwise be personal.
+- In personal mode, an automatically selected `/ship` runs gate-free: state the plan in a few lines, implement, verify, and report. Stop for a reply only when a choice is genuinely irreversible.
 
 ## General Guidelines
 
 - Use plain hyphens, not em dashes.
 - Never attribute work to an agent, on any surface. That covers a commit co-author trailer, and it covers a pull request title or description - no "Generated with Claude Code" footer or link, no `Co-Authored-By: Claude` line. Both halves have a mechanism, because the half that only had prose is the half that failed: `git-hooks/commit-msg` strips the trailer from commit messages and prints what it removed, and `tools/strip-pr-attribution.ps1` strips it from a PR body, which `/pr` runs before every `gh pr create` and `gh pr edit`. The commit rule held for months; the PR rule lived only in `skills/pr/SKILL.md` prose and was violated in 33 PR bodies across three repositories before Freddy had to ask twice. Neither mechanism runs where the harness is not installed, so do not rely on either in place of not writing the trailer.
 - Never leave work sitting on a branch without a pull request. The moment a branch carries one commit that is not on the default branch, open a PR with `/pr`; push every later commit to that same PR and update its body rather than committing quietly. Check for an existing open PR before opening another.
+- Every pull request targets its repository's default branch. Do not stack pull requests by targeting a feature branch; include dependent work in one PR to the default branch or wait for the prerequisite to land.
 - **A session may not end while holding an unpersisted decision.** Anything waiting on Faruk - a blocker, an open question, an assumption taken instead of asking, a defect only he can authorise fixing - is written into the queue files before the final report, as a `## ` entry with `Status: blocked`, a `Blocked reason:` line, and an `Options:` list. Reporting it in chat does not count and never did. The dashboard parses `QUEUE-PC.md`, `QUEUE-PHONE.md`, and the explicit `ANSWERS.jsonl` cross-channel handoff, and nothing else, so on 2026-08-14 it read zero blockers against seventeen real ones for exactly this reason. The rule binds subagents and parallel tasks hardest, because that is where it failed: reporting conversationally to an orchestrator feels like handing the finding over, and it is not. Before writing one, read `~/Repo/agent-agnostic-harness/instructions/rules/queue-and-persistence.md` - the field contracts and parser traps are there, and they fail silently.
 - Before running `git commit`, check the current branch against the repo's default branch. If they match, branch first. Two commits went straight to a default branch in one night without anyone noticing at the time; treat the check itself as part of the commit step, not a thing to remember separately.
 - Never manually modify generated files or `CHANGELOG.md` files.

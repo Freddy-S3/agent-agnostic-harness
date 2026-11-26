@@ -18,11 +18,12 @@
 #>
 [CmdletBinding()]
 param(
-    [string] $RepoRoot = (Split-Path -Parent $PSScriptRoot),
+    [string] $RepoRoot,
     [int]    $MaxCoreBytes = 26000
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $RepoRoot) { $RepoRoot = Split-Path -Parent $PSScriptRoot }
 
 $core     = Join-Path $RepoRoot 'instructions\AGENTS.md'
 $rulesDir = Join-Path $RepoRoot 'instructions\rules'

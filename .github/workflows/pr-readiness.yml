@@ -6,6 +6,7 @@ on:
       - opened
       - synchronize
       - reopened
+      - edited
   merge_group:
 
 permissions:
@@ -17,21 +18,54 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      PR_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || 'main' }}
+      PR_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.event.repository.default_branch || 'main' }}
+      PR_DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
     steps:
       - name: Check out the proposed head
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
-      - name: Check readiness workflow contract
-        run: pwsh -NoProfile -File tools/tests/check-pr-readiness-workflow.tests.ps1
       - name: Fetch the current base
         run: git fetch --no-tags origin "$PR_BASE_BRANCH:refs/remotes/origin/$PR_BASE_BRANCH"
+      - name: Check readiness workflow contract
+        run: pwsh -NoProfile -File tools/tests/check-pr-readiness-workflow.tests.ps1
+      - name: Check PR target contract
+        run: pwsh -NoProfile -File tools/tests/check-pr-target.tests.ps1
+      - name: Check PR readiness regressions
+        run: pwsh -NoProfile -File tools/tests/check-pr-readiness.tests.ps1
+      - name: Check Ship contract
+        run: pwsh -NoProfile -File tools/tests/check-ship-contract.tests.ps1
+      - name: Check factory progress contract
+        run: pwsh -NoProfile -File tools/tests/check-factory-progress.tests.ps1
+      - name: Check repository preflight contract
+        run: pwsh -NoProfile -File tools/tests/check-repository.tests.ps1
+      - name: Check factory evaluation contract
+        run: pwsh -NoProfile -File tools/tests/evaluate-factory.tests.ps1
+      - name: Check factory result contract
+        run: pwsh -NoProfile -File tools/tests/validate-factory-result.tests.ps1
+      - name: Check router contract
+        run: pwsh -NoProfile -File tools/check-router-contract.ps1
       - name: Check branch freshness and path overlap
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          pwsh -NoProfile -File tools/check-pr-readiness.ps1 -RepoRoot . -BaseBranch "$PR_BASE_BRANCH"
+          pwsh -NoProfile -File tools/check-pr-readiness.ps1 -RepoRoot . -BaseBranch "$PR_BASE_BRANCH" -DefaultBranch "$PR_DEFAULT_BRANCH"
           -HeadBranch "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
           -CurrentPullRequestNumber ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
+
+  mainline-target:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check out the proposed head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - name: Require the repository default branch as PR base
+        env:
+          PR_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          PR_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: pwsh -NoProfile -File tools/check-pr-target.ps1 -BaseBranch "$PR_BASE_BRANCH" -DefaultBranch "$PR_DEFAULT_BRANCH"
