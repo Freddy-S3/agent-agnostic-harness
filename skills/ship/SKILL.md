@@ -24,6 +24,10 @@ Use `none` or `not applicable` for fields that do not apply, and include the com
 /ship [--plan-mode <auto|fast|standard|deep>] [--plan-within <duration>] <task description>
 ```
 
+A human-typed `/ship <task>` selects professional delivery mode: set `mode: delivery` and `director: /ship` before preflight, regardless of the working directory or ordinary personal default.
+When a router or the harness selects `/ship` automatically for an ordinary request, inherit the current `mode` and `director`; an automatic Ship run under personal mode remains gate-free.
+The direct command is the user's delivery-mode switch; `/freddy` remains the delivery router when the user does not type `/ship`.
+
 `--plan-mode` is optional and defaults to `auto`.
 `auto` selects the smallest planning mode that preserves correctness; `fast`, `standard`, and `deep` explicitly select a mode.
 `--plan-within <duration>` is optional and has no default.
@@ -63,7 +67,7 @@ Keep one ledger per active task and never overwrite an unrelated active one.
 ```text
 status: active | paused
 mode: personal | delivery
-director: /freddy | /faruk | none
+director: /freddy | /faruk | /ship | none
 owner: /ship
 phase: plan | implement | synthesize | review | reflect
 gate: none | 1 | 2 | 3
@@ -147,7 +151,7 @@ Use phase boundaries (Gate 1, Gate 2, conditional Gate 3, or the automatic phase
 - **Handoff / fork** — only when something is actually leaving this session: a fresh chat, a new harness, a colleague, or a paused/side task branched mid-phase. This is the existing gate-reply `fork` behavior above — write/refresh the handoff artifact, then resume with `/ship continue <ticket-id>`.
 - **Subagent delegation** — the remaining work is scoped tightly enough to run unattended (a parallel-wave worker, a focused review or build check). Hand it only its sub-task, the handoff artifact, and the reference file path; take back a compact report. If the delegation is not independent, keep it sequential.
 
-**Orchestration vs. discipline:** `/ship` is user- and model-invocable: a human can start it with the slash command, and the harness starts it automatically for file-changing work. It owns Gate 1, Gate 2, the conditional Gate 3, and the fork wording above. The phases it drives (PLAN, NEWFEATURE/DEBUGGING, CLOSING) are model-invoked reusable disciplines: each can also fire on its own outside `/ship` when a task only needs that one piece. Driving them through `/ship` does not change their own internal judgment — it only means the gates and handoff/fork decisions in this file are `/ship`'s to make, not theirs.
+**Orchestration vs. discipline:** `/ship` is user- and model-invocable: a human can start it with the slash command, and the harness starts it automatically for file-changing work. A human-typed command selects delivery mode; an automatic selection inherits the active route. It owns Gate 1, Gate 2, the conditional Gate 3, and the fork wording above. The phases it drives (PLAN, NEWFEATURE/DEBUGGING, CLOSING) are model-invoked reusable disciplines: each can also fire on its own outside `/ship` when a task only needs that one piece. Driving them through `/ship` does not change their own internal judgment — it only means the gates and handoff/fork decisions in this file are `/ship`'s to make, not theirs.
 
 ### Scoped Project Context
 

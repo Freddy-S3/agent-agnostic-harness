@@ -18,6 +18,8 @@ function Assert($condition, [string]$label) {
 
 $root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
 $ship = Get-Content -Raw -LiteralPath (Join-Path $root 'skills\ship\SKILL.md')
+$core = Get-Content -Raw -LiteralPath (Join-Path $root 'instructions\AGENTS.md')
+$router = Get-Content -Raw -LiteralPath (Join-Path $root 'skills\faruk\ROUTER-CONTRACT.md')
 $harness = Get-Content -Raw -LiteralPath (Join-Path $root 'HARNESS.md')
 
 Write-Host 'check-ship-contract.tests' -ForegroundColor Cyan
@@ -36,6 +38,13 @@ Assert ($ship -match 'Repository: <resolved Git root and commit state') 'Gate 1 
 Assert ($ship -match 'missing - initialization required') 'missing repositories are visible at Gate 1'
 Assert ($ship -match 'tools/check-repository\.ps1 -Path <target> -Initialize') 'initialization happens only after proceed'
 Assert ($harness -match 'tools/check-repository\.ps1') 'harness guide documents repository preflight'
+Assert ($core -match 'human-typed `/ship` also runs delivery mode') 'direct Ship invocation selects delivery mode'
+Assert ($core -match 'automatically.*`/ship` inherits the current route') 'automatic Ship preserves the active route'
+Assert ($router -match 'human-typed `/ship <task>` starts a delivery-mode route') 'router contract records direct Ship mode'
+Assert ($router -match 'selected automatically by `/faruk`.*preserves the existing') 'router contract preserves personal auto-Ship mode'
+Assert ($ship -match 'human-typed `/ship <task>` selects professional delivery mode') 'Ship records direct invocation behavior'
+Assert ($ship -match 'automatically for an ordinary request.*inherit the current') 'Ship records automatic invocation behavior'
+Assert ($harness -match 'When you type `/ship` yourself.*professional delivery mode') 'harness guide explains direct Ship mode'
 
 if ($script:Failures -gt 0) {
     Write-Host ("check-ship-contract.tests: {0} assertion(s) failed out of {1}" -f $script:Failures, $script:Ran) -ForegroundColor Red
