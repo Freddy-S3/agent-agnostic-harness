@@ -35,7 +35,7 @@
       {
         "id": "focused-checks",
         "origin": "replace with a representative task or incident",
-        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/tests/validate-factory-result.tests.ps1",
+        "command": "pwsh -NoProfile -File tools/tests/validate-factory-result.tests.ps1",
         "expectExit": 0,
         "maxDurationMs": 120000
       }

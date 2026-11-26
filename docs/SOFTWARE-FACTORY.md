@@ -35,6 +35,10 @@ Start from [`templates/software-factory/factory.manifest.json`](../templates/sof
 Keep the manifest in the project repository beside the workflow it describes.
 Review commands before running them because evaluation cases are executable local commands.
 
+In Codex, invoke `$replay` to run the current project's manifest, or `$replay <case-id>` for one case.
+Use `$replay --manifest <path>` for a manifest in a custom location.
+Closing invokes replay for factory or case changes and reuses matching evidence from Ship verification when available.
+
 Run a replay evaluation with:
 
 ```powershell
