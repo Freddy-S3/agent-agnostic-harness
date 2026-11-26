@@ -21,6 +21,12 @@ $ship = Get-Content -Raw -LiteralPath (Join-Path $root 'skills\ship\SKILL.md')
 $core = Get-Content -Raw -LiteralPath (Join-Path $root 'instructions\AGENTS.md')
 $router = Get-Content -Raw -LiteralPath (Join-Path $root 'skills\faruk\ROUTER-CONTRACT.md')
 $harness = Get-Content -Raw -LiteralPath (Join-Path $root 'HARNESS.md')
+$duck = Get-Content -Raw -LiteralPath (Join-Path $root 'skills\ship-rubber-duck\SKILL.md')
+
+$planPhase = [regex]::Match($ship, '(?ms)^### Phase 1-2: Plan[^\r\n]*\r?\n(.*?)^### Phase 3:').Groups[1].Value
+$implementPhase = [regex]::Match($ship, '(?ms)^### Phase 3: Implement[^\r\n]*\r?\n(.*?)^### Phase 4:').Groups[1].Value
+$reviewPhase = [regex]::Match($ship, '(?ms)^### Phase 5: Evaluate[^\r\n]*\r?\n(.*?)^### Phase 6:').Groups[1].Value
+$duckLink = '\[Ship rubber duck\]\(\.\./ship-rubber-duck/SKILL\.md\)'
 
 Write-Host 'check-ship-contract.tests' -ForegroundColor Cyan
 
@@ -51,6 +57,13 @@ Assert ($ship -match 'pull request target is always the repository default branc
 Assert ($ship -match 'At closeout, verify `gh pr view <number> --json baseRefName` reports that default branch') 'Ship verifies the actual GitHub PR base at closeout'
 Assert ($ship -match 'Never count a merge into a feature branch as delivery') 'Ship does not count feature-branch merges as completion'
 Assert ($harness -match 'When you type `/ship` yourself.*professional delivery mode') 'harness guide explains direct Ship mode'
+
+Assert ($duck -match '(?ms)\A---\r?\nname: ship-rubber-duck\r?\n.*?^---\s.*^## Planning\r?$.*^## Review\r?$.*^## Result\r?$') 'the portable skill defines planning, review, and a result'
+Assert ($duck -notmatch '(?m)^disable-model-invocation:\s*true') 'the skill remains model-invocable'
+Assert ($planPhase -match "(?s)Then run .*?Before presenting Gate 1 or handing a personal-mode plan to implementation, run $duckLink in planning mode\..*?GATE 1 - PLAN") 'the settled plan invokes the duck before Gate 1 and personal implementation'
+Assert ($implementPhase -match '(?s)Require a clear planning rubber-duck result for the current plan before implementation, including on resume and in personal mode\..*?Load NEWFEATURE') 'implementation checks for a current planning result before loading implementation skills'
+Assert ($reviewPhase -match "(?s)The synthesis owner must reconcile duplicate findings.*?Before finalizing .*? verdict, run $duckLink in review mode against the settled diff and validation evidence\..*?GATE 2 - CODE REVIEW") 'the settled review invokes the duck before the verdict'
+Assert ($reviewPhase -match '(?s)Require a current review rubber-duck result to publish a verdict or leave Evaluate, including after a review rerun or resume\..*?Personal mode and the trivial/config-only .*? shortcut still require the check\..*?GATE 2 - CODE REVIEW') 'review reruns, resumes, and gate-free paths require a current result'
 
 if ($script:Failures -gt 0) {
     Write-Host ("check-ship-contract.tests: {0} assertion(s) failed out of {1}" -f $script:Failures, $script:Ran) -ForegroundColor Red
