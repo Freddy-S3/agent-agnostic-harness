@@ -42,6 +42,9 @@ The desired versioned ruleset at `config/github/main-ruleset.json` keeps `main` 
 
 The versioned ruleset at `config/github/non-default-branch-target-ruleset.json` requires both `check` and `mainline-target` before any non-default branch can accept a pull request.
 
+The active live ruleset is GitHub repository ruleset `28130649`.
+It covers all branches except `main`, has no bypass actors, and requires both status checks.
+
 It intentionally does not require a GitHub approval count because the professional `/ship` review gate is the human approval boundary for this single-owner repository.
 
 GitHub rejected the merge-queue rule for this public personal repository through the available ruleset API.

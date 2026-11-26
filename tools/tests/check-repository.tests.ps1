@@ -6,6 +6,8 @@ $plain = Join-Path $root 'plain'
 $nested = Join-Path $root 'nested-parent'
 $repo = Join-Path $root 'repo'
 $assertions = 0
+$shellName = if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' }
+$shellPath = Join-Path $PSHOME $shellName
 
 function Assert-Equal([object] $Actual, [object] $Expected, [string] $Message) {
     if ($Actual -ne $Expected) { throw "$Message. Expected '$Expected', got '$Actual'." }
@@ -13,8 +15,22 @@ function Assert-Equal([object] $Actual, [object] $Expected, [string] $Message) {
 }
 
 function Invoke-Check([string[]] $Arguments) {
-    $output = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $checker @Arguments 2>&1)
-    [pscustomobject]@{ Code = $LASTEXITCODE; Json = (($output | Where-Object { $_ -is [string] }) -join [Environment]::NewLine | ConvertFrom-Json) }
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $shellPath
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $processArguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $checker) + $Arguments
+    foreach ($argument in $processArguments) { $startInfo.ArgumentList.Add([string]$argument) }
+    $process = [System.Diagnostics.Process]::Start($startInfo)
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+    [pscustomobject]@{
+        Code = $process.ExitCode
+        Json = ($stdout | ConvertFrom-Json)
+        Error = $stderr
+    }
 }
 
 try {
