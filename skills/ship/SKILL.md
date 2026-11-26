@@ -94,6 +94,13 @@ At startup and each phase transition, capture the available wall-clock timestamp
 At Gate 1, report compact planning telemetry: preflight elapsed, planning elapsed, tool-call count, number of workers launched, and whether any delegation or timing measurement was unavailable.
 Store the same summary in the ledger's `timing` field so a later run can distinguish model deliberation, tool latency, and worker startup overhead without replaying the whole conversation.
 
+For gate-free personal runs, record the same phase timestamps and elapsed durations in the ledger even though there is no Gate 1 report.
+
+When the user reports an unexpectedly slow run, or environment failures require multiple recovery attempts, preserve a concise retrospective before deleting the completed ledger: task scope, measured elapsed time if available, failed paths, and the successful fallback.
+Do not estimate missing timings.
+Append one dated, non-sensitive line to `status/TRACKER.md` using the established format after reading `instructions/rules/queue-and-persistence.md`; if that write is unavailable, state the exact failure and retain the retrospective in the final report.
+Do not record routine successful runs.
+
 ### Write-Ahead Entries
 
 Death is unannounced, so the ledger records what is **about to** happen, not only what did.

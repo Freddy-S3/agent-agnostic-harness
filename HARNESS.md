@@ -46,12 +46,15 @@ For a nontrivial task, the checkpoints are:
 | Reflect | `done`    | Apply proposed harness updates and finish.                                        |
 
 Planning has no default time limit.
+`Planning reminder: default = auto + no time limit | fast | standard | deep | <mode> <duration>`
 At `/ship` startup, a compact planning setup prompt asks for `auto`, `fast`, `standard`, or `deep`, plus an optional planning window; reply `default` to continue with auto mode and no time limit.
 You can skip that prompt with explicit flags such as `/ship --plan-mode deep --plan-within 10m <task>`.
 Use `/ship --plan-within 5m <task>` when a professional task needs an explicit planning window; the plan reports whether the window was met or expired without weakening required checks.
+Gate 1 reports compact preflight/planning elapsed time and worker counts.
+For a gate-free personal run, measured elapsed time and any repeated environment failures are retained in the task closeout when the run was unusually slow.
 Every human gate is emitted as a standalone visible response containing its heading, decision data, findings, and reply options.
 Elapsed-time and worker-count telemetry appears separately and never replaces or hides the gate text.
-Reply `proceed` at Gate 1; every approved implementation also creates or updates `docs/PROJECT-CONTEXT.md` for faster future sessions.
+Reply `proceed` at Gate 1; every approved implementation creates or updates `docs/PROJECT-CONTEXT.md` for faster future sessions.
 In professional mode, Ship checks the target with `tools/check-repository.ps1` before branch/worktree setup.
 It reports the resolved Git root, detects nested repositories, and shows `missing - initialization required` at Gate 1 when a downloaded or generated folder has no Git metadata.
 After `proceed`, it may initialize Git metadata explicitly; personal mode skips this check and does not initialize Git implicitly.

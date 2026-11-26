@@ -32,6 +32,8 @@ Assert ($ship -match 'Elapsed-time.*never replace') 'telemetry cannot replace ga
 Assert ($ship -match 'After every `proceed`, schedule one context worker') 'proceed always schedules context capture'
 Assert ($ship -notmatch 'proceed \+ context') 'ship no longer exposes the optional context shortcut'
 Assert ($harness -notmatch 'proceed \+ context') 'harness guide no longer exposes the optional context shortcut'
+Assert ($ship -match 'Planning reminder: default = auto \+ no time limit') 'Ship displays the quick mode and timing reminder'
+Assert ($ship -match 'Planning setup\? Reply `default`') 'Ship asks one compact mode and timing question'
 Assert ($ship -match 'tools/check-repository\.ps1 -Path <target>') 'professional Ship checks the target repository'
 Assert ($ship -match 'Personal mode skips this preflight') 'personal mode skips repository initialization'
 Assert ($ship -match 'Repository: <resolved Git root and commit state') 'Gate 1 shows repository state'
