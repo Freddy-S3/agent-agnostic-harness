@@ -65,7 +65,8 @@ In professional `/ship` runs, Gate 2 keeps a runnable local surface alive and in
 If no runnable surface exists or startup is blocked, Gate 2 states that explicitly instead of presenting automated results as a substitute for hand testing.
 Professional-mode pull request checks opt into an auto-merge guard before human review; personal-mode pull request work leaves GitHub auto-merge available.
 Every pull request targets the repository default branch, and the readiness workflow rejects feature-branch bases.
-The non-default branch ruleset requires the `mainline-target` check so a PR cannot be merged into a feature branch and mistaken for a completed delivery.
+The `/pr` workflow refuses non-default bases, and `mainline-target` visibly fails if a PR is retargeted to a feature branch.
+GitHub protection is configured on the default branch; a manual merge into an unprotected feature branch remains possible outside the harness workflow.
 Every Ship gate is rendered in full with its concrete fields, evidence, findings, and reply options; summaries may accompany a gate but never replace it.
 When a recurring correction is mechanically checkable, `/closing` promotes it to a test, lint rule, validator, or API constraint instead of growing prose by default.
 

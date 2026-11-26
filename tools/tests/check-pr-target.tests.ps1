@@ -59,16 +59,13 @@ $r = Invoke-TargetCheck '' 'main'
 Assert ($r.code -eq 4) 'missing branch data fails closed'
 
 $workflow = Get-Content -Raw -LiteralPath (Join-Path $repoRoot '.github\workflows\pr-readiness.yml')
-Assert ($workflow -match 'mainline-target:') 'the required status check has its own stable job name'
+Assert ($workflow -match 'mainline-target:') 'the target gate has its own stable status name'
 Assert ($workflow -match 'tools/check-pr-target\.ps1') 'the workflow runs the mainline target gate'
 Assert ($workflow -match "- edited") 'changing a PR base reruns the target gate'
 
-$rulesetPath = Join-Path $repoRoot 'config\github\non-default-branch-target-ruleset.json'
-$ruleset = Get-Content -Raw -LiteralPath $rulesetPath | ConvertFrom-Json
-$requiredChecks = @($ruleset.rules[0].parameters.required_status_checks | ForEach-Object { $_.context })
-Assert ($requiredChecks -contains 'mainline-target') 'non-default branches require the target gate'
-Assert ($requiredChecks -contains 'check') 'non-default branches require the readiness check too'
-Assert ($ruleset.conditions.ref_name.exclude -contains 'refs/heads/main') 'the non-default branch ruleset leaves main protection separate'
+$guide = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'docs\PR-CONFLICT-PREVENTION.md')
+Assert ($guide -match 'GitHub does not provide a safe repository-wide required-check rule') 'the guide records why non-default branch protection is not configured globally'
+Assert (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'config\github\non-default-branch-target-ruleset.json'))) 'the invalid repository-wide ruleset is not shipped'
 
 if ($script:Failures -gt 0) {
     Write-Host ("check-pr-target.tests: {0} assertion(s) failed out of {1}" -f $script:Failures, $script:Ran) -ForegroundColor Red

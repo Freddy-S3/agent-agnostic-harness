@@ -28,7 +28,8 @@ This repository is the portable agent-agnostic harness used by Codex, Claude Cod
 - Elapsed-time and worker telemetry never replaces or hides human-gate text.
 - `proceed` always creates or updates `docs/PROJECT-CONTEXT.md` after implementation state is available.
 - Every pull request targets the repository default branch; dependent changes are promoted together instead of merged into a feature-branch parent.
-- The `mainline-target` status and active GitHub ruleset `28130649` prevent feature-branch PR merges from being counted as delivery.
+- `/pr` refuses non-default PR bases, and the `mainline-target` status fails when a PR targets a feature branch.
+- GitHub protection is configured on `main`; an unprotected feature-branch PR can still be manually merged outside the harness workflow.
 - Factory results use explicit statuses, source-fresh evidence, progress signals, resource budgets, and side-effect confirmation.
 - JSONL progress logs are checked independently for idle and repeated-signature loops before a worker lane is accepted.
 - Replay evaluations use versioned manifests and preserve case origin, expected outcome, latency, and optional run metrics.

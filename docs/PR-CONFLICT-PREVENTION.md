@@ -22,9 +22,11 @@ Personal-mode callers omit `-ProfessionalMode`, so GitHub auto-merge remains ava
 
 The `Pull request readiness` workflow checks the actual PR base against the repository default and runs the same readiness gate against every proposed head with read-only permissions.
 
-The `mainline-target` status is required before a PR can merge into any non-default branch.
+The `mainline-target` status fails when a pull request targets anything other than the repository default branch.
 
-This prevents a green-looking feature-branch merge from being mistaken for delivery to the default branch.
+The `/pr` workflow refuses to create or update a pull request with a non-default base.
+Together these guards prevent normal harness delivery from being recorded against a feature branch.
+They do not prevent a person from manually merging a pull request into an unprotected non-default branch.
 
 `docs/CHAT-HANDOFF.md` is generated coordination state.
 
@@ -40,13 +42,11 @@ When GitHub supports it for this repository, the merge queue remains the final s
 
 The desired versioned ruleset at `config/github/main-ruleset.json` keeps `main` pull-request-only, requires the readiness check, prevents force pushes, and serializes one squash merge at a time.
 
-The versioned ruleset at `config/github/non-default-branch-target-ruleset.json` requires both `check` and `mainline-target` before any non-default branch can accept a pull request.
-
-The active live ruleset is GitHub repository ruleset `28130649`.
-It covers all branches except `main`, has no bypass actors, and requires both status checks.
+The compatible live fallback is versioned at `config/github/main-protection-ruleset.json` and keeps pull requests, readiness, squash-only merges, and no force pushes enforced on `main`.
 
 It intentionally does not require a GitHub approval count because the professional `/ship` review gate is the human approval boundary for this single-owner repository.
 
 GitHub rejected the merge-queue rule for this public personal repository through the available ruleset API.
 
-The compatible live fallback is versioned at `config/github/main-protection-ruleset.json` and keeps pull requests, readiness, squash-only merges, and no force pushes enforced on `main`.
+GitHub does not provide a safe repository-wide required-check rule for blocking non-default PR bases: applying required checks to every non-default branch also blocks ordinary pushes to feature branches before those checks exist.
+Keep `main` protected and enforce the default-branch target in `/pr`, Ship, and the pull-request readiness workflow.
